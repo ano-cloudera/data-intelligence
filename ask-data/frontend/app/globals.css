@@ -1,0 +1,364 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --color-sidebar-bg: #08004d;
+  --color-sidebar-surface: rgba(255, 255, 255, 0.04);
+  --color-page-bg: #f3f5fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f6fb;
+  --color-surface-subtle: #edeff5;
+  --color-surface-strong: #f8f9fd;
+  --color-border-soft: #e6e9f2;
+  --color-border-strong: #cbd1e1;
+  --color-ink-strong: #191c1f;
+  --color-ink-muted: #474650;
+  --color-ink-subtle: #777681;
+  --color-brand-orange: #ff7a2f;
+  --color-action-primary: #5c63f2;
+  --color-action-primary-hover: #4c53e8;
+  --color-action-primary-pressed: #4249d8;
+  --color-action-soft: #e3e4ff;
+  --color-danger-strong: #ba1a1a;
+  --radius-panel: 22px;
+  --radius-control: 16px;
+  --radius-pill: 999px;
+  --shadow-card: 0 18px 38px rgba(15, 23, 42, 0.06);
+  --shadow-accent: 0 14px 28px rgba(92, 99, 242, 0.26);
+  --space-page-x: var(--space-8);
+  --space-page-y: var(--space-8);
+  --space-section: var(--space-6);
+  --space-card: var(--space-6);
+  --space-card-lg: var(--space-8);
+  --shell-sidebar-w: 18rem;
+  --shell-header-h: 4rem;
+  --layout-max-w: 100rem;
+  --font-size-page-title: clamp(2.25rem, 3vw, 3rem);
+  --font-size-page-subtitle: 1.125rem;
+  --font-size-section-title: 1.5rem;
+  --font-size-card-title: 1.25rem;
+  --font-size-kpi-value: clamp(2rem, 2.8vw, 2.75rem);
+  --font-size-kpi-label: 0.75rem;
+  --font-size-body: 1rem;
+  --font-size-body2: 0.875rem;
+  --font-size-helper: 0.8125rem;
+  --font-size-meta: 0.75rem;
+  --font-size-badge: 0.75rem;
+  --font-size-table: 0.875rem;
+  --font-size-filter: 0.875rem;
+  --font-weight-page-title: 700;
+  --font-weight-section-title: 700;
+  --font-weight-card-title: 700;
+  --font-weight-kpi-value: 700;
+  --line-height-tight: 1.06;
+  --line-height-heading: 1.18;
+  --line-height-body: 1.75;
+  --line-height-body2: 1.57;
+  --line-height-meta: 1.35;
+}
+
+html {
+  background: var(--color-page-bg);
+}
+
+body {
+  min-height: 100vh;
+  background: var(--color-page-bg);
+  color: var(--color-ink-strong);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  line-height: 1.75;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv01" 1, "cv02" 1, "cv03" 1, "cv11" 1;
+}
+
+h1, h2, h3, h4, h5, h6,
+.font-headline {
+  font-family: "Outfit", "Inter", "Segoe UI", sans-serif;
+}
+
+code, pre, .font-mono {
+  font-family: "JetBrains Mono", "Fira Code", "Menlo", monospace;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--color-page-bg);
+}
+
+.app-sidebar {
+  background:
+    linear-gradient(180deg, rgba(18, 10, 92, 0.18) 0%, rgba(8, 0, 77, 0) 22%),
+    var(--color-sidebar-bg);
+}
+
+.app-topbar {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.page-canvas {
+  margin-inline: auto;
+  max-width: var(--layout-max-w);
+  padding-inline: var(--space-page-x);
+  padding-top: var(--space-page-y);
+  padding-bottom: var(--space-page-y);
+}
+
+.page-header-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+}
+
+.page-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-section);
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  border-radius: 1.125rem;
+  background: var(--color-surface-muted);
+  padding: var(--space-2);
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.panel-grid {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.stack-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.card-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.sticky-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.topbar-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1279px) {
+  :root {
+    --shell-sidebar-w: 15rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --space-page-x: 1rem;
+    --space-page-y: 1rem;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --space-page-x: 0.875rem;
+    --space-page-y: 0.875rem;
+    --space-card: 1rem;
+    --space-card-lg: 1.25rem;
+  }
+
+  .page-canvas {
+    padding-top: 1rem;
+  }
+
+  .topbar-meta {
+    gap: 0.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .metric-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.page-title {
+  font-family: "Outfit", "Inter", "Segoe UI", sans-serif;
+  font-size: var(--font-size-page-title);
+  font-weight: var(--font-weight-page-title);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.035em;
+  color: var(--color-ink-strong);
+}
+
+.page-subtitle {
+  max-width: 52rem;
+  font-size: var(--font-size-page-subtitle);
+  font-weight: 500;
+  line-height: 1.65;
+  color: var(--color-ink-muted);
+}
+
+.meta-kicker {
+  font-size: var(--font-size-meta);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-subtle);
+}
+
+.surface-frame {
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-surface);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-card);
+}
+
+.metric-value {
+  font-family: "Inter", "Segoe UI", sans-serif;
+  font-size: var(--font-size-kpi-value);
+  font-weight: var(--font-weight-kpi-value);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.table-meta {
+  font-size: var(--font-size-helper);
+  line-height: var(--line-height-meta);
+  color: var(--color-ink-muted);
+}
+
+.section-subtitle {
+  margin-top: 0.35rem;
+  font-size: var(--font-size-helper);
+  font-weight: 600;
+  line-height: var(--line-height-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-subtle);
+}
+
+.meta-label {
+  font-size: var(--font-size-meta);
+  font-weight: 600;
+  line-height: var(--line-height-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-subtle);
+}
+
+.field-label {
+  font-size: var(--font-size-helper);
+  font-weight: 600;
+  line-height: var(--line-height-meta);
+  color: var(--color-ink-muted);
+}
+
+.body-copy {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--color-ink-muted);
+}
+
+.body-strong {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  line-height: var(--line-height-body);
+  color: var(--color-ink-strong);
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.interactive-ring {
+  outline: none;
+}
+
+.interactive-ring:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--color-action-primary),
+    0 0 0 6px rgba(92, 99, 242, 0.12);
+}
+
+::selection {
+  background: rgba(113, 116, 250, 0.18);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0A1929; }
+::-webkit-scrollbar-thumb { background: #1E3A5F; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #2D5A8F; }
+
+/* === Icon box wrapper (stat/feature icons) === */
+.icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.2), rgba(255, 107, 0, 0.05));
+  color: var(--color-brand-orange);
+}
+
+.numeric {
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums lining-nums;
+}

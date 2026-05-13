@@ -1,0 +1,240 @@
+================================================================================
+  CLOUDERA PRICING ESTIMATOR - FRONTEND STACK REFERENCE
+================================================================================
+
+--------------------------------------------------------------------------------
+1. PROGRAMMING LANGUAGE & FRAMEWORK
+--------------------------------------------------------------------------------
+
+Language   : TypeScript (^5.3.3)
+Framework  : React 18 (^18.2.0)
+Build Tool : Vite (^5.0.11)
+Routing    : React Router DOM v6 (^6.21.3)
+UI Library : Material UI (MUI) v5 (^5.15.6)
+
+--------------------------------------------------------------------------------
+2. KEY DEPENDENCIES
+--------------------------------------------------------------------------------
+
+@mui/material              ^5.15.6    - UI Component library
+@mui/icons-material        ^5.15.6    - MUI Icon set
+@mui/x-data-grid           ^6.19.3    - Data grid component
+@emotion/react             ^11.11.3   - CSS-in-JS (MUI dependency)
+@emotion/styled            ^11.11.0   - Styled components (MUI dependency)
+react-hook-form            ^7.49.3    - Form management
+recharts                   ^2.10.4    - Charts & data visualization
+axios                      ^1.6.5     - HTTP client
+jspdf + jspdf-autotable    ^2.5.1     - PDF export
+xlsx / xlsx-js-style       ^0.18.5    - Excel export
+react-markdown             ^10.1.0    - Markdown rendering
+@google/genai              ^1.39.0    - Google Generative AI (Gemini)
+
+--------------------------------------------------------------------------------
+3. FONTS
+--------------------------------------------------------------------------------
+
+Source     : Google Fonts (loaded in index.html)
+
+Font Link  :
+  https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700
+  &family=Outfit:wght@300;400;500;600;700;800
+  &family=Inter:wght@300;400;500;600;700
+  &display=swap
+
+Fonts Used :
+  1. Inter         - Body / base font (default)
+  2. Outfit        - Headings (h1–h6)
+  3. JetBrains Mono - Code / monospace
+
+Font Sizes (MUI Typography):
+  h1         : 3rem       (48px)   | fontWeight: 700 | letterSpacing: -0.02em
+  h2         : 2.25rem    (36px)   | fontWeight: 600 | letterSpacing: -0.01em
+  h3         : 1.75rem    (28px)   | fontWeight: 600 | letterSpacing: -0.01em
+  h4         : 1.5rem     (24px)   | fontWeight: 500
+  h5         : 1.25rem    (20px)   | fontWeight: 500
+  h6         : 1rem       (16px)   | fontWeight: 500
+  subtitle1  : 1rem       (16px)   | fontWeight: 500
+  subtitle2  : 0.875rem   (14px)   | fontWeight: 500
+  body1      : 1rem       (16px)
+  body2      : 0.875rem   (14px)
+  button     : -          (-)      | fontWeight: 600 | textTransform: none
+  caption    : 0.75rem    (12px)
+  overline   : 0.75rem    (12px)   | fontWeight: 600 | letterSpacing: 0.08em | UPPERCASE
+
+--------------------------------------------------------------------------------
+4. ICONS USED (from @mui/icons-material)
+--------------------------------------------------------------------------------
+
+Page / Component          Icon Names
+----------------------------------------------------------------------------------
+Dashboard.tsx           : TrendingUp, Speed, AccountBalance, ArrowForward,
+                          Engineering, Storage, Psychology, AutoAwesome
+
+CDWEstimator.tsx        : Speed, Calculate, DataUsage, Refresh, Save
+
+CDEEstimator.tsx        : Storage, Speed, Calculate, Refresh, Save
+
+CAIEstimator.tsx        : Calculate, SmartToy, Science, Refresh, Save
+
+Summary.tsx             : Engineering, Psychology, Memory, Speed, Dns, Computer,
+                          PieChart, CheckCircle, Warning, Download
+
+AIAssistant.tsx         : AutoAwesome, Chat, Speed, Analytics, Lightbulb
+
+Settings.tsx            : AdminPanelSettings, SmartToy
+
+AppLayout.tsx           : Notifications, DarkMode, LightMode, Menu (as MenuIcon),
+                          SmartToy (as SmartToyIcon)
+
+AIChatInterface.tsx     : Send (as SendIcon), SmartToy (as AIIcon), Person,
+                          AutoAwesome, Close
+
+SmartAutoComplete.tsx   : AutoAwesome, Close, CheckCircle
+
+AIConfiguration.tsx     : Save, ExpandMore, Psychology, Tune, Memory
+
+--------------------------------------------------------------------------------
+5. COLOR PALETTE
+--------------------------------------------------------------------------------
+
+Primary (Orange):
+  main   : #FF6B00
+  light  : #FFA726
+  dark   : #E54E00
+
+Secondary (Blue):
+  main   : #0091DA
+  light  : #42A5F5
+  dark   : #0072AE
+
+Background:
+  default : #0B1A2A  (Deep navy)
+  paper   : #132F4C  (Card background)
+  body    : linear-gradient(135deg, #0A1929, #1A2332)
+
+Text:
+  primary   : #E3F2FD
+  secondary : #B0BEC5
+
+Semantic:
+  error   : #FF5252
+  warning : #FFA726
+  success : #00E676
+  info    : #0091DA
+
+Border Radius (global): 12px
+
+--------------------------------------------------------------------------------
+6. CODE EXAMPLES
+--------------------------------------------------------------------------------
+
+--- A. Install Font (index.html) ---
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+
+--- B. MUI Theme Setup (theme.ts) ---
+
+import { createTheme } from '@mui/material/styles';
+
+export const theme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: { main: '#FF6B00', light: '#FFA726', dark: '#E54E00', contrastText: '#FFFFFF' },
+    secondary: { main: '#0091DA', light: '#42A5F5', dark: '#0072AE', contrastText: '#FFFFFF' },
+    background: { default: '#0B1A2A', paper: '#132F4C' },
+    text: { primary: '#E3F2FD', secondary: '#B0BEC5' },
+  },
+  typography: {
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    h1: { fontFamily: '"Outfit", sans-serif', fontWeight: 700, fontSize: '3rem' },
+    h2: { fontFamily: '"Outfit", sans-serif', fontWeight: 600, fontSize: '2.25rem' },
+    h3: { fontFamily: '"Outfit", sans-serif', fontWeight: 600, fontSize: '1.75rem' },
+    h4: { fontFamily: '"Outfit", sans-serif', fontWeight: 500, fontSize: '1.5rem' },
+    h5: { fontFamily: '"Outfit", sans-serif', fontWeight: 500, fontSize: '1.25rem' },
+    h6: { fontFamily: '"Outfit", sans-serif', fontWeight: 500, fontSize: '1rem' },
+    body1: { fontSize: '1rem', lineHeight: 1.75 },
+    body2: { fontSize: '0.875rem', lineHeight: 1.57 },
+    button: { fontWeight: 600, textTransform: 'none' },
+    caption: { fontSize: '0.75rem' },
+  },
+  shape: { borderRadius: 12 },
+});
+
+
+--- C. Wrap App with Theme (main.tsx) ---
+
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { theme } from './theme';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <ThemeProvider theme={theme}>
+    <CssBaseline />
+    <App />
+  </ThemeProvider>
+);
+
+
+--- D. Using Icons ---
+
+import { Calculate, Refresh, Save, Storage, Speed } from '@mui/icons-material';
+
+// Usage in JSX
+<Calculate sx={{ color: '#FF6B00', fontSize: 24 }} />
+<Refresh sx={{ mr: 1 }} />
+<Save fontSize="small" />
+
+
+--- E. Styled Card Component (example) ---
+
+import { Card, CardContent, Typography, Box } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+
+<Card sx={{
+  backgroundColor: '#132F4C',
+  border: '1px solid rgba(255, 107, 0, 0.15)',
+  borderRadius: 2,
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:hover': {
+    borderColor: 'rgba(255, 107, 0, 0.4)',
+    boxShadow: '0px 8px 24px rgba(255, 107, 0, 0.2)',
+  }
+}}>
+  <CardContent>
+    <Typography variant="h6" color="primary">Title</Typography>
+    <Typography variant="body2" color="text.secondary">Description</Typography>
+  </CardContent>
+</Card>
+
+
+--- F. Gradient Button ---
+
+<Button
+  variant="contained"
+  sx={{
+    background: 'linear-gradient(135deg, #FF6B00 0%, #E54E00 100%)',
+    borderRadius: 2,
+    fontWeight: 600,
+    padding: '10px 24px',
+    '&:hover': {
+      background: 'linear-gradient(135deg, #FFA726 0%, #F25C00 100%)',
+      transform: 'translateY(-1px)',
+      boxShadow: '0px 4px 12px rgba(255, 107, 0, 0.35)',
+    }
+  }}
+>
+  Calculate
+</Button>
+
+
+--- G. Custom Scrollbar (CSS in index.html) ---
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0A1929; }
+::-webkit-scrollbar-thumb { background: #1E3A5F; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #2D5A8F; }
+
+================================================================================
