@@ -556,32 +556,41 @@ Contoh: `https://bjt-ask-data-frontend.ml-xxxxx.cloudera.site`
 - [ ] `download_model.py` dijalankan → model ter-cache di `~/.cache/huggingface/hub/models--Qwen--Qwen2.5-14B-Instruct-AWQ/` (~8–9 GB)
 - [ ] ChromaDB disiapkan → `col.count()` = 17
 
-### APP 1 — Qwen LLM
+### APP 1 — Qwen LLM (`bjt-ask-data-qwen`)
 
-- [ ] Application dibuat dengan GPU L40 profile
+- [ ] Application name: `bjt-ask-data-qwen`, subdomain: `bjt-ask-data-qwen`
+- [ ] Script: `bank-jawa-timur/ask-data/qwen_inference/qwen_entry.py`
+- [ ] Engine Profile: GPU L40, Python 3.11
 - [ ] Env vars diisi: `QWEN_MODEL`, `QWEN_API_KEY`, `QWEN_MAX_MODEL_LEN`, `QWEN_GPU_MEMORY_UTILIZATION`, `QWEN_TENSOR_PARALLEL_SIZE`
+- [ ] Enable Unauthenticated Access: ☑
 - [ ] Status: **Running**
-- [ ] `curl $QWEN_URL/v1/models` → model ID terdaftar
-- [ ] `curl $QWEN_URL/v1/chat/completions` → response dari Qwen
-- [ ] **URL Qwen dicatat** ← wajib untuk step berikutnya
+- [ ] `curl https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site/v1/models` → model ID terdaftar
+- [ ] `curl .../v1/chat/completions` → response dari Qwen
+- [ ] **URL `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site` dicatat** ← wajib untuk APP 2 & 3
 
-### APP 2 — Backend
+### APP 2 — Backend (`bjt-ask-data-backend`)
 
-- [ ] Application dibuat dengan CPU 4 vCPU 8 GB
-- [ ] `QWEN_BASE_URL` = URL Qwen + `/v1`
-- [ ] `OLLAMA_BASE_URL` = URL Qwen tanpa `/v1`
-- [ ] `CHROMA_PERSIST_DIR` = absolute path `/home/cdsw/...`
+- [ ] Application name: `bjt-ask-data-backend`, subdomain: `bjt-ask-data-backend`
+- [ ] Script: `bank-jawa-timur/ask-data/backend/backend_entry.py`
+- [ ] Engine Profile: CPU 4 vCPU 8 GB, Python 3.11
+- [ ] `QWEN_BASE_URL` = `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site/v1`
+- [ ] `OLLAMA_BASE_URL` = `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site`
+- [ ] `CHROMA_PERSIST_DIR` = `/home/cdsw/bank-jawa-timur/ask-data/chroma_db`
+- [ ] Enable Unauthenticated Access: ☑
 - [ ] Status: **Running**
 - [ ] `/health` → `{"status":"ok"}`
 - [ ] `/health/db` → `{"status":"ok","database":"cai_sdx_se_indonesia"}`
 - [ ] `/rag/options` → `{"enabled":true,"collections":[{"document_count":17}]}`
 - [ ] `/chat/query` → jawaban + SQL + visualization
-- [ ] **URL Backend dicatat** ← wajib untuk APP 4
+- [ ] **URL `https://bjt-ask-data-backend.ml-xxxxx.cloudera.site` dicatat** ← wajib untuk APP 4
 
-### APP 3 — MCP Server
+### APP 3 — MCP Server (`bjt-ask-data-mcp`)
 
-- [ ] Application dibuat dengan CPU 2 vCPU 4 GB
-- [ ] `CHROMA_PERSIST_DIR` sama dengan APP 2
+- [ ] Application name: `bjt-ask-data-mcp`, subdomain: `bjt-ask-data-mcp`
+- [ ] Script: `bank-jawa-timur/ask-data/mcp_server/mcp_entry.py`
+- [ ] Engine Profile: CPU 2 vCPU 4 GB, Python 3.11
+- [ ] `CHROMA_PERSIST_DIR` = `/home/cdsw/bank-jawa-timur/ask-data/chroma_db` (sama dengan APP 2)
+- [ ] Enable Unauthenticated Access: ☑
 - [ ] Status: **Running**
 - [ ] `/health` → `{"status":"ok","service":"mcp-server"}`
 - [ ] `/tools` → 6 tools terdaftar
@@ -589,10 +598,13 @@ Contoh: `https://bjt-ask-data-frontend.ml-xxxxx.cloudera.site`
 - [ ] `dormant_risk_summary` → rows dengan risk levels
 - [ ] `rag_search` → 2 hasil dari bankjatim_docs
 
-### APP 4 — Frontend
+### APP 4 — Frontend (`bjt-ask-data-frontend`)
 
-- [ ] Application dibuat dengan CPU 2 vCPU 4 GB
-- [ ] `BACKEND_API_BASE_URL` = URL Backend tanpa trailing slash
+- [ ] Application name: `bjt-ask-data-frontend`, subdomain: `bjt-ask-data-frontend`
+- [ ] Script: `bank-jawa-timur/ask-data/frontend/frontend_entry.py`
+- [ ] Engine Profile: CPU 2 vCPU 4 GB, Python 3.11
+- [ ] `BACKEND_API_BASE_URL` = `https://bjt-ask-data-backend.ml-xxxxx.cloudera.site` (tanpa trailing slash)
+- [ ] Enable Unauthenticated Access: ☑
 - [ ] Status: **Running**
 - [ ] Welcome screen terbuka di browser
 - [ ] SQL chat: pertanyaan segmen → jawaban + bar chart
