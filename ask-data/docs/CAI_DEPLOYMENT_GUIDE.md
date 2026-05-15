@@ -137,8 +137,8 @@ print('Chunks:', col.count())
 
 | Field | Value |
 |---|---|
-| **Name** | `bank-jatim-qwen-llm` |
-| **Subdomain** | `bank-jatim-qwen-llm` _(auto-fill, bisa dibiarkan)_ |
+| **Name** | `bjt-ask-data-qwen` |
+| **Subdomain** | `bjt-ask-data-qwen` _(auto-fill, bisa dibiarkan)_ |
 | **Description** | `Qwen2.5-14B-Instruct-AWQ via vLLM — LLM inference server` |
 | **Script** | `bank-jawa-timur/ask-data/qwen_inference/qwen_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
@@ -185,12 +185,12 @@ Pantau progress di tab **Logs** Application.
 ### Step 1.5 — Catat URL dan Verifikasi
 
 Setelah status `Running`, klik nama Application untuk lihat URL-nya.
-Contoh URL: `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site`
+Contoh URL: `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site`
 
 Verifikasi dari terminal Workbench session:
 
 ```bash
-QWEN_URL="https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site"
+QWEN_URL="https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site"
 
 # Test vLLM models list
 curl $QWEN_URL/v1/models \
@@ -227,8 +227,8 @@ curl -X POST $QWEN_URL/v1/chat/completions \
 
 | Field | Value |
 |---|---|
-| **Name** | `bank-jatim-backend` |
-| **Subdomain** | `bank-jatim-backend` |
+| **Name** | `bjt-ask-data-backend` |
+| **Subdomain** | `bjt-ask-data-backend` |
 | **Description** | `FastAPI backend — NL to SQL, ChromaDB RAG, Impala CDW` |
 | **Script** | `bank-jawa-timur/ask-data/backend/backend_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
@@ -244,7 +244,7 @@ Centang: **☑ Enable Unauthenticated Access**
 | Key | Value | Keterangan |
 |---|---|---|
 | `LLM_PROVIDER` | `local_qwen` | Aktifkan Qwen sebagai LLM provider |
-| `QWEN_BASE_URL` | `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site/v1` | URL APP 1 + `/v1` |
+| `QWEN_BASE_URL` | `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site/v1` | URL APP 1 + `/v1` |
 | `QWEN_API_KEY` | `local-dev-token` | Sama dengan yang diset di APP 1 |
 | `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | Sama dengan yang diset di APP 1 |
 | `IMPALA_HOST` | `coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site` | Impala CDW host |
@@ -262,7 +262,7 @@ Centang: **☑ Enable Unauthenticated Access**
 | `CHROMA_PERSIST_DIR` | `/home/cdsw/bank-jawa-timur/ask-data/chroma_db` | Path absolut ChromaDB |
 | `CHROMA_COLLECTION` | `bankjatim_docs` | Nama collection |
 | `EMBED_MODEL` | `nomic-embed-text` | Embedding model via Ollama |
-| `OLLAMA_BASE_URL` | `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site` | URL APP 1 **tanpa** `/v1` |
+| `OLLAMA_BASE_URL` | `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site` | URL APP 1 **tanpa** `/v1` |
 
 > **Penting:**
 > - `QWEN_BASE_URL` = URL Qwen App + `/v1` di akhir
@@ -281,10 +281,10 @@ Tunggu status `Running`. Biasanya **1–3 menit** (tidak perlu download model).
 
 ### Step 2.5 — Catat URL dan Verifikasi
 
-URL contoh: `https://bank-jatim-backend.ml-xxxxx.cloudera.site`
+URL contoh: `https://bjt-ask-data-backend.ml-xxxxx.cloudera.site`
 
 ```bash
-BACKEND_URL="https://bank-jatim-backend.ml-xxxxx.cloudera.site"
+BACKEND_URL="https://bjt-ask-data-backend.ml-xxxxx.cloudera.site"
 
 # 1. App health
 curl $BACKEND_URL/health
@@ -327,8 +327,8 @@ curl -X POST $BACKEND_URL/chat/query \
 
 | Field | Value |
 |---|---|
-| **Name** | `bank-jatim-mcp-server` |
-| **Subdomain** | `bank-jatim-mcp-server` |
+| **Name** | `bjt-ask-data-mcp` |
+| **Subdomain** | `bjt-ask-data-mcp` |
 | **Description** | `MCP Server — structured tools for customer dormant analytics` |
 | **Script** | `bank-jawa-timur/ask-data/mcp_server/mcp_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
@@ -352,7 +352,7 @@ Centang: **☑ Enable Unauthenticated Access**
 | `CHROMA_PERSIST_DIR` | `/home/cdsw/bank-jawa-timur/ask-data/chroma_db` | **Harus sama** dengan APP 2 |
 | `CHROMA_COLLECTION` | `bankjatim_docs` | Nama collection |
 | `EMBED_MODEL` | `nomic-embed-text` | Embedding model via Ollama |
-| `OLLAMA_BASE_URL` | `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site` | URL APP 1 tanpa `/v1` |
+| `OLLAMA_BASE_URL` | `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site` | URL APP 1 tanpa `/v1` |
 
 ---
 
@@ -366,10 +366,10 @@ Tunggu status `Running`. Biasanya **1–2 menit**.
 
 ### Step 3.5 — Verifikasi Semua 6 Tools
 
-URL contoh: `https://bank-jatim-mcp-server.ml-xxxxx.cloudera.site`
+URL contoh: `https://bjt-ask-data-mcp.ml-xxxxx.cloudera.site`
 
 ```bash
-MCP_URL="https://bank-jatim-mcp-server.ml-xxxxx.cloudera.site"
+MCP_URL="https://bjt-ask-data-mcp.ml-xxxxx.cloudera.site"
 
 # 1. Health check
 curl $MCP_URL/health
@@ -433,8 +433,8 @@ curl -X POST $MCP_URL/tools/rag_search \
 
 | Field | Value |
 |---|---|
-| **Name** | `bank-jatim-frontend` |
-| **Subdomain** | `bank-jatim-frontend` |
+| **Name** | `bjt-ask-data-frontend` |
+| **Subdomain** | `bjt-ask-data-frontend` |
 | **Description** | `Next.js frontend — Ask Data UI Bank Jawa Timur` |
 | **Script** | `bank-jawa-timur/ask-data/frontend/frontend_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
@@ -449,11 +449,11 @@ Centang: **☑ Enable Unauthenticated Access**
 
 | Key | Value | Keterangan |
 |---|---|---|
-| `BACKEND_API_BASE_URL` | `https://bank-jatim-backend.ml-xxxxx.cloudera.site` | URL APP 2 — tanpa trailing slash |
+| `BACKEND_API_BASE_URL` | `https://bjt-ask-data-backend.ml-xxxxx.cloudera.site` | URL APP 2 — tanpa trailing slash |
 
 > **Tidak boleh ada trailing slash** di URL Backend.
-> Contoh benar: `https://bank-jatim-backend.ml-xxxxx.cloudera.site`
-> Contoh salah: `https://bank-jatim-backend.ml-xxxxx.cloudera.site/`
+> Contoh benar: `https://bjt-ask-data-backend.ml-xxxxx.cloudera.site`
+> Contoh salah: `https://bjt-ask-data-backend.ml-xxxxx.cloudera.site/`
 
 ---
 
@@ -474,7 +474,7 @@ info  - Ready in Xs
 ### Step 4.5 — Verifikasi End-to-End di Browser
 
 Buka URL Frontend Application di browser.
-Contoh: `https://bank-jatim-frontend.ml-xxxxx.cloudera.site`
+Contoh: `https://bjt-ask-data-frontend.ml-xxxxx.cloudera.site`
 
 **Test 1 — Welcome screen:**
 - Halaman terbuka, muncul greeting: _"Halo, saya Asisten Analitik Bank Jawa Timur"_
