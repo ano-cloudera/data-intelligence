@@ -3,7 +3,7 @@ import subprocess
 
 
 def main() -> int:
-    repo_dir = os.environ.get("REPO_DIR", "/home/cdsw/cai-se-indo-demo")
+    repo_dir = os.environ.get("REPO_DIR", "/home/cdsw/bank-jawa-timur")
     branch = os.environ.get("SYNC_BRANCH", "main")
     sync_mode = os.environ.get("SYNC_MODE", "safe").strip().lower()
 
