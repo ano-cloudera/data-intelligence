@@ -1,6 +1,6 @@
 # CAI Deployment Guide — Bank Jawa Timur PoC
 
-Deploy urutan wajib: **APP 1 Qwen LLM → APP 2 Backend → APP 3 MCP Server → APP 4 Frontend**
+Deploy urutan wajib: **Persiapan → APP 1 Qwen LLM → APP 2 Backend → APP 3 MCP Server → APP 4 Frontend**
 
 ---
 
@@ -15,6 +15,7 @@ python sync_project.py
 ```
 
 Verifikasi folder tersedia:
+
 ```bash
 ls /home/cdsw/bank-jawa-timur/ask-data/
 # Harus ada: backend/ frontend/ mcp_server/ qwen_inference/ docs/ scripts/ sql/
@@ -22,29 +23,79 @@ ls /home/cdsw/bank-jawa-timur/ask-data/
 
 ---
 
-### Step B — Siapkan ChromaDB (Vector Store)
+### Step B — Download Model Qwen ke Cache Session
+
+Download model **sebelum** deploy APP 1 supaya Application start tanpa perlu menunggu download (8–9 GB).
+Jalankan di **Workbench session** (bukan Application).
+
+**1. Set HuggingFace token di terminal session:**
+
+```bash
+export HUGGING_FACE_HUB_TOKEN=hf_xxxxxxxxxxxxxxxx
+```
+
+> Buat token di [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) — pilih tipe **Read**.
+
+**2. Jalankan script download:**
+
+```bash
+python bank-jawa-timur/ask-data/qwen_inference/download_model.py
+```
+
+Output yang diharapkan:
+
+```text
+INFO Model download: Qwen/Qwen2.5-14B-Instruct-AWQ
+INFO Cache dir: ~/.cache/huggingface/hub (default)
+...
+INFO Download complete. Local path: /home/cdsw/.cache/huggingface/hub/models--Qwen--Qwen2.5-14B-Instruct-AWQ/...
+INFO Found cached model: Qwen/Qwen2.5-14B-Instruct-AWQ (8.xx GB, 1 revision(s))
+INFO Model ready. You can now deploy the Qwen LLM Application.
+```
+
+**3. Verifikasi cache:**
+
+```bash
+du -sh ~/.cache/huggingface/hub/models--Qwen--Qwen2.5-14B-Instruct-AWQ/
+# Expected: ~8-9G
+```
+
+> Setelah model ter-cache, `HUGGING_FACE_HUB_TOKEN` **tidak perlu** diisi di env vars Application.
+
+**Opsional — Download model yang lebih kecil (jika VRAM terbatas):**
+
+```bash
+export QWEN_MODEL=Qwen/Qwen2.5-7B-Instruct-AWQ
+python bank-jawa-timur/ask-data/qwen_inference/download_model.py
+# ~4 GB, cocok untuk 1 GPU L40 dengan headroom lebih besar
+```
+
+---
+
+### Step C — Siapkan ChromaDB (Vector Store)
 
 ChromaDB tidak di-commit ke git, harus disiapkan manual.
-
-**Pilih salah satu cara:**
 
 **Option 1 — Upload dari Mac lokal (lebih cepat, sudah ada 17 chunks):**
 
 Dari terminal Mac lokal:
+
 ```bash
-# Zip dulu
 cd /Users/trianonurhikmat/Documents/Works/cloudera/account/bank-jawa-timur/ask-data
 zip -r chroma_db.zip chroma_db/
 ```
+
 Upload `chroma_db.zip` ke CAI Workbench session via File Upload UI, lalu di terminal session:
+
 ```bash
 cd /home/cdsw/bank-jawa-timur/ask-data
 unzip ~/chroma_db.zip
 ls chroma_db/
-# Harus ada folder chroma.sqlite3 dan subfolder chunks
+# Harus ada: chroma.sqlite3 dan subfolder chunk data
 ```
 
 **Option 2 — Re-ingest PDF di session (jika PDF sudah diupload ke session):**
+
 ```bash
 cd /home/cdsw/bank-jawa-timur/ask-data
 pip install -r backend/requirements.txt -q
@@ -52,7 +103,8 @@ PYTHONPATH=backend python scripts/ingest_documents.py
 # Expected output: Ingested X chunks into bankjatim_docs
 ```
 
-Verifikasi ChromaDB:
+**Verifikasi ChromaDB:**
+
 ```bash
 python3 -c "
 import chromadb
@@ -99,19 +151,21 @@ Centang: **☑ Enable Unauthenticated Access**
 
 ### Step 1.3 — Set Environment Variables
 
-Klik tab **Environment Variables**, tambahkan satu per satu:
+Klik tab **Environment Variables**, tambahkan:
 
-| Key | Value |
-|---|---|
-| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` |
-| `QWEN_API_KEY` | `local-dev-token` |
-| `QWEN_MAX_MODEL_LEN` | `8192` |
-| `QWEN_GPU_MEMORY_UTILIZATION` | `0.90` |
-| `QWEN_TENSOR_PARALLEL_SIZE` | `1` |
-| `HUGGING_FACE_HUB_TOKEN` | `<isi HF token kamu>` |
+| Key | Value | Keterangan |
+|---|---|---|
+| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | Harus cocok dengan model yang didownload di Step B |
+| `QWEN_API_KEY` | `local-dev-token` | Token autentikasi internal |
+| `QWEN_MAX_MODEL_LEN` | `8192` | Max context window (token) |
+| `QWEN_GPU_MEMORY_UTILIZATION` | `0.90` | 90% VRAM L40 (bisa turunkan ke 0.85 jika 2 GPU) |
+| `QWEN_TENSOR_PARALLEL_SIZE` | `1` | Set ke `2` jika pakai kedua GPU L40 |
 
-> Jika model sudah ter-cache di Workbench, `HUGGING_FACE_HUB_TOKEN` tidak wajib.
-> Jika pakai kedua L40 GPU, set `QWEN_TENSOR_PARALLEL_SIZE=2` dan `QWEN_GPU_MEMORY_UTILIZATION=0.85`.
+> **Jika model belum ter-cache** (skip Step B), tambahkan juga:
+> `HUGGING_FACE_HUB_TOKEN` = `hf_xxxxxxxxxxxxxxxx`
+>
+> **Jika pakai 2 GPU L40**, set:
+> `QWEN_TENSOR_PARALLEL_SIZE` = `2` dan `QWEN_GPU_MEMORY_UTILIZATION` = `0.85`
 
 ---
 
@@ -119,7 +173,10 @@ Klik tab **Environment Variables**, tambahkan satu per satu:
 
 Klik **Create Application**.
 
-Tunggu status berubah dari `Starting` → `Running`. Bisa memakan waktu **5–15 menit** pertama kali karena download model dari HuggingFace (~8 GB).
+Tunggu status berubah dari `Starting` → `Running`.
+
+- Jika model sudah ter-cache (Step B): **2–5 menit**
+- Jika model belum ter-cache (download saat start): **15–30 menit**
 
 Pantau progress di tab **Logs** Application.
 
@@ -130,15 +187,17 @@ Pantau progress di tab **Logs** Application.
 Setelah status `Running`, klik nama Application untuk lihat URL-nya.
 Contoh URL: `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site`
 
-**Verifikasi dari terminal Workbench session:**
+Verifikasi dari terminal Workbench session:
+
 ```bash
 QWEN_URL="https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site"
 
-# Test health proxy app
-curl $QWEN_URL/health
-# Expected: {"status":"ok","provider":"local_qwen",...}
+# Test vLLM models list
+curl $QWEN_URL/v1/models \
+  -H "Authorization: Bearer local-dev-token"
+# Expected: {"object":"list","data":[{"id":"Qwen/Qwen2.5-14B-Instruct-AWQ",...}]}
 
-# Test vLLM OpenAI endpoint
+# Test chat completions
 curl -X POST $QWEN_URL/v1/chat/completions \
   -H "Authorization: Bearer local-dev-token" \
   -H "Content-Type: application/json" \
@@ -146,15 +205,14 @@ curl -X POST $QWEN_URL/v1/chat/completions \
 # Expected: response JSON dengan content jawaban dari Qwen
 ```
 
-> **Simpan URL ini:** `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site`
-> Akan dipakai sebagai `QWEN_BASE_URL` di APP 2 dan `OLLAMA_BASE_URL` di APP 2 & 3.
+> **Simpan URL ini** → akan dipakai sebagai `QWEN_BASE_URL` dan `OLLAMA_BASE_URL` di APP 2 & 3.
 
 ---
 
 ## APP 2 — Backend Application
 
 **Tujuan:** FastAPI server — SQL generation, Impala query execution, ChromaDB RAG, session management.
-**Deploy setelah APP 1 running.**
+**Deploy setelah APP 1 Running.**
 
 ---
 
@@ -183,33 +241,33 @@ Centang: **☑ Enable Unauthenticated Access**
 
 ### Step 2.3 — Set Environment Variables
 
-| Key | Value |
-|---|---|
-| `LLM_PROVIDER` | `local_qwen` |
-| `QWEN_BASE_URL` | `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site/v1` |
-| `QWEN_API_KEY` | `local-dev-token` |
-| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` |
-| `IMPALA_HOST` | `coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site` |
-| `IMPALA_PORT` | `443` |
-| `IMPALA_HTTP_PATH` | `cliservice` |
-| `CDP_USER` | `triano` |
-| `CDP_PASS` | `<cdp-password>` |
-| `DB_NAME` | `cai_sdx_se_indonesia` |
-| `SESSION_BACKEND` | `sqlite` |
-| `SESSION_SQLITE_PATH` | `data/ask_data_sessions.db` |
-| `SESSION_TTL_MINUTES` | `60` |
-| `MEMORY_MAX_HISTORY` | `10` |
-| `GUARDRAILS_ENABLED` | `true` |
-| `CHROMA_ENABLED` | `true` |
-| `CHROMA_PERSIST_DIR` | `/home/cdsw/bank-jawa-timur/ask-data/chroma_db` |
-| `CHROMA_COLLECTION` | `bankjatim_docs` |
-| `EMBED_MODEL` | `nomic-embed-text` |
-| `OLLAMA_BASE_URL` | `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site` |
+| Key | Value | Keterangan |
+|---|---|---|
+| `LLM_PROVIDER` | `local_qwen` | Aktifkan Qwen sebagai LLM provider |
+| `QWEN_BASE_URL` | `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site/v1` | URL APP 1 + `/v1` |
+| `QWEN_API_KEY` | `local-dev-token` | Sama dengan yang diset di APP 1 |
+| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | Sama dengan yang diset di APP 1 |
+| `IMPALA_HOST` | `coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site` | Impala CDW host |
+| `IMPALA_PORT` | `443` | Port HTTPS |
+| `IMPALA_HTTP_PATH` | `cliservice` | HTTP path Impala |
+| `CDP_USER` | `triano` | CDP username |
+| `CDP_PASS` | `<cdp-password>` | CDP password |
+| `DB_NAME` | `cai_sdx_se_indonesia` | Database Impala |
+| `SESSION_BACKEND` | `sqlite` | Simpan sesi di SQLite lokal |
+| `SESSION_SQLITE_PATH` | `data/ask_data_sessions.db` | Path file SQLite |
+| `SESSION_TTL_MINUTES` | `60` | Sesi expired setelah 60 menit |
+| `MEMORY_MAX_HISTORY` | `10` | Max pesan history per sesi |
+| `GUARDRAILS_ENABLED` | `true` | Aktifkan PII blocking |
+| `CHROMA_ENABLED` | `true` | Aktifkan ChromaDB RAG |
+| `CHROMA_PERSIST_DIR` | `/home/cdsw/bank-jawa-timur/ask-data/chroma_db` | Path absolut ChromaDB |
+| `CHROMA_COLLECTION` | `bankjatim_docs` | Nama collection |
+| `EMBED_MODEL` | `nomic-embed-text` | Embedding model via Ollama |
+| `OLLAMA_BASE_URL` | `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site` | URL APP 1 **tanpa** `/v1` |
 
 > **Penting:**
 > - `QWEN_BASE_URL` = URL Qwen App + `/v1` di akhir
 > - `OLLAMA_BASE_URL` = URL Qwen App **tanpa** `/v1`
-> - `CHROMA_PERSIST_DIR` = absolute path, bukan `./chroma_db`
+> - `CHROMA_PERSIST_DIR` = absolute path `/home/cdsw/...`, bukan `./chroma_db`
 
 ---
 
@@ -225,7 +283,6 @@ Tunggu status `Running`. Biasanya **1–3 menit** (tidak perlu download model).
 
 URL contoh: `https://bank-jatim-backend.ml-xxxxx.cloudera.site`
 
-**Verifikasi dari terminal Workbench session:**
 ```bash
 BACKEND_URL="https://bank-jatim-backend.ml-xxxxx.cloudera.site"
 
@@ -241,22 +298,21 @@ curl $BACKEND_URL/health/db
 curl $BACKEND_URL/rag/options
 # Expected: {"enabled":true,"collections":[{"name":"bankjatim_docs","document_count":17}]}
 
-# 4. Full SQL flow test (tunggu ~5-10 detik)
+# 4. Full SQL flow test (tunggu ~5-10 detik pertama kali)
 curl -X POST $BACKEND_URL/chat/query \
   -H "Content-Type: application/json" \
   -d '{"question":"Berapa jumlah nasabah per segmen?","session_id":"deploy-test-001"}'
 # Expected: JSON dengan answer, generated_sql, rows, visualization
 ```
 
-> **Simpan URL ini:** `https://bank-jatim-backend.ml-xxxxx.cloudera.site`
-> Akan dipakai sebagai `BACKEND_API_BASE_URL` di APP 4.
+> **Simpan URL ini** → akan dipakai sebagai `BACKEND_API_BASE_URL` di APP 4.
 
 ---
 
 ## APP 3 — MCP Server Application
 
 **Tujuan:** Structured analytics tools — sql_query, dormant risk summary, campaign recommendation, RAG search.
-**Deploy setelah APP 1 dan APP 2 running.**
+**Deploy setelah APP 1 Running.**
 
 ---
 
@@ -285,18 +341,18 @@ Centang: **☑ Enable Unauthenticated Access**
 
 ### Step 3.3 — Set Environment Variables
 
-| Key | Value |
-|---|---|
-| `IMPALA_HOST` | `coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site` |
-| `IMPALA_PORT` | `443` |
-| `IMPALA_HTTP_PATH` | `cliservice` |
-| `CDP_USER` | `triano` |
-| `CDP_PASS` | `<cdp-password>` |
-| `DB_NAME` | `cai_sdx_se_indonesia` |
-| `CHROMA_PERSIST_DIR` | `/home/cdsw/bank-jawa-timur/ask-data/chroma_db` |
-| `CHROMA_COLLECTION` | `bankjatim_docs` |
-| `EMBED_MODEL` | `nomic-embed-text` |
-| `OLLAMA_BASE_URL` | `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site` |
+| Key | Value | Keterangan |
+|---|---|---|
+| `IMPALA_HOST` | `coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site` | Impala CDW host |
+| `IMPALA_PORT` | `443` | Port HTTPS |
+| `IMPALA_HTTP_PATH` | `cliservice` | HTTP path Impala |
+| `CDP_USER` | `triano` | CDP username |
+| `CDP_PASS` | `<cdp-password>` | CDP password |
+| `DB_NAME` | `cai_sdx_se_indonesia` | Database Impala |
+| `CHROMA_PERSIST_DIR` | `/home/cdsw/bank-jawa-timur/ask-data/chroma_db` | **Harus sama** dengan APP 2 |
+| `CHROMA_COLLECTION` | `bankjatim_docs` | Nama collection |
+| `EMBED_MODEL` | `nomic-embed-text` | Embedding model via Ollama |
+| `OLLAMA_BASE_URL` | `https://bank-jatim-qwen-llm.ml-xxxxx.cloudera.site` | URL APP 1 tanpa `/v1` |
 
 ---
 
@@ -319,39 +375,38 @@ MCP_URL="https://bank-jatim-mcp-server.ml-xxxxx.cloudera.site"
 curl $MCP_URL/health
 # Expected: {"status":"ok","service":"mcp-server"}
 
-# 2. List tools
+# 2. List tools (harus ada 6)
 curl $MCP_URL/tools | python3 -m json.tool
-# Expected: 6 tools listed
 
-# 3. Tool: sql_query
+# 3. sql_query — count total nasabah
 curl -X POST $MCP_URL/tools/sql_query \
   -H "Content-Type: application/json" \
   -d '{"sql":"SELECT COUNT(*) as total FROM cai_sdx_se_indonesia.customer_dormant_segment"}'
 # Expected: {"tool":"sql_query","result":{"rows":[{"total":10000}],...}}
 
-# 4. Tool: dormant_risk_summary
+# 4. dormant_risk_summary
 curl -X POST $MCP_URL/tools/dormant_risk_summary \
   -H "Content-Type: application/json" \
   -d '{"risk_level":"HIGH"}'
 # Expected: rows dengan dormant_risk_level HIGH, customer_count, percentage
 
-# 5. Tool: dormant_reason_breakdown
+# 5. dormant_reason_breakdown
 curl -X POST $MCP_URL/tools/dormant_reason_breakdown \
   -H "Content-Type: application/json" \
   -d '{"risk_level":"HIGH"}'
-# Expected: rows LOW_TRANSACTION_COUNT, NO_DIGITAL_LOGIN, dll
+# Expected: rows LOW_TRANSACTION_COUNT, NO_DIGITAL_ACTIVITY, dll
 
-# 6. Tool: campaign_recommendation
+# 6. campaign_recommendation
 curl -X POST $MCP_URL/tools/campaign_recommendation \
   -H "Content-Type: application/json" \
   -d '{"risk_level":"HIGH","limit":3}'
 # Expected: rows dengan customer_id, action, channel, priority
 
-# 7. Tool: campaign_summary_by_reason
+# 7. campaign_summary_by_reason
 curl $MCP_URL/tools/campaign_summary_by_reason
 # Expected: rows per reason code dengan recommended_action
 
-# 8. Tool: rag_search
+# 8. rag_search
 curl -X POST $MCP_URL/tools/rag_search \
   -H "Content-Type: application/json" \
   -d '{"query":"strategi retensi nasabah dormant","top_k":2}'
@@ -363,7 +418,7 @@ curl -X POST $MCP_URL/tools/rag_search \
 ## APP 4 — Frontend Application
 
 **Tujuan:** Next.js UI — chat interface, visualization chart, RAG config modal.
-**Deploy ini TERAKHIR** setelah Backend URL sudah diketahui.
+**Deploy ini TERAKHIR** setelah URL Backend sudah diketahui.
 
 ---
 
@@ -392,9 +447,9 @@ Centang: **☑ Enable Unauthenticated Access**
 
 ### Step 4.3 — Set Environment Variables
 
-| Key | Value |
-|---|---|
-| `BACKEND_API_BASE_URL` | `https://bank-jatim-backend.ml-xxxxx.cloudera.site` |
+| Key | Value | Keterangan |
+|---|---|---|
+| `BACKEND_API_BASE_URL` | `https://bank-jatim-backend.ml-xxxxx.cloudera.site` | URL APP 2 — tanpa trailing slash |
 
 > **Tidak boleh ada trailing slash** di URL Backend.
 > Contoh benar: `https://bank-jatim-backend.ml-xxxxx.cloudera.site`
@@ -406,10 +461,11 @@ Centang: **☑ Enable Unauthenticated Access**
 
 Klik **Create Application**.
 
-Tunggu status `Running`. Pertama kali akan **3–7 menit** karena `npm install` dan `npm build` dijalankan otomatis oleh `frontend_entry.py`.
+Tunggu status `Running`. Pertama kali akan **3–7 menit** karena `npm install` dan `npm build` dijalankan otomatis.
 
 Pantau di tab **Logs** — tunggu sampai muncul:
-```
+
+```text
 info  - Ready in Xs
 ```
 
@@ -421,55 +477,72 @@ Buka URL Frontend Application di browser.
 Contoh: `https://bank-jatim-frontend.ml-xxxxx.cloudera.site`
 
 **Test 1 — Welcome screen:**
-- Halaman terbuka, muncul greeting: _"Halo, saya Asisten Analitik Bank Jawa Timur"_ ✅
-- Ada 3 starter prompt card ✅
+- Halaman terbuka, muncul greeting: _"Halo, saya Asisten Analitik Bank Jawa Timur"_
+- Ada 3 starter prompt card
 
 **Test 2 — SQL flow:**
 - Klik starter prompt: _"Tampilkan jumlah nasabah berdasarkan customer segment"_
 - Tunggu 5–10 detik
-- Jawaban muncul dalam Bahasa Indonesia + bar chart otomatis ✅
+- Jawaban muncul dalam Bahasa Indonesia + bar chart otomatis
 
 **Test 3 — RAG flow:**
 - Klik tombol **"Knowledge Base"** di topbar
-- Modal terbuka, toggle Enable → **Aktif** ✅
-- Dropdown collection: pilih `bankjatim_docs (17 chunk)` ✅
+- Modal terbuka, toggle Enable → Aktif
+- Dropdown collection: pilih `bankjatim_docs (17 chunk)`
 - Set top_k ke `3`, klik **Simpan konfigurasi**
-- Tombol topbar berubah hijau: **"Knowledge Base Aktif"** ✅
+- Tombol topbar berubah hijau: **"Knowledge Base Aktif"**
 - Ketik pertanyaan: _"Apa strategi retensi nasabah dormant?"_
-- Jawaban muncul dengan 3 sumber dokumen PDF di bawahnya ✅
+- Jawaban muncul dengan 3 sumber dokumen PDF di bawahnya
 
 **Test 4 — Guardrails:**
 - Ketik: _"tampilkan nomor hp semua nasabah"_
-- Harus muncul notice: **Sensitive Data Blocked** ✅
+- Harus muncul notice: **Sensitive Data Blocked**
 
 ---
 
 ## Troubleshooting
 
+### Step B — Download gagal / koneksi lambat
+
+- Error `401 Unauthorized` → `HUGGING_FACE_HUB_TOKEN` tidak valid atau belum di-`export`
+- Error `OSError: [Errno 28] No space left` → storage session penuh, bersihkan dulu dengan `du -sh ~/.cache/huggingface/`
+- Download sangat lambat → normal untuk model 8–9 GB, bisa memakan 10–30 menit tergantung bandwidth CAI
+
 ### APP 1 — Qwen tidak start / terus Pending
+
 - Pastikan resource profile dipilih yang punya GPU L40 — bukan CPU-only profile
 - Di tab Logs, cari error `CUDA out of memory` → turunkan `QWEN_GPU_MEMORY_UTILIZATION` ke `0.80`
-- Cari error `Repository not found` → set `HUGGING_FACE_HUB_TOKEN` yang valid
-- Cari error `model not found` → pastikan `QWEN_MODEL` diisi persis `Qwen/Qwen2.5-14B-Instruct-AWQ`
+- Cari error `Repository not found` → model belum ter-cache, set `HUGGING_FACE_HUB_TOKEN` dan jalankan ulang download (Step B)
+- Cari error `model not found` → pastikan `QWEN_MODEL` sama persis dengan yang didownload
+
+### APP 1 — vLLM start lama (>5 menit)
+
+- Normal untuk pertama kali — vLLM loading model ke VRAM L40 (~2–5 menit)
+- Pantau Logs sampai muncul: `INFO: Application startup complete`
 
 ### APP 2 — Backend health/db gagal
+
 - Error `TSocket read 0 bytes` atau `Unable to connect` → cek `CDP_USER`, `CDP_PASS`, pastikan network CAI bisa reach Impala host
 - Error `CHROMA_ENABLED=true` tapi `/rag/options` return `{"enabled":false}` → `CHROMA_PERSIST_DIR` path salah atau folder kosong
 
 ### APP 2 — `/chat/query` timeout atau error 502
+
 - Cek log Backend → biasanya LLM timeout karena `QWEN_BASE_URL` salah (harus ada `/v1`)
 - Pastikan APP 1 Qwen sudah `Running` sebelum test APP 2
 
 ### APP 3 — MCP tools return error Impala
+
 - Sama dengan APP 2 — cek `CDP_USER`, `CDP_PASS`, `IMPALA_HOST`
 - Pastikan `CHROMA_PERSIST_DIR` sama absolute path-nya dengan APP 2
 
 ### APP 4 — Blank page atau CORS error
+
 - Pastikan `BACKEND_API_BASE_URL` tidak ada trailing slash
-- Pastikan semua 4 Applications sudah centang **"Allow Unauthenticated Access"**
-- Buka browser DevTools → Network tab → cari request ke `/api/backend` yang gagal → lihat error detail
+- Pastikan semua 4 Applications sudah centang **"Enable Unauthenticated Access"**
+- Buka browser DevTools → Network tab → cari request yang gagal → lihat error detail
 
 ### APP 4 — Build lama atau gagal
+
 - Di Logs cari `npm ERR!` → biasanya module missing
 - `frontend_entry.py` akan auto install ulang jika `node_modules` belum ada — beri waktu 5–10 menit
 
@@ -478,22 +551,26 @@ Contoh: `https://bank-jatim-frontend.ml-xxxxx.cloudera.site`
 ## Checklist Final
 
 ### Persiapan
-- [ ] `sync_project.py` dijalankan → code `bank-jawa-timur/ask-data/` tersedia di session
-- [ ] `chroma_db/` diupload atau di-ingest → `col.count()` = 17
+
+- [ ] `sync_project.py` dijalankan → folder `bank-jawa-timur/ask-data/` tersedia di session
+- [ ] `download_model.py` dijalankan → model ter-cache di `~/.cache/huggingface/hub/models--Qwen--Qwen2.5-14B-Instruct-AWQ/` (~8–9 GB)
+- [ ] ChromaDB disiapkan → `col.count()` = 17
 
 ### APP 1 — Qwen LLM
+
 - [ ] Application dibuat dengan GPU L40 profile
 - [ ] Env vars diisi: `QWEN_MODEL`, `QWEN_API_KEY`, `QWEN_MAX_MODEL_LEN`, `QWEN_GPU_MEMORY_UTILIZATION`, `QWEN_TENSOR_PARALLEL_SIZE`
 - [ ] Status: **Running**
-- [ ] `curl $QWEN_URL/health` → `{"status":"ok"}`
+- [ ] `curl $QWEN_URL/v1/models` → model ID terdaftar
 - [ ] `curl $QWEN_URL/v1/chat/completions` → response dari Qwen
 - [ ] **URL Qwen dicatat** ← wajib untuk step berikutnya
 
 ### APP 2 — Backend
+
 - [ ] Application dibuat dengan CPU 4 vCPU 8 GB
-- [ ] `QWEN_BASE_URL` diisi dengan URL Qwen + `/v1`
-- [ ] `OLLAMA_BASE_URL` diisi dengan URL Qwen tanpa `/v1`
-- [ ] `CHROMA_PERSIST_DIR` diisi dengan absolute path
+- [ ] `QWEN_BASE_URL` = URL Qwen + `/v1`
+- [ ] `OLLAMA_BASE_URL` = URL Qwen tanpa `/v1`
+- [ ] `CHROMA_PERSIST_DIR` = absolute path `/home/cdsw/...`
 - [ ] Status: **Running**
 - [ ] `/health` → `{"status":"ok"}`
 - [ ] `/health/db` → `{"status":"ok","database":"cai_sdx_se_indonesia"}`
@@ -502,21 +579,23 @@ Contoh: `https://bank-jatim-frontend.ml-xxxxx.cloudera.site`
 - [ ] **URL Backend dicatat** ← wajib untuk APP 4
 
 ### APP 3 — MCP Server
+
 - [ ] Application dibuat dengan CPU 2 vCPU 4 GB
 - [ ] `CHROMA_PERSIST_DIR` sama dengan APP 2
 - [ ] Status: **Running**
 - [ ] `/health` → `{"status":"ok","service":"mcp-server"}`
-- [ ] `/tools` → 6 tools listed
-- [ ] `sql_query` tool → COUNT 10000
-- [ ] `dormant_risk_summary` tool → rows dengan risk levels
-- [ ] `rag_search` tool → 2 hasil dari bankjatim_docs
+- [ ] `/tools` → 6 tools terdaftar
+- [ ] `sql_query` → COUNT 10000
+- [ ] `dormant_risk_summary` → rows dengan risk levels
+- [ ] `rag_search` → 2 hasil dari bankjatim_docs
 
 ### APP 4 — Frontend
+
 - [ ] Application dibuat dengan CPU 2 vCPU 4 GB
-- [ ] `BACKEND_API_BASE_URL` diisi dengan URL Backend (tanpa trailing slash)
+- [ ] `BACKEND_API_BASE_URL` = URL Backend tanpa trailing slash
 - [ ] Status: **Running**
-- [ ] Welcome screen terbuka di browser ✅
-- [ ] SQL chat: pertanyaan segmen → jawaban + bar chart ✅
-- [ ] RAG modal: collection bankjatim_docs muncul → config tersimpan ✅
-- [ ] RAG chat: pertanyaan strategi dormant → jawaban + sumber PDF ✅
-- [ ] Guardrails: pertanyaan PII → blocked notice ✅
+- [ ] Welcome screen terbuka di browser
+- [ ] SQL chat: pertanyaan segmen → jawaban + bar chart
+- [ ] RAG modal: collection bankjatim_docs muncul → config tersimpan
+- [ ] RAG chat: pertanyaan strategi dormant → jawaban + sumber PDF
+- [ ] Guardrails: pertanyaan PII → blocked notice
