@@ -109,7 +109,7 @@ and deposit performance — no SQL required.
 **Pre-deployment checklist (jalankan di CAI Workbench session):**
 
 1. `python sync_project.py` — sync repo ke session
-2. `export HUGGING_FACE_HUB_TOKEN=hf_xxx` lalu `python bank-jawa-timur/ask-data/qwen_inference/download_model.py` — download Qwen model ke HF cache (~8 GB)
+2. `export HUGGING_FACE_HUB_TOKEN=hf_xxx` lalu `python data-intelligence/ask-data/qwen_inference/download_model.py` — download Qwen model ke HF cache (~8 GB)
 3. Upload atau ingest `chroma_db/` — pastikan `col.count()` = 17
 
 See [`ask-data/docs/CAI_DEPLOYMENT_GUIDE.md`](ask-data/docs/CAI_DEPLOYMENT_GUIDE.md) for full step-by-step deployment instructions.

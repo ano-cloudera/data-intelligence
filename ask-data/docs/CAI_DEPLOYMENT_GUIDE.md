@@ -102,27 +102,27 @@ Isi tabel ini sebelum mulai deploy:
 
 Buka terminal di CAI Workbench session, lalu jalankan:
 
-**Jika pertama kali (belum ada folder `bank-jawa-timur`):**
+**Jika pertama kali (belum ada folder `data-intelligence`):**
 
 ```bash
 cd /home/cdsw
-git clone https://github.com/ano-cloudera/data-intelligence.git bank-jawa-timur
+git clone https://github.com/ano-cloudera/data-intelligence.git data-intelligence
 ```
 
 **Jika sudah pernah clone sebelumnya (update ke latest):**
 
 ```bash
-cd /home/cdsw/bank-jawa-timur
+cd /home/cdsw/data-intelligence
 python3 sync_project.py
 ```
 
 Verifikasi semua folder dan file tersedia:
 
 ```bash
-ls /home/cdsw/bank-jawa-timur/ask-data/
+ls /home/cdsw/data-intelligence/ask-data/
 # Harus ada: backend/ frontend/ mcp_server/ qwen_inference/ data/ docs/ scripts/ sql/
 
-ls /home/cdsw/bank-jawa-timur/ask-data/data/documents/
+ls /home/cdsw/data-intelligence/ask-data/data/documents/
 # Harus ada 5 file PDF:
 # 01_strategi_customer_segmentation_portfolio_bank_jatim.pdf
 # 02_dormant_customer_retention_strategy_bank_jatim.pdf
@@ -149,7 +149,7 @@ export HUGGING_FACE_HUB_TOKEN=hf_xxxxxxxxxxxxxxxx
 **2. Jalankan script download:**
 
 ```bash
-python bank-jawa-timur/ask-data/qwen_inference/download_model.py
+python data-intelligence/ask-data/qwen_inference/download_model.py
 ```
 
 Output yang diharapkan:
@@ -176,7 +176,7 @@ du -sh ~/.cache/huggingface/hub/models--Qwen--Qwen2.5-14B-Instruct-AWQ/
 
 ```bash
 export QWEN_MODEL=Qwen/Qwen2.5-7B-Instruct-AWQ
-python bank-jawa-timur/ask-data/qwen_inference/download_model.py
+python data-intelligence/ask-data/qwen_inference/download_model.py
 # ~4 GB, cocok untuk 1 GPU L40 dengan headroom lebih besar
 ```
 
@@ -193,7 +193,7 @@ Upload file tersebut ke CAI Workbench session via **File Upload UI** (ikon uploa
 
 ```bash
 # Pindah ke folder project
-cd /home/cdsw/bank-jawa-timur/ask-data
+cd /home/cdsw/data-intelligence/ask-data
 
 # Extract zip (file ada di home dir setelah upload)
 unzip ~/chroma_db.zip
@@ -209,7 +209,7 @@ PDF sudah ada di repo di `ask-data/data/documents/` — tidak perlu upload manua
 Setelah `sync_project.py` dijalankan (Step A), langsung jalankan:
 
 ```bash
-cd /home/cdsw/bank-jawa-timur/ask-data
+cd /home/cdsw/data-intelligence/ask-data
 pip install -r backend/requirements.txt -q
 PYTHONPATH=backend python scripts/ingest_documents.py
 # Expected output:
@@ -224,7 +224,7 @@ PYTHONPATH=backend python scripts/ingest_documents.py
 ```bash
 python3 -c "
 import chromadb
-c = chromadb.PersistentClient('/home/cdsw/bank-jawa-timur/ask-data/chroma_db')
+c = chromadb.PersistentClient('/home/cdsw/data-intelligence/ask-data/chroma_db')
 col = c.get_collection('bankjatim_docs')
 print('Chunks:', col.count())
 "
@@ -256,7 +256,7 @@ print('Chunks:', col.count())
 | **Name** | `bjt-ask-data-qwen` |
 | **Subdomain** | `bjt-ask-data-qwen` _(auto-fill, bisa dibiarkan)_ |
 | **Description** | `Qwen2.5-14B-Instruct-AWQ via vLLM — LLM inference server` |
-| **Script** | `bank-jawa-timur/ask-data/qwen_inference/qwen_entry.py` |
+| **Script** | `data-intelligence/ask-data/qwen_inference/qwen_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
 | **Engine Profile** | Pilih profile GPU dengan **NVIDIA L40** — minimal 1 GPU, 48 GB VRAM |
 | **Replicas** | `1` |
@@ -346,7 +346,7 @@ curl -X POST $QWEN_URL/v1/chat/completions \
 | **Name** | `bjt-ask-data-backend` |
 | **Subdomain** | `bjt-ask-data-backend` |
 | **Description** | `FastAPI backend — NL to SQL, ChromaDB RAG, Impala CDW` |
-| **Script** | `bank-jawa-timur/ask-data/backend/backend_entry.py` |
+| **Script** | `data-intelligence/ask-data/backend/backend_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
 | **Engine Profile** | CPU — **4 vCPU, 8 GB RAM** |
 | **Replicas** | `1` |
@@ -375,7 +375,7 @@ Centang: **☑ Enable Unauthenticated Access**
 | `MEMORY_MAX_HISTORY` | `10` | Max pesan history per sesi |
 | `GUARDRAILS_ENABLED` | `true` | Aktifkan PII blocking |
 | `CHROMA_ENABLED` | `true` | Aktifkan ChromaDB RAG |
-| `CHROMA_PERSIST_DIR` | `/home/cdsw/bank-jawa-timur/ask-data/chroma_db` | Path absolut ChromaDB |
+| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/chroma_db` | Path absolut ChromaDB |
 | `CHROMA_COLLECTION` | `bankjatim_docs` | Nama collection |
 | `EMBED_MODEL` | `nomic-embed-text` | Embedding model via Ollama |
 | `OLLAMA_BASE_URL` | `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site` | URL APP 1 **tanpa** `/v1` |
@@ -446,7 +446,7 @@ curl -X POST $BACKEND_URL/chat/query \
 | **Name** | `bjt-ask-data-mcp` |
 | **Subdomain** | `bjt-ask-data-mcp` |
 | **Description** | `MCP Server — structured tools for customer dormant analytics` |
-| **Script** | `bank-jawa-timur/ask-data/mcp_server/mcp_entry.py` |
+| **Script** | `data-intelligence/ask-data/mcp_server/mcp_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
 | **Engine Profile** | CPU — **2 vCPU, 4 GB RAM** |
 | **Replicas** | `1` |
@@ -465,7 +465,7 @@ Centang: **☑ Enable Unauthenticated Access**
 | `CDP_USER` | `triano` | CDP username |
 | `CDP_PASS` | `<cdp-password>` | CDP password |
 | `DB_NAME` | `cai_sdx_se_indonesia` | Database Impala |
-| `CHROMA_PERSIST_DIR` | `/home/cdsw/bank-jawa-timur/ask-data/chroma_db` | **Harus sama** dengan APP 2 |
+| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/chroma_db` | **Harus sama** dengan APP 2 |
 | `CHROMA_COLLECTION` | `bankjatim_docs` | Nama collection |
 | `EMBED_MODEL` | `nomic-embed-text` | Embedding model via Ollama |
 | `OLLAMA_BASE_URL` | `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site` | URL APP 1 tanpa `/v1` |
@@ -552,7 +552,7 @@ curl -X POST $MCP_URL/tools/rag_search \
 | **Name** | `bjt-ask-data-frontend` |
 | **Subdomain** | `bjt-ask-data-frontend` |
 | **Description** | `Next.js frontend — Ask Data UI Bank Jawa Timur` |
-| **Script** | `bank-jawa-timur/ask-data/frontend/frontend_entry.py` |
+| **Script** | `data-intelligence/ask-data/frontend/frontend_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
 | **Engine Profile** | CPU — **2 vCPU, 4 GB RAM** |
 | **Replicas** | `1` |
@@ -668,14 +668,14 @@ Contoh: `https://bjt-ask-data-frontend.ml-xxxxx.cloudera.site`
 
 ### Persiapan
 
-- [ ] `sync_project.py` dijalankan → folder `bank-jawa-timur/ask-data/` tersedia di session
+- [ ] `sync_project.py` dijalankan → folder `data-intelligence/ask-data/` tersedia di session
 - [ ] `download_model.py` dijalankan → model ter-cache di `~/.cache/huggingface/hub/models--Qwen--Qwen2.5-14B-Instruct-AWQ/` (~8–9 GB)
 - [ ] ChromaDB disiapkan → `col.count()` = 17
 
 ### APP 1 — Qwen LLM (`bjt-ask-data-qwen`)
 
 - [ ] Application name: `bjt-ask-data-qwen`, subdomain: `bjt-ask-data-qwen`
-- [ ] Script: `bank-jawa-timur/ask-data/qwen_inference/qwen_entry.py`
+- [ ] Script: `data-intelligence/ask-data/qwen_inference/qwen_entry.py`
 - [ ] Engine Profile: GPU L40, Python 3.11
 - [ ] Env vars diisi: `QWEN_MODEL`, `QWEN_API_KEY`, `QWEN_MAX_MODEL_LEN`, `QWEN_GPU_MEMORY_UTILIZATION`, `QWEN_TENSOR_PARALLEL_SIZE`
 - [ ] Enable Unauthenticated Access: ☑
@@ -687,11 +687,11 @@ Contoh: `https://bjt-ask-data-frontend.ml-xxxxx.cloudera.site`
 ### APP 2 — Backend (`bjt-ask-data-backend`)
 
 - [ ] Application name: `bjt-ask-data-backend`, subdomain: `bjt-ask-data-backend`
-- [ ] Script: `bank-jawa-timur/ask-data/backend/backend_entry.py`
+- [ ] Script: `data-intelligence/ask-data/backend/backend_entry.py`
 - [ ] Engine Profile: CPU 4 vCPU 8 GB, Python 3.11
 - [ ] `QWEN_BASE_URL` = `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site/v1`
 - [ ] `OLLAMA_BASE_URL` = `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site`
-- [ ] `CHROMA_PERSIST_DIR` = `/home/cdsw/bank-jawa-timur/ask-data/chroma_db`
+- [ ] `CHROMA_PERSIST_DIR` = `/home/cdsw/data-intelligence/ask-data/chroma_db`
 - [ ] Enable Unauthenticated Access: ☑
 - [ ] Status: **Running**
 - [ ] `/health` → `{"status":"ok"}`
@@ -703,9 +703,9 @@ Contoh: `https://bjt-ask-data-frontend.ml-xxxxx.cloudera.site`
 ### APP 3 — MCP Server (`bjt-ask-data-mcp`)
 
 - [ ] Application name: `bjt-ask-data-mcp`, subdomain: `bjt-ask-data-mcp`
-- [ ] Script: `bank-jawa-timur/ask-data/mcp_server/mcp_entry.py`
+- [ ] Script: `data-intelligence/ask-data/mcp_server/mcp_entry.py`
 - [ ] Engine Profile: CPU 2 vCPU 4 GB, Python 3.11
-- [ ] `CHROMA_PERSIST_DIR` = `/home/cdsw/bank-jawa-timur/ask-data/chroma_db` (sama dengan APP 2)
+- [ ] `CHROMA_PERSIST_DIR` = `/home/cdsw/data-intelligence/ask-data/chroma_db` (sama dengan APP 2)
 - [ ] Enable Unauthenticated Access: ☑
 - [ ] Status: **Running**
 - [ ] `/health` → `{"status":"ok","service":"mcp-server"}`
@@ -717,7 +717,7 @@ Contoh: `https://bjt-ask-data-frontend.ml-xxxxx.cloudera.site`
 ### APP 4 — Frontend (`bjt-ask-data-frontend`)
 
 - [ ] Application name: `bjt-ask-data-frontend`, subdomain: `bjt-ask-data-frontend`
-- [ ] Script: `bank-jawa-timur/ask-data/frontend/frontend_entry.py`
+- [ ] Script: `data-intelligence/ask-data/frontend/frontend_entry.py`
 - [ ] Engine Profile: CPU 2 vCPU 4 GB, Python 3.11
 - [ ] `BACKEND_API_BASE_URL` = `https://bjt-ask-data-backend.ml-xxxxx.cloudera.site` (tanpa trailing slash)
 - [ ] Enable Unauthenticated Access: ☑
