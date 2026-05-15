@@ -185,13 +185,20 @@ ls chroma_db/
 # Harus ada: chroma.sqlite3 dan subfolder UUID (33d4a0a6-...)
 ```
 
-**Option 2 — Re-ingest PDF di session (jika PDF sudah diupload ke session):**
+**Option 2 — Ingest PDF langsung dari repo (recommended jika sudah sync):**
+
+PDF sudah ada di repo di `ask-data/data/documents/` — tidak perlu upload manual.
+Setelah `sync_project.py` dijalankan (Step A), langsung jalankan:
 
 ```bash
 cd /home/cdsw/bank-jawa-timur/ask-data
 pip install -r backend/requirements.txt -q
 PYTHONPATH=backend python scripts/ingest_documents.py
-# Expected output: Ingested X chunks into bankjatim_docs
+# Expected output:
+# Ingesting: 01_strategi_customer_segmentation_portfolio_bank_jatim.pdf ... X chunks
+# Ingesting: 02_dormant_customer_retention_strategy_bank_jatim.pdf ... X chunks
+# ...
+# Done. Total chunks ingested: 17
 ```
 
 **Verifikasi ChromaDB:**
