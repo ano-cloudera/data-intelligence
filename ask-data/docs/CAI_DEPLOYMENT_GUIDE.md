@@ -98,19 +98,37 @@ Isi tabel ini sebelum mulai deploy:
 
 ## Persiapan Awal (Lakukan Sekali Sebelum Deploy)
 
-### Step A — Sync Code ke Workbench Session
+### Step A — Clone dan Sync Code ke Workbench Session
 
-Di terminal CAI Workbench session, jalankan:
+Buka terminal di CAI Workbench session, lalu jalankan:
+
+**Jika pertama kali (belum ada folder `bank-jawa-timur`):**
 
 ```bash
-python sync_project.py
+cd /home/cdsw
+git clone https://github.com/ano-cloudera/data-intelligence.git bank-jawa-timur
 ```
 
-Verifikasi folder tersedia:
+**Jika sudah pernah clone sebelumnya (update ke latest):**
+
+```bash
+cd /home/cdsw/bank-jawa-timur
+python3 sync_project.py
+```
+
+Verifikasi semua folder dan file tersedia:
 
 ```bash
 ls /home/cdsw/bank-jawa-timur/ask-data/
-# Harus ada: backend/ frontend/ mcp_server/ qwen_inference/ docs/ scripts/ sql/
+# Harus ada: backend/ frontend/ mcp_server/ qwen_inference/ data/ docs/ scripts/ sql/
+
+ls /home/cdsw/bank-jawa-timur/ask-data/data/documents/
+# Harus ada 5 file PDF:
+# 01_strategi_customer_segmentation_portfolio_bank_jatim.pdf
+# 02_dormant_customer_retention_strategy_bank_jatim.pdf
+# 03_campaign_planning_next_best_action_bank_jatim.pdf
+# 04_branch_city_segment_channel_analytics_playbook.pdf
+# 05_customer_analytics_governance_decisioning_policy.pdf
 ```
 
 ---
