@@ -76,12 +76,12 @@ AI-powered customer analytics assistant for Bank Jawa Timur. Business users ask 
 
 **4 CAI Applications (deploy order: Qwen → Backend → MCP → Frontend):**
 
-| Application | Entry Point | Resources |
+| Application Name | Entry Point | Resources |
 |---|---|---|
-| Qwen LLM | `qwen_inference/qwen_entry.py` | GPU L40, vLLM |
-| Backend | `backend/backend_entry.py` | CPU 4 vCPU 8 GB |
-| MCP Server | `mcp_server/mcp_entry.py` | CPU 2 vCPU 4 GB |
-| Frontend | `frontend/frontend_entry.py` | CPU 2 vCPU 4 GB |
+| `bjt-ask-data-qwen` | `qwen_inference/qwen_entry.py` | GPU L40, vLLM |
+| `bjt-ask-data-backend` | `backend/backend_entry.py` | CPU 4 vCPU 8 GB |
+| `bjt-ask-data-mcp` | `mcp_server/mcp_entry.py` | CPU 2 vCPU 4 GB |
+| `bjt-ask-data-frontend` | `frontend/frontend_entry.py` | CPU 2 vCPU 4 GB |
 
 **Key capabilities:**
 
@@ -94,6 +94,12 @@ AI-powered customer analytics assistant for Bank Jawa Timur. Business users ask 
 - Next.js 15 frontend in Bahasa Indonesia — Cloudera-branded design system
 
 **Data:** `cai_sdx_se_indonesia.customer_dormant_segment` — 10,000 rows, 47 columns (synthetic, non-PII)
+
+**Pre-deployment steps (run in CAI Workbench session):**
+
+1. `python sync_project.py` — sync repo ke session
+2. `python bank-jawa-timur/ask-data/qwen_inference/download_model.py` — download Qwen model ke HF cache (~8 GB)
+3. Upload atau ingest `chroma_db/` (17 chunks dari 5 PDF Bank Jatim)
 
 See [`ask-data/docs/project-state.md`](ask-data/docs/project-state.md) for full implementation details.
 See [`ask-data/docs/CAI_DEPLOYMENT_GUIDE.md`](ask-data/docs/CAI_DEPLOYMENT_GUIDE.md) for step-by-step deployment instructions.
