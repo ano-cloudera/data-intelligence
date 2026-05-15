@@ -16,12 +16,10 @@ These values are the current shared defaults for the CAI deployment:
 - Impala database: `cai_sdx_se_indonesia`
 - Shared data root: `s3a://go01-demo/user/cai-demo-se-indonesia/data/`
 - Core tables:
-  - `customers`
-  - `deposits`
-  - `credits`
-  - `fraud_transactions`
+  - `customer_dormant_segment` — Bank Jatim PoC (10,000 rows, 47 columns, synthetic non-PII)
+  - `customers`, `deposits`, `credits`, `fraud_transactions` — shared generic tables
 
-Both `ask-data` and `fraud-ai-assistant` share the same Impala connection pattern via environment variables:
+All applications share the same Impala connection pattern via environment variables:
 
 - `IMPALA_HOST`
 - `IMPALA_PORT`
@@ -34,10 +32,25 @@ Both `ask-data` and `fraud-ai-assistant` share the same Impala connection patter
 
 ```text
 cai-se-indo-demo/
-├── ask-data/                        # General analytics assistant
-│   ├── backend/                     # FastAPI + NL-to-SQL
-│   ├── frontend/                    # Next.js, Cloudera design system
-│   └── docs/                        # API contract, setup, project state
+├── ask-data/                        # Bank Jawa Timur — Customer Analytics PoC
+│   ├── backend/                     # FastAPI + NL-to-SQL + ChromaDB RAG
+│   │   ├── app/                     # Core app: main, services, schemas, db
+│   │   ├── llm/                     # Qwen SQL prompt + client
+│   │   ├── schema/                  # customer_dormant_segment schema
+│   │   └── backend_entry.py         # CAI Application entry point
+│   ├── frontend/                    # Next.js 15, Cloudera design system
+│   │   └── frontend_entry.py        # CAI Application entry point
+│   ├── mcp_server/                  # MCP Server — 6 structured analytics tools
+│   │   ├── app/tools/               # sql_query, dormant_risk, campaign, rag_search
+│   │   └── mcp_entry.py             # CAI Application entry point
+│   ├── qwen_inference/              # Qwen2.5-14B vLLM inference server
+│   │   └── qwen_entry.py            # CAI Application entry point (GPU)
+│   ├── data/documents/              # 5 Bank Jatim PDF docs (RAG source, not committed)
+│   ├── chroma_db/                   # ChromaDB vector store (not committed)
+│   ├── scripts/                     # ingest_documents.py, local_bootstrap.sh
+│   ├── sql/                         # Impala DDL for customer_dormant_segment
+│   ├── data_generation/             # Synthetic data generator (10,000 rows)
+│   └── docs/                        # project-state, deployment guide, metadata
 ├── fraud-ai-assistant/              # Fraud detection assistant + ML
 │   ├── backend/
 │   ├── frontend/
@@ -51,33 +64,39 @@ cai-se-indo-demo/
 │       └── references/             # Upstream YOLO + ChestX-Det references
 ├── agent-studio/                    # Agent SDK experiments
 │   └── marketing-content-intelligence/
-├── sample/                          # Generated CSV data for local dev
 ├── scripts/                         # Repo sync and CAI helper scripts
-├── generate_demo_data.py
-├── impala_demo_ddl.sql
-├── submit_impala_schema.py
 └── README.md
 ```
 
 ## Main Components
 
-### `ask-data`
+### `ask-data` — Bank Jawa Timur Customer Analytics PoC
 
-General-purpose AI analytics assistant. Ask questions about structured data in natural language — no SQL knowledge required.
+AI-powered customer analytics assistant for Bank Jawa Timur. Business users ask questions in Bahasa Indonesia about customer dormant risk, segmentation, campaign recommendations, and deposit performance — no SQL required.
 
-- FastAPI backend with NL-to-SQL via Azure OpenAI and Impala/CDW execution
-- Next.js 15 frontend with Cloudera-branded design (dark navy sidebar, indigo accent, orange CTAs)
-- Typography: Inter (body), Outfit (headings), JetBrains Mono (code/numeric) — all via Google Fonts
-- Icons: `@mui/icons-material` throughout — no inline SVGs
-- Read-only Impala query execution with SQL guardrails and PII blocking
-- Generic enough to reuse across different banking or enterprise customers
-- Deployed as two separate Cloudera AI Applications (backend + frontend)
-- Optional RAG Studio integration for document-grounded answers, with per-session configuration stored in backend memory
-- RAG answers surface source cards with an `Open Source PDF` action when source metadata is available
-- Demo Guide redesigned for management-level audiences: Business Impact first, scannable bullets, ready-to-use demo prompts
-- Usage Dashboard analytics glitch fixed — no more re-fetch loop on tab switch
+**4 CAI Applications (deploy order: Qwen → Backend → MCP → Frontend):**
 
-See [`ask-data/docs/project-state.md`](ask-data/docs/project-state.md) for full implementation and deployment details.
+| Application | Entry Point | Resources |
+|---|---|---|
+| Qwen LLM | `qwen_inference/qwen_entry.py` | GPU L40, vLLM |
+| Backend | `backend/backend_entry.py` | CPU 4 vCPU 8 GB |
+| MCP Server | `mcp_server/mcp_entry.py` | CPU 2 vCPU 4 GB |
+| Frontend | `frontend/frontend_entry.py` | CPU 2 vCPU 4 GB |
+
+**Key capabilities:**
+
+- NL-to-SQL via Qwen2.5-14B-Instruct-AWQ (vLLM) → Impala CDW execution
+- RAG document Q&A via ChromaDB (5 Bank Jatim PDFs, 17 chunks, `nomic-embed-text` embedding)
+- MCP Server with 6 structured tools: `sql_query`, `dormant_risk_summary`, `dormant_reason_breakdown`, `campaign_recommendation`, `campaign_summary_by_reason`, `rag_search`
+- Visualization spec generation (bar, line, pie, table) rendered via Recharts
+- Local guardrails: PII blocking, SQL-only enforcement, Bahasa Indonesia output
+- Session management via SQLite, usage analytics dashboard
+- Next.js 15 frontend in Bahasa Indonesia — Cloudera-branded design system
+
+**Data:** `cai_sdx_se_indonesia.customer_dormant_segment` — 10,000 rows, 47 columns (synthetic, non-PII)
+
+See [`ask-data/docs/project-state.md`](ask-data/docs/project-state.md) for full implementation details.
+See [`ask-data/docs/CAI_DEPLOYMENT_GUIDE.md`](ask-data/docs/CAI_DEPLOYMENT_GUIDE.md) for step-by-step deployment instructions.
 
 ### `fraud-ai-assistant`
 
@@ -118,11 +137,7 @@ Experimental track for agent applications built on the Cloudera Agent SDK.
 
 ### Shared files
 
-- `sample/` — generated CSVs for local development and fallback testing
-- `generate_demo_data.py` — produces synthetic demo datasets
-- `impala_demo_ddl.sql` — shared Impala DDL for all core tables
-- `submit_impala_schema.py` — applies the DDL to Impala from a configured Python session
-- `scripts/` — repository sync and helper scripts used during CAI operations
+- `scripts/` — repository sync and CAI helper scripts used during deployment
 
 ## Recommended Usage Model
 
@@ -142,11 +157,13 @@ Experimental track for agent applications built on the Cloudera Agent SDK.
 
 ## Where To Start
 
-| Resource | Path |
-|---|---|
-| General analytics app | [`ask-data/README.md`](ask-data/README.md) |
-| Ask-data project state | [`ask-data/docs/project-state.md`](ask-data/docs/project-state.md) |
-| Fraud app | [`fraud-ai-assistant/README.md`](fraud-ai-assistant/README.md) |
-| Fraud project state | [`fraud-ai-assistant/docs/project-state.md`](fraud-ai-assistant/docs/project-state.md) |
-| Xray Assist (healthcare) | [`healthcare/Xray Assistant/docs/project-state.md`](healthcare/Xray%20Assistant/docs/project-state.md) |
-| Agent studio | [`agent-studio/`](agent-studio/) |
+| Track | Resource | Path |
+|---|---|---|
+| **ask-data** | Project state | [`ask-data/docs/project-state.md`](ask-data/docs/project-state.md) |
+| **ask-data** | CAI deployment guide | [`ask-data/docs/CAI_DEPLOYMENT_GUIDE.md`](ask-data/docs/CAI_DEPLOYMENT_GUIDE.md) |
+| **ask-data** | Schema & data dictionary | [`ask-data/docs/customer_dormant_segment_metadata.md`](ask-data/docs/customer_dormant_segment_metadata.md) |
+| **ask-data** | App README | [`ask-data/README.md`](ask-data/README.md) |
+| **fraud-ai-assistant** | Project state | [`fraud-ai-assistant/docs/project-state.md`](fraud-ai-assistant/docs/project-state.md) |
+| **fraud-ai-assistant** | App README | [`fraud-ai-assistant/README.md`](fraud-ai-assistant/README.md) |
+| **healthcare** | Project state | [`healthcare/Xray Assistant/docs/project-state.md`](healthcare/Xray%20Assistant/docs/project-state.md) |
+| **agent-studio** | Folder | [`agent-studio/`](agent-studio/) |
