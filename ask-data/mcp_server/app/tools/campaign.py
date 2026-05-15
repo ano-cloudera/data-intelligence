@@ -65,9 +65,10 @@ def get_campaign_recommendation(
             dormant_risk_level,
             dormant_reason_code,
             next_best_action,
-            branch_city,
+            city,
+            branch_name,
             total_deposit_balance,
-            credit_outstanding
+            outstanding_loan_balance
         FROM {TABLE}
         {where_sql}
         ORDER BY

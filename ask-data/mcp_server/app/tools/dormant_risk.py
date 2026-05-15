@@ -10,19 +10,19 @@ TABLE = f"{settings.db_name}.customer_dormant_segment"
 
 def get_dormant_risk_summary(
     segment: str | None = None,
-    branch_city: str | None = None,
+    city: str | None = None,
     risk_level: str | None = None,
 ) -> dict[str, Any]:
     """
     MCP Tool: Summarize dormant risk distribution.
-    Optional filters: segment, branch_city, risk_level (HIGH / MEDIUM / LOW / NONE).
+    Optional filters: segment, city, risk_level (HIGH / MEDIUM / LOW / NONE).
     Returns count and percentage per dormant_risk_level.
     """
     where_clauses = []
     if segment:
         where_clauses.append(f"customer_segment = '{segment}'")
-    if branch_city:
-        where_clauses.append(f"branch_city = '{branch_city}'")
+    if city:
+        where_clauses.append(f"city = '{city}'")
     if risk_level:
         where_clauses.append(f"dormant_risk_level = '{risk_level.upper()}'")
 
@@ -36,7 +36,8 @@ def get_dormant_risk_summary(
         FROM {TABLE}
         {where_sql}
         GROUP BY dormant_risk_level
-        ORDER BY FIELD(dormant_risk_level, 'HIGH', 'MEDIUM', 'LOW', 'NONE')
+        ORDER BY CASE dormant_risk_level
+            WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 3 ELSE 4 END
     """
 
     try:
@@ -44,7 +45,7 @@ def get_dormant_risk_summary(
         return {
             "filters": {
                 "segment": segment,
-                "branch_city": branch_city,
+                "city": city,
                 "risk_level": risk_level,
             },
             "columns": result["columns"],

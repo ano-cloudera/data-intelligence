@@ -1,11 +1,25 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Resolve .env from mcp_server dir or parent (ask-data root) — whichever exists first
+def _find_env_file() -> str:
+    candidates = [
+        Path(__file__).parents[1] / ".env",   # mcp_server/.env
+        Path(__file__).parents[2] / ".env",   # ask-data/.env
+        Path(".env"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return str(p)
+    return ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_find_env_file(), extra="ignore")
 
     # Impala
     impala_host: str = Field(alias="IMPALA_HOST")

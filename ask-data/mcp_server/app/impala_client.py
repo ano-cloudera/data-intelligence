@@ -11,11 +11,13 @@ def _get_connection():
     return connect(
         host=settings.impala_host,
         port=settings.impala_port,
-        http_path=settings.impala_http_path,
-        auth_mechanism="LDAP",
+        database=settings.db_name,
         user=settings.cdp_user,
         password=settings.cdp_pass,
         use_ssl=True,
+        auth_mechanism="PLAIN",
+        http_path=settings.impala_http_path,
+        use_http_transport=True,
     )
 
 

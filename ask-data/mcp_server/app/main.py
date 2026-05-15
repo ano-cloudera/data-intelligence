@@ -42,7 +42,7 @@ def list_tools():
                 "name": "dormant_risk_summary",
                 "description": "Get dormant risk level distribution, optionally filtered by segment, city, or risk level.",
                 "endpoint": "POST /tools/dormant_risk_summary",
-                "input": {"segment": "string?", "branch_city": "string?", "risk_level": "HIGH|MEDIUM|LOW|NONE?"},
+                "input": {"segment": "string?", "city": "string?", "risk_level": "HIGH|MEDIUM|LOW|NONE?"},
             },
             {
                 "name": "dormant_reason_breakdown",
@@ -85,7 +85,7 @@ def tool_dormant_risk_summary(req: DormantRiskRequest):
         tool="dormant_risk_summary",
         result=get_dormant_risk_summary(
             segment=req.segment,
-            branch_city=req.branch_city,
+            city=req.city,
             risk_level=req.risk_level,
         ),
     )

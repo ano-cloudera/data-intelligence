@@ -11,7 +11,7 @@ class SqlQueryRequest(BaseModel):
 
 class DormantRiskRequest(BaseModel):
     segment: str | None = None
-    branch_city: str | None = None
+    city: str | None = None   # matches column: city
     risk_level: str | None = None
 
 
