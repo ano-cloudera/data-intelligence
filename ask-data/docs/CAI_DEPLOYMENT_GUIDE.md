@@ -1,6 +1,98 @@
 # CAI Deployment Guide — Bank Jawa Timur PoC
 
-Deploy urutan wajib: **Persiapan → APP 1 Qwen LLM → APP 2 Backend → APP 3 MCP Server → APP 4 Frontend**
+Deploy urutan wajib: **Step 0 Credential → Persiapan → APP 1 Qwen LLM → APP 2 Backend → APP 3 MCP Server → APP 4 Frontend**
+
+---
+
+## Step 0 — Kumpulkan Semua Credential (Lakukan Sebelum Apapun)
+
+Sebelum mulai deploy, pastikan semua credential dan token berikut sudah di tangan.
+Simpan di tempat yang aman (password manager atau catatan lokal) — akan dipakai berulang kali di step berikutnya.
+
+---
+
+### 0.1 — HuggingFace Token (untuk download model Qwen)
+
+**Fungsi:** Download model `Qwen/Qwen2.5-14B-Instruct-AWQ` (~8 GB) ke cache CAI session.
+
+**Cara mendapatkan:**
+
+1. Buka [huggingface.co](https://huggingface.co) → login atau daftar akun
+2. Klik avatar profil kanan atas → **Settings**
+3. Di menu kiri, klik **Access Tokens**
+4. Klik tombol **New token**
+5. Isi:
+   - Name: `cai-bjt-deploy` (bebas)
+   - Token type: **Read**
+6. Klik **Generate a token**
+7. Salin token — tampil sekali, simpan sekarang
+
+```
+HUGGING_FACE_HUB_TOKEN = hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+> Token harus punya akses **Read** — cukup untuk download model publik seperti Qwen.
+> Model Qwen/Qwen2.5-14B-Instruct-AWQ adalah model publik, tidak butuh akses khusus.
+
+---
+
+### 0.2 — CDP / Impala Credentials (untuk koneksi ke Cloudera Data Warehouse)
+
+**Fungsi:** Autentikasi ke Impala CDW — dipakai oleh Backend (APP 2) dan MCP Server (APP 3).
+
+**Nilai yang sudah diketahui untuk environment ini:**
+
+| Credential | Value |
+|---|---|
+| `IMPALA_HOST` | `coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site` |
+| `IMPALA_PORT` | `443` |
+| `IMPALA_HTTP_PATH` | `cliservice` |
+| `DB_NAME` | `cai_sdx_se_indonesia` |
+| `CDP_USER` | username CDP kamu (contoh: `triano`) |
+| `CDP_PASS` | password CDP kamu |
+
+**Cara verifikasi CDP credentials:**
+
+1. Login ke Cloudera Data Platform (CDP) console
+2. Pastikan user kamu punya akses ke Virtual Warehouse `default-impala-aws`
+3. Di menu **Data Warehouse** → **Virtual Warehouses** → klik titik tiga → **Copy JDBC URL**
+   - Format: `jdbc:impala://<host>:443/;transportMode=http;httpPath=cliservice;ssl=1`
+   - Ambil nilai `host` dari URL tersebut sebagai `IMPALA_HOST`
+
+> Jika password CDP expired atau belum diset, hubungi admin CDP untuk reset password.
+
+---
+
+### 0.3 — Qwen API Key (token internal antar Application)
+
+**Fungsi:** Autentikasi antara Backend/MCP Server dan Qwen LLM Application.
+Ini **bukan** token publik — bebas diisi string apapun, asalkan konsisten di semua Application.
+
+```
+QWEN_API_KEY = local-dev-token
+```
+
+> Gunakan nilai di atas. Jika mau diganti, pastikan diisi **sama persis** di APP 1, APP 2, dan APP 3.
+
+---
+
+### 0.4 — Ringkasan Credential untuk Disimpan
+
+Isi tabel ini sebelum mulai deploy:
+
+| Credential | Value | Dipakai di |
+|---|---|---|
+| `HUGGING_FACE_HUB_TOKEN` | `hf_xxx...` | Step B (download model) |
+| `IMPALA_HOST` | `coordinator-default-impala-aws...` | APP 2, APP 3 |
+| `IMPALA_PORT` | `443` | APP 2, APP 3 |
+| `IMPALA_HTTP_PATH` | `cliservice` | APP 2, APP 3 |
+| `CDP_USER` | username CDP | APP 2, APP 3 |
+| `CDP_PASS` | password CDP | APP 2, APP 3 |
+| `DB_NAME` | `cai_sdx_se_indonesia` | APP 2, APP 3 |
+| `QWEN_API_KEY` | `local-dev-token` | APP 1, APP 2, APP 3 |
+| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | APP 1, APP 2 |
+| URL APP 1 (Qwen) | `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site` | APP 2, APP 3 (setelah APP 1 running) |
+| URL APP 2 (Backend) | `https://bjt-ask-data-backend.ml-xxxxx.cloudera.site` | APP 4 (setelah APP 2 running) |
 
 ---
 
