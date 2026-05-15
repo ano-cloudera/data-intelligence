@@ -3,118 +3,89 @@ from __future__ import annotations
 
 def build_database_description() -> str:
     return (
-        "Database purpose: This is a banking demo dataset for customer, deposit, credit, and fraud analytics."
+        "Database purpose: Bank Jawa Timur customer analytics platform. "
+        "Main use case: customer segmentation, dormant risk analysis, campaign recommendation, "
+        "and branch/channel performance analytics."
     )
 
 
 def build_table_descriptions() -> str:
     return """
-Table: customers
-- Business meaning: customer master/profile data
-- Grain: one row per customer
+Table: cai_sdx_se_indonesia.customer_dormant_segment
+- Business meaning: AI-enriched customer profile for segmentation and dormant risk scoring
+- Grain: one row per customer per snapshot date
 - Columns:
-  - customer_id: unique customer identifier
-  - full_name: customer full name
-  - birth_date: customer date of birth stored as string
+  - customer_id: synthetic analytics identifier (not real PII)
+  - snapshot_date: date of the scoring snapshot
+  - age_band: customer age group (e.g. 26-35, 36-45)
+  - gender: customer gender (M/F)
   - city: customer city
-  - segment: customer segment/category
-  - join_date: customer onboarding/join date stored as string
-
-Table: deposits
-- Business meaning: customer deposit account data
-- Grain: one row per deposit account
-- Columns:
-  - account_id: unique deposit account identifier
-  - customer_id: foreign key to customers.customer_id
-  - product_type: deposit product/category
-  - balance: deposit balance amount
-  - maturity_date: deposit maturity date stored as string
-  - branch_code: branch identifier/code
-  - status: deposit/account status
-
-Table: credits
-- Business meaning: customer credit or loan account data
-- Grain: one row per credit account
-- Columns:
-  - credit_id: unique credit account identifier
-  - customer_id: foreign key to customers.customer_id
-  - credit_type: credit product/category
-  - principal_amount: original approved credit amount
-  - outstanding_balance: current unpaid balance
-  - interest_rate: annual credit interest rate percentage
-  - disbursement_date: credit disbursement date stored as string
-  - maturity_date: credit maturity date stored as string
-  - collectibility: credit quality bucket
-  - branch_code: branch identifier/code
-  - status: credit/account lifecycle status
-
-Table: fraud_transactions
-- Business meaning: transaction-level fraud monitoring and investigation data
-- Grain: one row per transaction
-- Columns:
-  - transaction_id: unique transaction identifier
-  - customer_id: foreign key to customers.customer_id
-  - account_id: related deposit account identifier when available
-  - transaction_timestamp: transaction timestamp stored as string
-  - transaction_date: transaction date stored as string
-  - transaction_type: transaction category such as transfer or card payment
-  - channel: transaction channel such as mobile_app, atm, branch, internet_banking, or edc
-  - amount: transaction amount
-  - currency_code: transaction currency code
-  - merchant_category: merchant or payee category
-  - merchant_name: merchant or payee name
-  - origin_city: customer home or origin city
-  - destination_city: destination city or receiving city
-  - origin_branch_code: branch identifier associated with the customer origin
-  - device_id: device identifier used for the transaction
-  - device_os: device or terminal operating system/type
-  - ip_address: originating IP address string
-  - network_type: network type used by the transaction channel
-  - is_new_device: indicator that the device is new for the customer
-  - is_foreign_ip: indicator that the IP is outside the customer's normal profile
-  - customer_segment: customer segment copied from the customer profile
-  - customer_age: customer age at transaction time
-  - account_tenure_days: customer tenure in days at transaction time
-  - days_since_last_txn: days since the customer's previous transaction
-  - txn_count_1d: transaction count in the prior 1-day window including the current transaction
-  - txn_count_7d: transaction count in the prior 7-day window including the current transaction
-  - txn_amount_1d: transaction amount in the prior 1-day window including the current transaction
-  - txn_amount_7d: transaction amount in the prior 7-day window including the current transaction
-  - avg_txn_amount_30d: average transaction amount over the recent 30-day history
-  - amount_vs_avg_30d_ratio: current amount divided by recent 30-day average
-  - is_round_amount: indicator for round-number transaction amounts
-  - is_night_txn: indicator for night-time transactions
-  - is_weekend_txn: indicator for weekend transactions
-  - failed_login_count_24h: failed login count in the last 24 hours
-  - beneficiary_bank: receiving or beneficiary bank
-  - beneficiary_account_age_days: beneficiary account age in days
-  - is_new_beneficiary: indicator that the beneficiary is new for the customer
-  - distance_from_home_km: estimated transaction distance from the customer home city
-  - velocity_risk_score: rule-based risk score focused on transaction velocity
-  - behavioral_risk_score: rule-based risk score focused on behavior change
-  - fraud_flag: fraud target label where 1 means fraud
-  - fraud_reason: explainability reason for the fraud or legitimate label
+  - district: customer district
+  - branch_code: branch code
+  - branch_name: branch name
+  - customer_tenure_months: months since customer onboarding
+  - occupation_category: customer occupation category
+  - income_band: customer income band
+  - customer_type: Individual or SME
+  - total_accounts: total number of accounts held
+  - has_savings: boolean, customer has savings account
+  - has_current_account: boolean, customer has current account
+  - has_deposit: boolean, customer has deposit account
+  - has_loan: boolean, customer has active loan
+  - has_mobile_banking: boolean, customer enrolled in mobile banking
+  - has_internet_banking: boolean, customer enrolled in internet banking
+  - product_holding_count: total number of products held
+  - avg_savings_balance_3m: average savings balance over last 3 months
+  - avg_deposit_balance_3m: average deposit balance over last 3 months
+  - total_deposit_balance: total current deposit balance
+  - outstanding_loan_balance: total outstanding loan balance
+  - monthly_avg_transaction_amount: average monthly transaction amount
+  - monthly_transaction_count: average monthly transaction count
+  - days_since_last_transaction: days since the last recorded transaction
+  - active_months_last_6m: number of active months in the last 6 months
+  - debit_transaction_count_3m: debit transaction count in last 3 months
+  - credit_transaction_count_3m: credit transaction count in last 3 months
+  - digital_login_count_3m: digital channel login count in last 3 months
+  - atm_transaction_count_3m: ATM transaction count in last 3 months
+  - branch_transaction_count_3m: branch transaction count in last 3 months
+  - customer_segment: customer segment label (e.g. Affluent Depositor, Mass Retail, Digital Active)
+  - segment_description: segment description text
+  - segment_score: segment model confidence score (0-1)
+  - dormant_flag: boolean, true if customer is classified as dormant
+  - dormant_risk_level: dormant risk level: HIGH, MEDIUM, or LOW
+  - dormant_probability: dormant probability score (0-1)
+  - dormant_reason_code: reason code for dormant classification
+  - recommended_campaign: recommended campaign for the customer
+  - recommended_channel: recommended contact channel
+  - next_best_action: recommended next action text
+  - segmentation_model_version: version of the segmentation model used
+  - dormant_model_version: version of the dormant risk model used
+  - scoring_timestamp: timestamp when scoring was last run
 """.strip()
 
 
 def build_relationship_guidance() -> str:
     return """
-Relationship guidance:
-- Join customers.customer_id = deposits.customer_id
-- Join customers.customer_id = credits.customer_id
-- Join customers.customer_id = fraud_transactions.customer_id
-- One customer can have multiple deposit accounts
-- One customer can have multiple credit accounts
-- One customer can have multiple fraud transaction rows
-- customers is the customer dimension/master table
-- deposits is the account-level table used for deposit analysis
-- credits is the account-level table used for credit analysis
-- fraud_transactions is the transaction-level table used for fraud monitoring, anomaly analysis, and investigation
-- Joining customers to deposits can duplicate customer rows because deposits is one-to-many from customers
-- Joining customers to credits can duplicate customer rows because credits is one-to-many from customers
-- Joining customers to fraud_transactions can duplicate customer rows because fraud_transactions is one-to-many from customers
-- Joining deposits and credits together through customers can multiply rows; aggregate first when comparing both products
-- Joining fraud_transactions to deposits or credits through customers can also multiply rows; aggregate each child table first when mixing account-level and transaction-level metrics
+Query guidance:
+- Only query cai_sdx_se_indonesia.customer_dormant_segment.
+- Do not join to any other table.
+- For business questions, prefer aggregate queries (COUNT, SUM, AVG, GROUP BY).
+- For row-level or top-N queries, always include LIMIT 20.
+- Never use SELECT *.
+- Never expose PII columns. customer_id is allowed only as an analytics identifier.
+- Business term mapping:
+  - "risiko dormant tinggi" => dormant_risk_level = 'HIGH'
+  - "dormant high risk" => dormant_risk_level = 'HIGH'
+  - "nasabah dormant" => dormant_flag = true
+  - "segmentasi" => customer_segment
+  - "customer segment" => customer_segment
+  - "rekomendasi campaign" => recommended_campaign
+  - "channel rekomendasi" => recommended_channel
+  - "cabang" => branch_name
+  - "kota" => city
+  - "saldo deposito" => total_deposit_balance
+  - "saldo pinjaman" => outstanding_loan_balance
+  - "probability dormant" => dormant_probability
 """.strip()
 
 

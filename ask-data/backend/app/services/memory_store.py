@@ -4,7 +4,7 @@ from typing import Any
 
 from app.core.config import Settings, get_settings
 from app.schemas.llm import LLMSelectionState
-from app.schemas.rag import RagSessionConfigRequest
+from app.schemas.rag import RagSessionConfigRequest  # noqa: F401 — used in set_rag_config type hint
 from app.schemas.session import (
     ChatMessage,
     RagSessionConfigState,
@@ -111,22 +111,13 @@ class SessionMemoryStore:
     def set_rag_config(
         self,
         payload: RagSessionConfigRequest,
-        rag_session_id: int | None,
+        rag_session_id: int | None = None,
     ) -> SessionMemoryState:
         session = self.get_or_create_session(payload.session_id)
         session.rag_config = RagSessionConfigState(
             enabled=payload.enabled,
-            session_name=payload.session_name,
-            project_id=payload.project_id,
-            knowledge_base_id=payload.knowledge_base_id,
-            knowledge_base_name=payload.knowledge_base_name,
-            rag_session_id=rag_session_id,
-            inference_model_id=payload.inference_model_id,
-            inference_model_name=payload.inference_model_name,
-            rerank_model_id=payload.rerank_model_id,
-            rerank_model_name=payload.rerank_model_name,
-            response_chunks=payload.response_chunks,
-            query_configuration=payload.query_configuration.model_copy(deep=True),
+            collection_name=payload.collection_name,
+            top_k=payload.top_k,
             updated_at=utc_now(),
         )
         return self.session_store.update_session(session)

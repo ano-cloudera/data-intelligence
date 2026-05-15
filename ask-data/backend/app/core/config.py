@@ -92,14 +92,16 @@ class Settings(BaseSettings):
     sql_default_limit: int = Field(default=100, alias="SQL_DEFAULT_LIMIT")
     sql_max_preview_rows: int = Field(default=100, alias="SQL_MAX_PREVIEW_ROWS")
     sql_allowed_tables: str = Field(
-        default="customers,deposits,credits,fraud_transactions",
+        default="customer_dormant_segment",
         alias="SQL_ALLOWED_TABLES",
     )
-    rag_base_url: str = Field(
-        default="",
-        validation_alias=AliasChoices("RAG_BASE_URL", "AGENT_BASE_URL"),
-    )
-    rag_timeout_seconds: int = Field(default=60, alias="RAG_TIMEOUT_SECONDS")
+    llm_provider: str = Field(default="local_qwen", alias="LLM_PROVIDER")
+    qwen_base_url: str = Field(default="http://localhost:8000/v1", alias="QWEN_BASE_URL")
+    qwen_model: str = Field(default="Qwen/Qwen3-8B-AWQ", alias="QWEN_MODEL")
+    chroma_persist_dir: str = Field(default="./chroma_db", alias="CHROMA_PERSIST_DIR")
+    chroma_enabled: bool = Field(default=False, alias="CHROMA_ENABLED")
+    embed_model: str = Field(default="nomic-embed-text", alias="EMBED_MODEL")
+    ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
     guardrails_enabled: bool = Field(default=False, alias="GUARDRAILS_ENABLED")
     guardrails_api_key: str = Field(default="", alias="GUARDRAILS_API_KEY")
     guardrails_base_url: str = Field(default="", alias="GUARDRAILS_BASE_URL")
@@ -176,7 +178,7 @@ class Settings(BaseSettings):
 
     @property
     def is_rag_configured(self) -> bool:
-        return bool(self.rag_base_url.strip())
+        return self.chroma_enabled
 
     @property
     def is_guardrails_configured(self) -> bool:

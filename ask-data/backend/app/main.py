@@ -47,7 +47,7 @@ from app.services.chat_router import (
     is_acknowledgement,
     is_farewell,
 )
-from app.services.rag_client import RagClient, RagClientError
+from app.services.rag_client import ChromaRagClient, RagClientError
 from app.services.conversation_generator import ConversationGeneratorService
 from app.services.llm_provider_service import LLMProviderService
 from app.services.llm_router import LLMRouter
@@ -87,7 +87,7 @@ sql_generator = SQLGeneratorService(
 sql_executor = SQLExecutorService(settings=settings)
 answer_generator = AnswerGeneratorService(llm_router=llm_router, settings=settings)
 conversation_generator = ConversationGeneratorService(llm_router=llm_router, settings=settings)
-rag_client = RagClient(settings=settings) if settings.is_rag_configured else None
+rag_client = ChromaRagClient(settings=settings) if settings.is_rag_configured else None
 guardrails_service = GuardrailsService(settings=settings)
 visualization_service = VisualizationService()
 
@@ -130,6 +130,9 @@ def health() -> dict[str, object]:
         "debug": settings.app_debug,
         "guardrails": guardrails_service.get_runtime_status(),
         "session_backend": settings.session_backend,
+        "llm_provider": settings.llm_provider,
+        "qwen_base_url": settings.qwen_base_url,
+        "qwen_model": settings.qwen_model,
         "llm_providers": [option.provider for option in llm_provider_service.list_options().options],
     }
 
@@ -630,43 +633,21 @@ def _get_rag_config_response(session_id: str) -> RagSessionConfigResponse:
     rag_config = memory_store.get_rag_config(session_id)
     if rag_config is None:
         return RagSessionConfigResponse(session_id=session_id)
-
     return RagSessionConfigResponse(
         session_id=session_id,
         enabled=rag_config.enabled,
-        session_name=rag_config.session_name,
-        project_id=rag_config.project_id,
-        knowledge_base_id=rag_config.knowledge_base_id,
-        knowledge_base_name=rag_config.knowledge_base_name,
-        rag_session_id=rag_config.rag_session_id,
-        inference_model_id=rag_config.inference_model_id,
-        inference_model_name=rag_config.inference_model_name,
-        rerank_model_id=rag_config.rerank_model_id,
-        rerank_model_name=rag_config.rerank_model_name,
-        response_chunks=rag_config.response_chunks,
-        query_configuration=rag_config.query_configuration,
+        collection_name=rag_config.collection_name,
+        top_k=rag_config.top_k,
     )
 
 
 def _validate_rag_config(payload: RagSessionConfigRequest) -> None:
     if not payload.enabled:
         return
-
-    missing: list[str] = []
-    if payload.project_id is None:
-        missing.append("project ID")
-    if payload.knowledge_base_id is None:
-        missing.append("knowledge base")
-    if not payload.inference_model_id:
-        missing.append("chat model")
-
-    if missing:
+    if not payload.collection_name:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "RAG Studio configuration is incomplete. "
-                f"Please select: {', '.join(missing)}."
-            ),
+            detail="RAG configuration is incomplete. Please select a collection.",
         )
 
 
@@ -685,33 +666,38 @@ def _run_rag_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
         }
 
     if rag_client is None:
-        raise RagClientError("RAG Studio is not configured for this backend.")
+        raise RagClientError("RAG (ChromaDB) is not configured for this backend.")
     if not payload.session_id:
         raise RagClientError("RAG requests require a session ID.")
 
     rag_config = memory_store.get_rag_config(payload.session_id)
-    if (
-        rag_config is None
-        or not rag_config.enabled
-        or rag_config.rag_session_id is None
-    ):
-        raise RagClientError("RAG Studio is not enabled for this chat session.")
+    if rag_config is None or not rag_config.enabled or not rag_config.collection_name:
+        raise RagClientError("RAG is not enabled or collection is not set for this session.")
 
-    rag_result = rag_client.stream_completion(
-        session_id=rag_config.rag_session_id,
+    sources = rag_client.query(
+        collection_name=rag_config.collection_name,
         question=payload.question,
+        top_k=rag_config.top_k,
     )
-    answer = str(rag_result["answer"])
+    context_text = rag_client.build_context_text(sources)
+
+    llm_client = llm_router.get_client()
+    system_prompt = (
+        "Anda adalah asisten analitik Bank Jawa Timur. "
+        "Jawab berdasarkan konteks dokumen di bawah ini. "
+        "Jika informasi tidak tersedia di dokumen, katakan 'Informasi tidak tersedia di dokumen yang ada.'"
+    )
+    user_prompt = (
+        f"Konteks dokumen:\n{context_text}\n\n"
+        f"Pertanyaan: {payload.question}"
+    )
+    answer = llm_client.chat(
+        [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+    )
     answer, output_guardrails_metadata = _apply_output_guardrails(payload, answer)
-    sources = rag_client.get_sources(
-        session_id=rag_config.rag_session_id,
-        response_id=(
-            str(rag_result["response_id"])
-            if rag_result.get("response_id") is not None
-            else None
-        ),
-        data_source_id=rag_config.knowledge_base_id,
-    )
 
     memory_store.append_user_message(payload.session_id, payload.question)
     memory_store.append_assistant_message(payload.session_id, answer)
@@ -777,16 +763,27 @@ def chat_query(payload: ChatQueryRequest) -> ChatQueryResponse:
 @app.get("/rag/options", response_model=RagOptionsResponse)
 def rag_options() -> RagOptionsResponse:
     if rag_client is None:
-        return RagOptionsResponse(enabled=False)
-
+        return RagOptionsResponse(enabled=False, collections=[])
     try:
+        cols = rag_client.list_collections()
+        from app.schemas.rag import RagCollectionOption
         return RagOptionsResponse(
             enabled=True,
-            model_source=rag_client.get_model_source(),
-            chat_models=rag_client.get_chat_models(),
-            rerank_models=rag_client.get_rerank_models(),
-            knowledge_bases=rag_client.get_knowledge_bases(),
+            collections=[RagCollectionOption(**c) for c in cols],
         )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/rag/ingest")
+def rag_ingest(collection_name: str, pdf_path: str) -> dict:
+    if rag_client is None:
+        raise HTTPException(status_code=400, detail="RAG (ChromaDB) is not configured.")
+    try:
+        count = rag_client.ingest_pdf(collection_name=collection_name, pdf_path=pdf_path)
+        return {"collection": collection_name, "chunks_ingested": count}
+    except RagClientError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -799,15 +796,10 @@ def get_rag_config(session_id: str) -> RagSessionConfigResponse:
 @app.post("/rag/config", response_model=RagSessionConfigResponse)
 def save_rag_config(payload: RagSessionConfigRequest) -> RagSessionConfigResponse:
     if rag_client is None:
-        raise HTTPException(status_code=400, detail="RAG Studio is not configured for this backend.")
-
+        raise HTTPException(status_code=400, detail="RAG (ChromaDB) is not configured for this backend.")
     _validate_rag_config(payload)
-
     try:
-        rag_session_id = None
-        if payload.enabled:
-            rag_session_id = rag_client.create_session(payload)
-        memory_store.set_rag_config(payload, rag_session_id=rag_session_id)
+        memory_store.set_rag_config(payload)
         return _get_rag_config_response(payload.session_id)
     except HTTPException:
         raise
@@ -826,7 +818,7 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
     )
 
     try:
-        if rag_config is not None and rag_config.enabled and rag_config.rag_session_id is not None:
+        if rag_config is not None and rag_config.enabled and rag_config.collection_name:
             response_payload = _run_rag_chat_flow(payload)
         else:
             response_payload = _run_chat_flow(payload)

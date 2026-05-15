@@ -22,19 +22,21 @@ interface ModelSettingsPanelProps {
 }
 
 function providerLabel(provider: string): string {
-  return provider === "bedrock" ? "Amazon Bedrock" : "Azure OpenAI";
+  if (provider === "local_qwen") return "Qwen (Ollama)";
+  if (provider === "bedrock") return "Amazon Bedrock";
+  return "Azure OpenAI";
 }
 
 function providerDescription(provider: string): string {
-  return provider === "bedrock"
-    ? "Use Amazon Bedrock for alternative model families and cross-provider evaluation."
-    : "Use Azure OpenAI for the configured production-aligned deployment path.";
+  if (provider === "local_qwen")
+    return "Model Qwen2.5 lokal via Ollama. Digunakan untuk demo Bank Jawa Timur tanpa ketergantungan cloud.";
+  if (provider === "bedrock")
+    return "Use Amazon Bedrock for alternative model families and cross-provider evaluation.";
+  return "Use Azure OpenAI for the configured production-aligned deployment path.";
 }
 
 function providerIcon(provider: string) {
-  if (provider === "bedrock") {
-    return <CloudIcon sx={{ fontSize: 18 }} />;
-  }
+  if (provider === "bedrock") return <CloudIcon sx={{ fontSize: 18 }} />;
   return <SmartToyIcon sx={{ fontSize: 18 }} />;
 }
 

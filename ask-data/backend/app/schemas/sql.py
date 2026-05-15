@@ -27,6 +27,7 @@ class AnswerSource(BaseModel):
     score: float | None = None
     preview_url: str | None = None
     download_url: str | None = None
+    excerpt: str | None = None
 
 
 class VisualizationSpec(BaseModel):

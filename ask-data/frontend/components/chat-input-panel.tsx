@@ -39,7 +39,7 @@ export function ChatInputPanel({
           onChange={(e) => onQuestionChange(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={4}
-          placeholder="Ask a question about deposits, credits, customers, or related portfolio insights."
+          placeholder="Tanyakan tentang segmentasi nasabah, risiko dormant, saldo deposito, atau analitik cabang Bank Jawa Timur."
           className="w-full resize-none bg-transparent px-1 py-1 text-sm leading-6 text-[var(--color-ink-strong)] outline-none placeholder:text-[var(--color-ink-subtle)]"
         />
 

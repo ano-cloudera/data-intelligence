@@ -100,3 +100,83 @@ Recommended runtime assumptions:
 - project status and handoff: [`docs/project-state.md`](/Users/triano/Documents/Cloudera/cai-se-indo-demo/ask-data/docs/project-state.md)
 - environment variables: [`docs/env.md`](/Users/triano/Documents/Cloudera/cai-se-indo-demo/ask-data/docs/env.md)
 - setup guidance: [`docs/setup.md`](/Users/triano/Documents/Cloudera/cai-se-indo-demo/ask-data/docs/setup.md)
+
+---
+
+## Bank Jawa Timur PoC — Local Qwen + Impala Iceberg
+
+### PoC Objective
+
+AI chatbot (Ask Data) untuk Bank Jawa Timur. Pengguna mengajukan pertanyaan analitik perbankan dalam Bahasa Indonesia. Backend men-generate SQL dari natural language, mengeksekusi ke Impala Iceberg, dan merangkum hasil dalam Bahasa Indonesia.
+
+### Main Table
+
+```
+cai_sdx_se_indonesia.customer_dormant_segment
+```
+
+Use cases: segmentasi nasabah, klasifikasi dormant, rekomendasi campaign, analitik cabang/segmen/channel.
+
+### Start Local Qwen (vLLM)
+
+```bash
+cd ask-data
+bash scripts/local_bootstrap.sh
+
+export QWEN_MODEL="Qwen/Qwen3-8B-AWQ"
+export QWEN_MAX_MODEL_LEN=4096
+export QWEN_GPU_MEMORY_UTILIZATION=0.85
+
+bash qwen_inference/start_qwen_vllm.sh
+bash qwen_inference/test_qwen.sh
+```
+
+### Backend Env Vars
+
+```bash
+LLM_PROVIDER=local_qwen
+QWEN_BASE_URL=http://localhost:8000/v1
+QWEN_API_KEY=local-dev-token
+QWEN_MODEL=Qwen/Qwen3-8B-AWQ
+DB_NAME=cai_sdx_se_indonesia
+SQL_ALLOWED_TABLES=customer_dormant_segment
+```
+
+### Generate Sample Data
+
+```bash
+cd ask-data
+python data_generation/generate_customer_dormant_segment_data.py --rows 10000 --output-dir data
+# Output: data/customer_dormant_segment.csv
+```
+
+### Create Impala Iceberg Table
+
+```bash
+# View DDL:
+cat sql/impala_customer_dormant_segment_ddl.sql
+# Run in Impala or via Hue:
+# CREATE TABLE cai_sdx_se_indonesia.customer_dormant_segment ... STORED BY ICEBERG;
+```
+
+### Makefile Shortcuts
+
+```bash
+make bootstrap    # install qwen inference deps
+make qwen         # start vLLM server
+make test-qwen    # test Qwen inference
+make sample-data  # generate 10k rows CSV
+make ddl          # print Impala DDL
+```
+
+### PII / Guardrails
+
+Requests for NIK, KTP, CIF, nomor rekening, nomor HP, email, atau alamat diblokir otomatis. customer_id hanya digunakan sebagai identifier analitik sintetis.
+
+### Cloudera AI ECS Deployment
+
+- Backend: Cloudera AI Application (Python, uvicorn)
+- Frontend: Cloudera AI Application (Node.js, Next.js)
+- Qwen/vLLM: Cloudera AI Workbench session dengan GPU, atau CAI Application terpisah
+- Impala: Cloudera Data Warehouse (Iceberg)
+- Set `QWEN_BASE_URL` ke URL aplikasi Qwen jika di-deploy sebagai CAI Application

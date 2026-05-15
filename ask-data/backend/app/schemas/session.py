@@ -26,27 +26,10 @@ class ResultPreviewContext(BaseModel):
     captured_at: datetime = Field(default_factory=utc_now)
 
 
-class RagQueryConfiguration(BaseModel):
-    enable_hyde: bool = False
-    enable_summary_filter: bool = True
-    enable_tool_calling: bool = False
-    disable_streaming: bool = False
-    selected_tools: list[str] = Field(default_factory=list)
-
-
 class RagSessionConfigState(BaseModel):
     enabled: bool = False
-    session_name: str = "ask-data-rag-session"
-    project_id: int | None = None
-    knowledge_base_id: int | None = None
-    knowledge_base_name: str | None = None
-    rag_session_id: int | None = None
-    inference_model_id: str | None = None
-    inference_model_name: str | None = None
-    rerank_model_id: str | None = None
-    rerank_model_name: str | None = None
-    response_chunks: int = 10
-    query_configuration: RagQueryConfiguration = Field(default_factory=RagQueryConfiguration)
+    collection_name: str | None = None
+    top_k: int = 5
     updated_at: datetime = Field(default_factory=utc_now)
 
 

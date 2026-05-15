@@ -82,56 +82,24 @@ export interface AnswerSource {
   score?: number | null;
   preview_url?: string | null;
   download_url?: string | null;
+  excerpt?: string | null;
 }
 
-export interface RagQueryConfiguration {
-  enable_hyde: boolean;
-  enable_summary_filter: boolean;
-  enable_tool_calling: boolean;
-  disable_streaming: boolean;
-  selected_tools: string[];
-}
-
-export interface RagModelOption {
-  model_id: string;
+export interface RagCollectionOption {
   name: string;
-  available: boolean;
-  replica_count: number;
-  tool_calling_supported: boolean;
-}
-
-export interface RagKnowledgeBaseOption {
-  id: number;
-  name: string;
-  description?: string | null;
   document_count: number;
-  embedding_model?: string | null;
-  summarization_model?: string | null;
-  metadata: Record<string, unknown>;
 }
 
 export interface RagOptionsResponse {
   enabled: boolean;
-  model_source?: string | null;
-  chat_models: RagModelOption[];
-  rerank_models: RagModelOption[];
-  knowledge_bases: RagKnowledgeBaseOption[];
+  collections: RagCollectionOption[];
 }
 
 export interface RagSessionConfig {
   session_id: string;
   enabled: boolean;
-  session_name: string;
-  project_id: number | null;
-  knowledge_base_id: number | null;
-  knowledge_base_name?: string | null;
-  rag_session_id?: number | null;
-  inference_model_id?: string | null;
-  inference_model_name?: string | null;
-  rerank_model_id?: string | null;
-  rerank_model_name?: string | null;
-  response_chunks: number;
-  query_configuration: RagQueryConfiguration;
+  collection_name: string | null;
+  top_k: number;
 }
 
 export interface SessionMessage {
@@ -156,7 +124,7 @@ export interface SessionStatePayload {
   last_result_preview?: ResultPreviewContext | null;
   last_intent?: string | null;
   llm_selection?: LLMSelectionState | null;
-  rag_config?: RagSessionConfig | null;
+  rag_config?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -359,6 +327,11 @@ export const apiClient = {
     request<RagSessionConfig>(`/rag/config/${sessionId}`),
   saveRagConfig: (payload: RagSessionConfig) =>
     request<RagSessionConfig>("/rag/config", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  ragIngest: (payload: { collection_name: string; pdf_path: string }) =>
+    request<{ status: string; chunks: number }>("/rag/ingest", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

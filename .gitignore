@@ -62,6 +62,13 @@ out/
 *.log
 logs/
 
+# ChromaDB vector store
+chroma_db/
+
+# SQLite session DB
+*.db
+*.sqlite
+
 # Misc
 *.pem
 *.key

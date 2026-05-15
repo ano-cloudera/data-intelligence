@@ -24,7 +24,7 @@ SENSITIVE_DATA_PATTERNS = (
     r"\b(phone number|mobile number|nomor telepon|nomor hp|no hp|no\. hp|handphone|whatsapp|wa nasabah)\b",
     r"\b(email address|alamat email|email nasabah)\b",
     r"\b(home address|alamat rumah|alamat lengkap|alamat nasabah)\b",
-    r"\b(nik|ktp|passport|ssn|tax id|npwp)\b",
+    r"\b(nik|ktp|cif|passport|ssn|tax id|npwp)\b",
     r"\b(show|list|export|dump|download)\b.*\b(all|entire|full)\b.*\b(customers|nasabah)\b",
     r"\b(tampilkan|keluarkan|lihatkan|berikan|minta|ambil|export|unduh)\b.*\b(email|alamat|telepon|hp|handphone|rekening)\b",
     r"\b(raw|detail(?:ed)?)\b.*\b(customer|nasabah)\b",

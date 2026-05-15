@@ -35,12 +35,13 @@ import {
   type AnalyticsSummaryResponse,
   type LLMProviderOption,
   type LLMProviderSelectionResponse,
+  type RagCollectionOption,
   type RagOptionsResponse,
-  type RagSessionConfig,
   type SessionStatePayload,
   type SessionSummary,
   type VisualizationSpec,
 } from "@/lib/api";
+import type { VectorRagConfig } from "@/components/rag-config-modal";
 import {
   createNewSessionId,
   getCurrentSessionId,
@@ -99,88 +100,30 @@ const DEMO_BRIEFING_STORAGE_KEY = "ask-data-demo-briefing-seen";
 const LLM_PROVIDER_STORAGE_KEY = "ask-data-llm-provider";
 const LLM_MODEL_STORAGE_KEY = "ask-data-llm-model";
 
-const defaultRagConfig = (sessionId: string): RagSessionConfig => ({
-  session_id: sessionId,
+const defaultRagConfig = (): VectorRagConfig => ({
   enabled: false,
-  session_name: "ask-data-rag-session",
-  project_id: 1,
-  knowledge_base_id: 291,
-  knowledge_base_name: null,
-  rag_session_id: null,
-  inference_model_id: "",
-  inference_model_name: null,
-  rerank_model_id: null,
-  rerank_model_name: null,
-  response_chunks: 10,
-  query_configuration: {
-    enable_hyde: false,
-    enable_summary_filter: true,
-    enable_tool_calling: false,
-    disable_streaming: false,
-    selected_tools: [],
-  },
+  collection_name: null,
+  top_k: 3,
 });
 
 const starterPrompts = [
   {
-    title: "Total deposit balance",
-    description: "View the current total deposit balance for a portfolio overview.",
-    prompt: "What is the total deposit balance right now?",
+    title: "Segmentasi Nasabah",
+    description: "Tampilkan jumlah nasabah berdasarkan customer segment.",
+    prompt: "Tampilkan jumlah nasabah berdasarkan customer segment.",
   },
   {
-    title: "Outstanding credit",
-    description: "Summarize total outstanding credit to see current financing exposure.",
-    prompt: "What is the total outstanding credit right now?",
+    title: "Risiko Dormant",
+    description: "Segmen mana yang memiliki risiko dormant paling tinggi?",
+    prompt: "Segmen mana yang memiliki risiko dormant paling tinggi?",
   },
   {
-    title: "Top debtors",
-    description: "Find customers with the highest outstanding credit in current data.",
-    prompt: "Who are the customers with the highest outstanding credit?",
+    title: "Saldo Deposito Dormant",
+    description: "Total saldo deposito untuk nasabah dormant risk high.",
+    prompt: "Berapa total saldo deposito untuk nasabah dormant risk high?",
   },
 ];
 
-const fallbackRagOptions: RagOptionsResponse = {
-  enabled: true,
-  model_source: "fallback",
-  chat_models: [
-    {
-      model_id: "meta.llama3-8b-instruct-v1:0",
-      name: "Llama 3 8B Instruct",
-      available: true,
-      replica_count: 1,
-      tool_calling_supported: false,
-    },
-  ],
-  rerank_models: [],
-  knowledge_bases: [
-    {
-      id: 291,
-      name: "BPJS-Claim-Knowledge",
-      description: "Fallback knowledge base option loaded locally while RAG options are unavailable.",
-      document_count: 0,
-      embedding_model: null,
-      summarization_model: null,
-      metadata: {
-        source: "fallback",
-      },
-    },
-  ],
-};
-
-function withFallbackRagOptions(options: RagOptionsResponse): RagOptionsResponse {
-  return {
-    enabled: options.enabled,
-    model_source: options.model_source ?? fallbackRagOptions.model_source,
-    chat_models:
-      options.chat_models.length > 0 ? options.chat_models : fallbackRagOptions.chat_models,
-    rerank_models:
-      options.rerank_models.length > 0 ? options.rerank_models : fallbackRagOptions.rerank_models,
-    knowledge_bases:
-      options.knowledge_bases.length > 0
-        ? options.knowledge_bases
-        : fallbackRagOptions.knowledge_bases,
-  };
-}
 
 function getGuardrailsNotice(metadata: Record<string, unknown> | undefined) {
   const action = typeof metadata?.guardrails_action === "string" ? metadata.guardrails_action : null;
@@ -351,7 +294,9 @@ export default function HomePage() {
   });
   const [ragOptions, setRagOptions] = useState<RagOptionsResponse | null>(null);
   const [ragOptionsLoading, setRagOptionsLoading] = useState(false);
-  const [ragConfig, setRagConfig] = useState<RagSessionConfig>(defaultRagConfig(""));
+  const [ragCollections, setRagCollections] = useState<RagCollectionOption[]>([]);
+  const [ragConfig, setRagConfig] = useState<VectorRagConfig>(defaultRagConfig());
+  const [ragSessionId, setRagSessionId] = useState<string>("");
   const [ragPanelOpen, setRagPanelOpen] = useState(false);
   const [ragSaving, setRagSaving] = useState(false);
   const [ragConfigDirty, setRagConfigDirty] = useState(false);
@@ -361,7 +306,8 @@ export default function HomePage() {
     const sessionId = getCurrentSessionId() || getOrCreateSessionId();
     setCurrentSessionId(sessionId);
     setState((cur) => ({ ...cur, sessionId }));
-    setRagConfig(defaultRagConfig(sessionId));
+    setRagSessionId(sessionId);
+    setRagConfig(defaultRagConfig());
     void loadSessionHistory(sessionId);
 
     const seenBriefing = window.localStorage.getItem(DEMO_BRIEFING_STORAGE_KEY);
@@ -620,7 +566,8 @@ export default function HomePage() {
       messages: [],
     }));
     setRagPanelOpen(false);
-    setRagConfig(defaultRagConfig(sessionId));
+    setRagConfig(defaultRagConfig());
+    setRagSessionId(sessionId);
     setRagConfigDirty(false);
     await loadSessionHistory(sessionId);
     await loadSavedRagConfig(sessionId);
@@ -629,33 +576,18 @@ export default function HomePage() {
   async function loadRagOptions() {
     setRagOptionsLoading(true);
     try {
-      const options = withFallbackRagOptions(await apiClient.ragOptions());
+      const options = await apiClient.ragOptions();
       setRagOptions(options);
-
-      const preferredModel =
-        options.chat_models.find((model) => model.name === "Llama 3 8B Instruct") ??
-        options.chat_models[0];
-      const preferredKb =
-        options.knowledge_bases.find((item) => item.id === 291) ??
-        options.knowledge_bases[0];
-
-      setRagConfig((cur) => ({
-        ...cur,
-        knowledge_base_id: cur.knowledge_base_id ?? preferredKb?.id ?? null,
-        knowledge_base_name: cur.knowledge_base_name ?? preferredKb?.name ?? null,
-        inference_model_id: cur.inference_model_id || preferredModel?.model_id || "",
-        inference_model_name: cur.inference_model_name ?? preferredModel?.name ?? null,
-      }));
+      setRagCollections(options.collections);
+      if (!ragConfig.collection_name && options.collections.length > 0) {
+        setRagConfig((cur) => ({
+          ...cur,
+          collection_name: options.collections[0].name,
+        }));
+      }
     } catch {
-      setRagOptions(fallbackRagOptions);
-      setRagConfig((cur) => ({
-        ...cur,
-        project_id: cur.project_id ?? 1,
-        knowledge_base_id: cur.knowledge_base_id ?? 291,
-        knowledge_base_name: cur.knowledge_base_name ?? "BPJS-Claim-Knowledge",
-        inference_model_id: cur.inference_model_id || "meta.llama3-8b-instruct-v1:0",
-        inference_model_name: cur.inference_model_name ?? "Llama 3 8B Instruct",
-      }));
+      setRagOptions({ enabled: false, collections: [] });
+      setRagCollections([]);
     } finally {
       setRagOptionsLoading(false);
     }
@@ -663,28 +595,19 @@ export default function HomePage() {
 
   async function ensureRagOptionsLoaded() {
     if (ragOptionsLoading) return;
-    if (ragOptions && ragOptions.chat_models.length > 0 && ragOptions.knowledge_bases.length > 0) {
-      return;
-    }
+    if (ragOptions !== null) return;
     await loadRagOptions();
   }
 
   async function openRagPanel() {
     if (ragPanelPreparing) return;
-
-    const hasOptions =
-      Boolean(ragOptions) &&
-      (ragOptions?.chat_models.length ?? 0) > 0 &&
-      (ragOptions?.knowledge_bases.length ?? 0) > 0;
-
-    if (hasOptions) {
+    if (ragOptions !== null) {
       setRagPanelOpen(true);
       return;
     }
-
     setRagPanelPreparing(true);
     try {
-      await ensureRagOptionsLoaded();
+      await loadRagOptions();
       setRagPanelOpen(true);
     } finally {
       setRagPanelPreparing(false);
@@ -706,25 +629,14 @@ export default function HomePage() {
   async function loadSavedRagConfig(sessionId: string) {
     try {
       const saved = await apiClient.getRagConfig(sessionId);
-      setRagConfig((cur) => ({
-        ...cur,
-        session_id: sessionId,
+      setRagConfig({
         enabled: saved.enabled,
-        session_name: saved.session_name || cur.session_name,
-        project_id: saved.project_id ?? cur.project_id ?? 1,
-        knowledge_base_id: saved.knowledge_base_id ?? cur.knowledge_base_id,
-        knowledge_base_name: saved.knowledge_base_name ?? cur.knowledge_base_name,
-        rag_session_id: saved.rag_session_id,
-        inference_model_id: saved.inference_model_id ?? cur.inference_model_id,
-        inference_model_name: saved.inference_model_name ?? cur.inference_model_name,
-        rerank_model_id: saved.rerank_model_id ?? cur.rerank_model_id,
-        rerank_model_name: saved.rerank_model_name ?? cur.rerank_model_name,
-        response_chunks: saved.response_chunks || cur.response_chunks,
-        query_configuration: saved.query_configuration ?? cur.query_configuration,
-      }));
+        collection_name: saved.collection_name,
+        top_k: saved.top_k || 3,
+      });
       setRagConfigDirty(false);
     } catch {
-      setRagConfig((cur) => ({ ...cur, session_id: sessionId }));
+      setRagConfig(defaultRagConfig());
       setRagConfigDirty(false);
     }
   }
@@ -751,10 +663,10 @@ export default function HomePage() {
       setState((cur) => ({ ...cur, error: "Please enter a question first." }));
       return;
     }
-    if (ragConfig.enabled && (!ragConfig.rag_session_id || ragConfigDirty)) {
+    if (ragConfig.enabled && (!ragConfig.collection_name || ragConfigDirty)) {
       setState((cur) => ({
         ...cur,
-        error: "Save the RAG Studio configuration first before sending a knowledge-base question.",
+        error: "Simpan konfigurasi RAG terlebih dahulu sebelum mengirim pertanyaan.",
       }));
       return;
     }
@@ -771,7 +683,7 @@ export default function HomePage() {
     }));
 
     try {
-      const response: ChatResponsePayload = ragConfig.enabled && ragConfig.rag_session_id
+      const response: ChatResponsePayload = ragConfig.enabled && ragConfig.collection_name
         ? { kind: "answer", ...(await apiClient.chatAnswer({ question: trimmed, session_id: sessionId })) }
         : { kind: "query", ...(await apiClient.chatQuery({ question: trimmed, session_id: sessionId })) };
 
@@ -805,15 +717,22 @@ export default function HomePage() {
   }
 
   async function saveRagConfig() {
-    if (!state.sessionId) return;
+    const sessionId = state.sessionId || ragSessionId;
+    if (!sessionId) return;
 
     setRagSaving(true);
     try {
       const saved = await apiClient.saveRagConfig({
-        ...ragConfig,
-        session_id: state.sessionId,
+        session_id: sessionId,
+        enabled: ragConfig.enabled,
+        collection_name: ragConfig.collection_name,
+        top_k: ragConfig.top_k,
       });
-      setRagConfig(saved);
+      setRagConfig({
+        enabled: saved.enabled,
+        collection_name: saved.collection_name,
+        top_k: saved.top_k || 3,
+      });
       setRagConfigDirty(false);
       setRagPanelOpen(false);
     } catch (error) {
@@ -829,37 +748,11 @@ export default function HomePage() {
   async function handleToggleRag(enabled: boolean) {
     await ensureRagOptionsLoaded();
 
-    const nextConfig: RagSessionConfig = {
-      ...ragConfig,
-      enabled,
-      session_id: state.sessionId,
-    };
-
-    setRagConfig(nextConfig);
-    setRagConfigDirty(enabled || ragConfigDirty);
+    setRagConfig((cur) => ({ ...cur, enabled }));
+    setRagConfigDirty(true);
 
     if (enabled) {
       void openRagPanel();
-      return;
-    }
-
-    if (ragConfig.rag_session_id) {
-      setRagSaving(true);
-      try {
-        const saved = await apiClient.saveRagConfig({
-          ...nextConfig,
-          rag_session_id: null,
-        });
-        setRagConfig(saved);
-        setRagConfigDirty(false);
-      } catch (error) {
-        setState((cur) => ({
-          ...cur,
-          error: error instanceof Error ? error.message : "Unable to disable RAG configuration.",
-        }));
-      } finally {
-        setRagSaving(false);
-      }
     }
   }
 
@@ -869,7 +762,8 @@ export default function HomePage() {
     setActiveView("assistant");
     setState({ ...initialChatState, sessionId });
     setLlmProviders(initialLlmProvidersState);
-    setRagConfig(defaultRagConfig(sessionId));
+    setRagConfig(defaultRagConfig());
+    setRagSessionId(sessionId);
     setRagPanelOpen(false);
     setRagConfigDirty(false);
   }
@@ -879,7 +773,8 @@ export default function HomePage() {
     setCurrentSessionId(sessionId);
     setState({ ...initialChatState, sessionId });
     setLlmProviders(initialLlmProvidersState);
-    setRagConfig(defaultRagConfig(sessionId));
+    setRagConfig(defaultRagConfig());
+    setRagSessionId(sessionId);
     setRagPanelOpen(false);
     setRagConfigDirty(false);
     setActiveView("assistant");
@@ -992,28 +887,28 @@ export default function HomePage() {
             disabled={ragPanelPreparing}
             onClick={() => void openRagPanel()}
             className={`inline-flex items-center gap-2 rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-semibold transition ${
-              ragConfig.enabled && ragConfig.rag_session_id
+              ragConfig.enabled && ragConfig.collection_name
                 ? "border-emerald-400 bg-emerald-50 text-emerald-700"
                 : "border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
             } ${ragPanelPreparing ? "cursor-wait opacity-70" : ""}`}
           >
             <span
               className={`relative h-4 w-7 rounded-full transition ${
-                ragConfig.enabled && ragConfig.rag_session_id ? "bg-emerald-500" : "bg-[#c7ccda]"
+                ragConfig.enabled && ragConfig.collection_name ? "bg-emerald-500" : "bg-[#c7ccda]"
               }`}
             >
               <span
                 className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition ${
-                  ragConfig.enabled && ragConfig.rag_session_id ? "left-3.5" : "left-0.5"
+                  ragConfig.enabled && ragConfig.collection_name ? "left-3.5" : "left-0.5"
                 }`}
               />
             </span>
             <span>
               {ragPanelPreparing
-                ? "Opening..."
-                : ragConfig.enabled && ragConfig.rag_session_id
-                  ? "RAG Studio On"
-                  : "RAG Studio"}
+                ? "Memuat..."
+                : ragConfig.enabled && ragConfig.collection_name
+                  ? "Knowledge Base Aktif"
+                  : "Knowledge Base"}
             </span>
           </button>
           <button
@@ -1025,7 +920,7 @@ export default function HomePage() {
           </button>
           {ragOptions?.enabled ? (
             <span className="hidden rounded-[var(--radius-pill)] bg-[rgba(92,99,242,0.12)] px-3 py-1.5 text-xs font-semibold text-[#4953d3] sm:inline-flex">
-              RAG Studio ready
+              ChromaDB siap
             </span>
           ) : null}
         </div>
@@ -1056,10 +951,10 @@ export default function HomePage() {
                       />
                     </div>
                     <h3 className="font-headline text-2xl font-bold tracking-tight text-[var(--color-ink-strong)]">
-                      Hello, I am the Data Analyst Assistant.
+                      Halo, saya Asisten Analitik Bank Jawa Timur.
                     </h3>
                     <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[var(--color-ink-muted)]">
-                      I&apos;m here to help you analyze credit risk, outstanding exposure, portfolio quality, deposit concentration, and customer segmentation using natural language. If you need answers grounded in policy or operational documents, enable RAG Studio from the top bar first.
+                      Saya siap membantu analisis segmentasi nasabah, risiko dormant, rekomendasi campaign, saldo deposito, dan performa cabang menggunakan bahasa alami. Data bersumber dari tabel cai_sdx_se_indonesia.customer_dormant_segment.
                     </p>
                     <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                       <button
@@ -1210,11 +1105,9 @@ export default function HomePage() {
         saving={ragSaving}
         loadingOptions={ragOptionsLoading}
         ragAvailable={Boolean(ragOptions?.enabled)}
-        ragConfigLocked={Boolean(ragConfig.enabled && ragConfig.rag_session_id && !ragConfigDirty)}
+        ragConfigLocked={Boolean(ragConfig.enabled && ragConfig.collection_name && !ragConfigDirty)}
         config={ragConfig}
-        chatModels={ragOptions?.chat_models ?? []}
-        rerankModels={ragOptions?.rerank_models ?? []}
-        knowledgeBases={ragOptions?.knowledge_bases ?? []}
+        collections={ragCollections}
         onClose={() => setRagPanelOpen(false)}
         onToggleEnabled={(enabled) => void handleToggleRag(enabled)}
         onConfigChange={(config) => {

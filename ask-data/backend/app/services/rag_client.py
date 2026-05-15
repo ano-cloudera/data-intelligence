@@ -1,18 +1,10 @@
 from __future__ import annotations
 
-import html
-import json
-import re
-from urllib.parse import urljoin
-
-import httpx
+import os
+from pathlib import Path
+from typing import Any
 
 from app.core.config import Settings, get_settings
-from app.schemas.rag import (
-    RagKnowledgeBaseOption,
-    RagModelOption,
-    RagSessionConfigRequest,
-)
 from app.schemas.sql import AnswerSource
 
 
@@ -20,257 +12,175 @@ class RagClientError(RuntimeError):
     pass
 
 
-_RAG_CITATION_PATTERN = re.compile(r"<a\b[^>]*>(.*?)</a>", re.IGNORECASE | re.DOTALL)
-_HTML_TAG_PATTERN = re.compile(r"</?[^>]+>")
+class ChromaRagClient:
+    """
+    ChromaDB-backed RAG client.
+    Embeds documents using Ollama (nomic-embed-text) or sentence-transformers fallback.
+    Persists the vector store to CHROMA_PERSIST_DIR (default: ./chroma_db).
+    """
 
-
-class RagClient:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
+        self._client: Any = None
+        self._ef: Any = None
 
-    def _build_url(self, path: str) -> str:
-        base = self.settings.rag_base_url.rstrip("/") + "/"
-        return urljoin(base, path.lstrip("/"))
+    def _get_client(self) -> Any:
+        if self._client is not None:
+            return self._client
+        import chromadb
+        persist_dir = self.settings.chroma_persist_dir
+        Path(persist_dir).mkdir(parents=True, exist_ok=True)
+        self._client = chromadb.PersistentClient(path=persist_dir)
+        return self._client
 
-    def _client(self) -> httpx.Client:
-        return httpx.Client(timeout=self.settings.rag_timeout_seconds)
-
-    def _parse_model_options(self, path: str) -> list[RagModelOption]:
-        with self._client() as client:
-            response = client.get(self._build_url(path), headers={"accept": "application/json"})
-            response.raise_for_status()
-            payload = response.json()
-
-        return [
-            RagModelOption(
-                model_id=item["model_id"],
-                name=item["name"],
-                available=item.get("available", True),
-                replica_count=item.get("replica_count") or 0,
-                tool_calling_supported=bool(item.get("tool_calling_supported", False)),
+    def _get_embedding_function(self) -> Any:
+        if self._ef is not None:
+            return self._ef
+        try:
+            from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
+            self._ef = OllamaEmbeddingFunction(
+                url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+                model_name=os.getenv("EMBED_MODEL", "nomic-embed-text"),
             )
-            for item in payload
-            if item.get("available", True)
+        except Exception:
+            from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+            self._ef = SentenceTransformerEmbeddingFunction(
+                model_name="all-MiniLM-L6-v2"
+            )
+        return self._ef
+
+    # ── Collections ──────────────────────────────────────────────────────────
+
+    def list_collections(self) -> list[dict[str, Any]]:
+        client = self._get_client()
+        collections = client.list_collections()
+        return [
+            {
+                "name": col.name,
+                "document_count": col.count(),
+            }
+            for col in collections
         ]
 
-    def get_chat_models(self) -> list[RagModelOption]:
-        return self._parse_model_options("/llm-service/models/llm")
+    def get_or_create_collection(self, name: str) -> Any:
+        client = self._get_client()
+        ef = self._get_embedding_function()
+        return client.get_or_create_collection(
+            name=name,
+            embedding_function=ef,
+            metadata={"hnsw:space": "cosine"},
+        )
 
-    def get_rerank_models(self) -> list[RagModelOption]:
-        return self._parse_model_options("/llm-service/models/reranking")
+    # ── Ingest ───────────────────────────────────────────────────────────────
 
-    def get_model_source(self) -> str | None:
-        with self._client() as client:
-            response = client.get(
-                self._build_url("/llm-service/models/model_source"),
-                headers={"accept": "application/json"},
-            )
-            response.raise_for_status()
-            payload = response.json()
-        return payload if isinstance(payload, str) else None
-
-    def get_knowledge_bases(self) -> list[RagKnowledgeBaseOption]:
-        with self._client() as client:
-            response = client.get(
-                self._build_url("/api/v1/rag/dataSources"),
-                headers={"accept": "application/json"},
-            )
-            response.raise_for_status()
-            payload = response.json()
-
-        knowledge_bases: list[RagKnowledgeBaseOption] = []
-        for item in payload:
-            knowledge_bases.append(
-                RagKnowledgeBaseOption(
-                    id=item["id"],
-                    name=item["name"],
-                    description=item.get("description"),
-                    document_count=item.get("documentCount") or 0,
-                    embedding_model=item.get("embeddingModel"),
-                    summarization_model=item.get("summarizationModel"),
-                    metadata={
-                        key: value
-                        for key, value in item.items()
-                        if key
-                        not in {
-                            "id",
-                            "name",
-                            "description",
-                            "documentCount",
-                            "embeddingModel",
-                            "summarizationModel",
-                        }
-                    },
-                )
-            )
-
-        return knowledge_bases
-
-    def create_session(self, payload: RagSessionConfigRequest) -> int:
-        request_body = {
-            "name": payload.session_name,
-            "dataSourceIds": [payload.knowledge_base_id],
-            "projectId": payload.project_id,
-            "inferenceModel": payload.inference_model_id,
-            "rerankModel": payload.rerank_model_id,
-            "responseChunks": payload.response_chunks,
-            "queryConfiguration": {
-                "enableHyde": payload.query_configuration.enable_hyde,
-                "enableSummaryFilter": payload.query_configuration.enable_summary_filter,
-                "enableToolCalling": payload.query_configuration.enable_tool_calling,
-                "disableStreaming": payload.query_configuration.disable_streaming,
-                "selectedTools": payload.query_configuration.selected_tools,
-            },
-        }
-
-        with self._client() as client:
-            response = client.post(
-                self._build_url("/api/v1/rag/sessions"),
-                headers={
-                    "accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                json=request_body,
-            )
-            response.raise_for_status()
-            created = response.json()
-
-        session_id = created.get("id")
-        if not isinstance(session_id, int):
-            raise RagClientError("RAG session creation did not return a valid session ID.")
-        return session_id
-
-    def stream_completion(self, session_id: int, question: str) -> dict[str, str | None]:
-        payload = {
-            "query": question,
-            "configuration": {
-                "exclude_knowledge_base": False,
-                "use_question_condensing": False,
-            },
-        }
-        chunks: list[str] = []
-        response_id: str | None = None
-
-        with self._client() as client:
-            with client.stream(
-                "POST",
-                self._build_url(f"/llm-service/sessions/{session_id}/stream-completion"),
-                headers={
-                    "accept": "text/event-stream",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            ) as response:
-                response.raise_for_status()
-                for line in response.iter_lines():
-                    if not line or not line.startswith("data:"):
-                        continue
-                    data = line.removeprefix("data:").strip()
-                    if not data:
-                        continue
-
-                    try:
-                        payload_item = json.loads(data)
-                    except json.JSONDecodeError:
-                        continue
-
-                    if isinstance(payload_item, dict):
-                        text = payload_item.get("text")
-                        if isinstance(text, str):
-                            chunks.append(text)
-                        if isinstance(payload_item.get("response_id"), str):
-                            response_id = payload_item["response_id"]
-
-        answer = "".join(chunks).strip()
-        if not answer:
-            raise RagClientError("RAG stream completion returned no answer text.")
-
-        return {
-            "answer": self.sanitize_answer_text(answer),
-            "response_id": response_id,
-        }
-
-    def get_sources(
+    def ingest_texts(
         self,
-        session_id: int,
-        response_id: str | None = None,
-        data_source_id: int | None = None,
+        collection_name: str,
+        texts: list[str],
+        metadatas: list[dict[str, Any]] | None = None,
+        ids: list[str] | None = None,
+    ) -> int:
+        collection = self.get_or_create_collection(collection_name)
+        _ids = ids or [f"doc_{i}" for i in range(len(texts))]
+        _meta = metadatas or [{} for _ in texts]
+        collection.add(documents=texts, metadatas=_meta, ids=_ids)
+        return len(texts)
+
+    def ingest_pdf(self, collection_name: str, pdf_path: str) -> int:
+        try:
+            import pypdf
+        except ImportError as exc:
+            raise RagClientError("pypdf is required for PDF ingestion: pip install pypdf") from exc
+
+        path = Path(pdf_path)
+        if not path.exists():
+            raise RagClientError(f"PDF not found: {pdf_path}")
+
+        reader = pypdf.PdfReader(str(path))
+        texts: list[str] = []
+        metadatas: list[dict[str, Any]] = []
+        ids: list[str] = []
+
+        for i, page in enumerate(reader.pages):
+            text = page.extract_text() or ""
+            text = text.strip()
+            if not text:
+                continue
+            chunk_id = f"{path.stem}_p{i+1}"
+            texts.append(text)
+            metadatas.append({"source": path.name, "page": i + 1})
+            ids.append(chunk_id)
+
+        if not texts:
+            raise RagClientError(f"No extractable text found in {pdf_path}")
+
+        return self.ingest_texts(collection_name, texts, metadatas, ids)
+
+    # ── Query ─────────────────────────────────────────────────────────────────
+
+    def query(
+        self,
+        collection_name: str,
+        question: str,
+        top_k: int = 5,
     ) -> list[AnswerSource]:
-        with self._client() as client:
-            response = client.get(
-                self._build_url(f"/llm-service/sessions/{session_id}/chat-history"),
-                headers={"accept": "application/json"},
+        try:
+            collection = self._get_client().get_collection(
+                name=collection_name,
+                embedding_function=self._get_embedding_function(),
             )
-            response.raise_for_status()
-            payload = response.json()
+        except Exception as exc:
+            raise RagClientError(f"Collection '{collection_name}' not found: {exc}") from exc
 
-        items = payload.get("data", []) if isinstance(payload, dict) else []
-        if not isinstance(items, list):
-            return []
+        results = collection.query(
+            query_texts=[question],
+            n_results=min(top_k, collection.count()),
+            include=["documents", "metadatas", "distances"],
+        )
 
-        candidate: dict | None = None
-        if response_id:
-            for item in reversed(items):
-                if isinstance(item, dict) and item.get("id") == response_id:
-                    candidate = item
-                    break
-
-        if candidate is None:
-            for item in reversed(items):
-                if isinstance(item, dict) and item.get("source_nodes"):
-                    candidate = item
-                    break
-
-        if not isinstance(candidate, dict):
-            return []
-
-        source_nodes = candidate.get("source_nodes", [])
-        if not isinstance(source_nodes, list):
-            return []
-
-        seen: set[tuple[str | None, str | None]] = set()
         sources: list[AnswerSource] = []
-        for node in source_nodes:
-            if not isinstance(node, dict):
-                continue
+        docs = (results.get("documents") or [[]])[0]
+        metas = (results.get("metadatas") or [[]])[0]
+        distances = (results.get("distances") or [[]])[0]
 
-            title = node.get("source_file_name") or node.get("doc_id") or node.get("node_id")
-            if not isinstance(title, str) or not title:
-                continue
-
-            document_id = node.get("doc_id") if isinstance(node.get("doc_id"), str) else None
-            node_id = node.get("node_id") if isinstance(node.get("node_id"), str) else None
-            score = node.get("score")
-            score_value = float(score) if isinstance(score, (int, float)) else None
-
-            dedupe_key = (document_id, node_id)
-            if dedupe_key in seen:
-                continue
-            seen.add(dedupe_key)
-
-            preview_url = None
-            if data_source_id is not None and document_id:
-                preview_url = self._build_url(
-                    f"/api/v1/rag/dataSources/{data_source_id}/files/{document_id}/download"
-                )
-
+        for doc, meta, dist in zip(docs, metas, distances):
+            score = round(1.0 - float(dist), 4)
+            title = meta.get("source", collection_name)
+            page = meta.get("page")
+            if page:
+                title = f"{title} (halaman {page})"
             sources.append(
                 AnswerSource(
                     title=title,
-                    document_id=document_id,
-                    node_id=node_id,
-                    score=score_value,
-                    preview_url=preview_url,
-                    download_url=preview_url,
+                    document_id=meta.get("source"),
+                    node_id=None,
+                    score=score,
+                    preview_url=None,
+                    download_url=None,
+                    excerpt=doc[:500] if doc else None,
                 )
             )
 
         return sources
 
-    @staticmethod
-    def sanitize_answer_text(answer: str) -> str:
-        cleaned = _RAG_CITATION_PATTERN.sub(lambda match: html.unescape(match.group(1).strip()), answer)
-        cleaned = _HTML_TAG_PATTERN.sub("", cleaned)
-        cleaned = html.unescape(cleaned)
-        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-        return cleaned.strip()
+    def build_context_text(self, sources: list[AnswerSource]) -> str:
+        if not sources:
+            return ""
+        parts = []
+        for i, src in enumerate(sources, 1):
+            parts.append(f"[{i}] {src.title}\n{src.excerpt or ''}")
+        return "\n\n".join(parts)
+
+    # ── Health ────────────────────────────────────────────────────────────────
+
+    def health(self) -> dict[str, Any]:
+        try:
+            client = self._get_client()
+            cols = client.list_collections()
+            return {
+                "status": "ok",
+                "collections": len(cols),
+                "persist_dir": self.settings.chroma_persist_dir,
+            }
+        except Exception as exc:
+            return {"status": "error", "error": str(exc)}
