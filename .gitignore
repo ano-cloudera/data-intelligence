@@ -62,8 +62,9 @@ out/
 *.log
 logs/
 
-# ChromaDB vector store
+# ChromaDB vector store and archive
 chroma_db/
+chroma_db.zip
 
 # SQLite session DB
 *.db

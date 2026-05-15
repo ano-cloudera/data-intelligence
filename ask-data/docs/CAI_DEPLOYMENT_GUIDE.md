@@ -168,22 +168,21 @@ python bank-jawa-timur/ask-data/qwen_inference/download_model.py
 
 ChromaDB tidak di-commit ke git, harus disiapkan manual.
 
-**Option 1 — Upload dari Mac lokal (lebih cepat, sudah ada 17 chunks):**
+**Option 1 — Upload dari lokal (lebih cepat, sudah ada 17 chunks):**
 
-Dari terminal Mac lokal:
-
-```bash
-cd /Users/trianonurhikmat/Documents/Works/cloudera/account/bank-jawa-timur/ask-data
-zip -r chroma_db.zip chroma_db/
-```
-
-Upload `chroma_db.zip` ke CAI Workbench session via File Upload UI, lalu di terminal session:
+File `chroma_db.zip` sudah disiapkan di folder `ask-data/` lokal.
+Upload file tersebut ke CAI Workbench session via **File Upload UI** (ikon upload di file browser session), lalu di terminal session:
 
 ```bash
+# Pindah ke folder project
 cd /home/cdsw/bank-jawa-timur/ask-data
+
+# Extract zip (file ada di home dir setelah upload)
 unzip ~/chroma_db.zip
+
+# Verifikasi struktur
 ls chroma_db/
-# Harus ada: chroma.sqlite3 dan subfolder chunk data
+# Harus ada: chroma.sqlite3 dan subfolder UUID (33d4a0a6-...)
 ```
 
 **Option 2 — Re-ingest PDF di session (jika PDF sudah diupload ke session):**
