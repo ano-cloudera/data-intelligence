@@ -166,20 +166,15 @@ Experimental track for agent applications built on the Cloudera Agent SDK.
 ### Locally
 
 - Use the repo for editing, review, and documentation
-- Use `sample/` CSV data for local fallback when Impala is not available
 - Validate final runtime behavior in CAI — especially for networking and authentication
 
 ---
 
-## Where To Start
+## Where To Start — Bank Jawa Timur PoC
 
-| Track | Resource | Path |
+| Resource | Deskripsi | Path |
 |---|---|---|
-| **ask-data** | CAI deployment guide | [`ask-data/docs/CAI_DEPLOYMENT_GUIDE.md`](ask-data/docs/CAI_DEPLOYMENT_GUIDE.md) |
-| **ask-data** | Project state | [`ask-data/docs/project-state.md`](ask-data/docs/project-state.md) |
-| **ask-data** | Schema & data dictionary | [`ask-data/docs/customer_dormant_segment_metadata.md`](ask-data/docs/customer_dormant_segment_metadata.md) |
-| **ask-data** | App README | [`ask-data/README.md`](ask-data/README.md) |
-| **fraud-ai-assistant** | Project state | [`fraud-ai-assistant/docs/project-state.md`](fraud-ai-assistant/docs/project-state.md) |
-| **fraud-ai-assistant** | App README | [`fraud-ai-assistant/README.md`](fraud-ai-assistant/README.md) |
-| **healthcare** | Project state | [`healthcare/Xray Assistant/docs/project-state.md`](healthcare/Xray%20Assistant/docs/project-state.md) |
-| **agent-studio** | Folder | [`agent-studio/`](agent-studio/) |
+| **CAI Deployment Guide** | Step-by-step deploy semua 4 Applications ke CAI — mulai dari credential sampai verifikasi | [`ask-data/docs/CAI_DEPLOYMENT_GUIDE.md`](ask-data/docs/CAI_DEPLOYMENT_GUIDE.md) |
+| **Project State** | Status implementasi, komponen yang done vs pending | [`ask-data/docs/project-state.md`](ask-data/docs/project-state.md) |
+| **Schema & Data Dictionary** | Deskripsi 47 kolom `customer_dormant_segment`, tipe data, nilai enum | [`ask-data/docs/customer_dormant_segment_metadata.md`](ask-data/docs/customer_dormant_segment_metadata.md) |
+| **App README** | Overview teknis ask-data: arsitektur, env vars, cara run lokal | [`ask-data/README.md`](ask-data/README.md) |
