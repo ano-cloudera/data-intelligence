@@ -184,50 +184,25 @@ python data-intelligence/ask-data/qwen_inference/download_model.py
 
 ### Step C — Siapkan ChromaDB (Vector Store)
 
-ChromaDB tidak di-commit ke git, harus disiapkan manual.
+ChromaDB tidak di-commit ke git — harus diupload manual dari lokal.
+File `chroma_db.zip` sudah disiapkan dan berisi 17 chunks dari 5 PDF Bank Jatim.
 
-**Option 1 — Upload dari lokal (lebih cepat, sudah ada 17 chunks):**
+**Upload `chroma_db.zip` ke session:**
 
-File `chroma_db.zip` sudah disiapkan di folder `ask-data/` lokal.
-Upload file tersebut ke CAI Workbench session via **File Upload UI** (ikon upload di file browser session), lalu di terminal session:
+1. Di CAI Workbench, buka file browser session
+2. Klik ikon **Upload** → pilih file `chroma_db.zip` dari folder `ask-data/` di lokal
+3. Setelah upload selesai, jalankan di terminal:
 
 ```bash
-# Pindah ke folder project
 cd /home/cdsw/data-intelligence/ask-data
-
-# Extract zip (file ada di home dir setelah upload)
 unzip ~/chroma_db.zip
-
-# Verifikasi struktur
-ls chroma_db/
-# Harus ada: chroma.sqlite3 dan subfolder UUID (33d4a0a6-...)
 ```
 
-**Option 2 — Ingest PDF langsung dari repo (recommended jika sudah sync):**
-
-PDF sudah ada di repo di `ask-data/data/documents/` — tidak perlu upload manual.
-Setelah `sync_project.py` dijalankan (Step A), langsung jalankan:
+**Verifikasi ChromaDB — wajib sebelum lanjut deploy:**
 
 ```bash
-cd /home/cdsw/data-intelligence/ask-data
-pip install -r backend/requirements.txt -q
-PYTHONPATH=backend python scripts/ingest_documents.py
-# Expected output:
-# Ingesting: 01_strategi_customer_segmentation_portfolio_bank_jatim.pdf ... X chunks
-# Ingesting: 02_dormant_customer_retention_strategy_bank_jatim.pdf ... X chunks
-# ...
-# Done. Total chunks ingested: 17
-```
-
-**Verifikasi ChromaDB:**
-
-```bash
-python3 -c "
-import chromadb
-c = chromadb.PersistentClient('/home/cdsw/data-intelligence/ask-data/chroma_db')
-col = c.get_collection('bankjatim_docs')
-print('Chunks:', col.count())
-"
+pip install pysqlite3-binary -q
+python3 -c "import sys; import pysqlite3; sys.modules['sqlite3']=pysqlite3; import chromadb; c=chromadb.PersistentClient('/home/cdsw/data-intelligence/ask-data/chroma_db'); col=c.get_collection('bankjatim_docs'); print('Chunks:', col.count())"
 # Expected: Chunks: 17
 ```
 
