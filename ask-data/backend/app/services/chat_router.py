@@ -46,6 +46,16 @@ FAREWELL_PATTERNS = (
     r"\b(selamat tinggal)\b",
 )
 
+DOCUMENT_INTENT_MARKERS = (
+    "sop", "kebijakan", "policy", "prosedur", "procedure", "dokumen", "document",
+    "panduan", "guide", "playbook", "governance", "aturan", "regulasi", "regulation",
+    "kerangka", "framework", "strategi bisnis", "business strategy",
+    "keluarkan sop", "cari sop", "summary sop", "ringkasan sop",
+    "berkaitan dengan sop", "terkait sop", "tentang sop",
+    "prinsip", "principle", "decisioning", "operating model",
+    "retention strategy", "strategi retensi",
+)
+
 DATA_DOMAIN_MARKERS = (
     "nasabah",
     "deposito",
@@ -104,6 +114,33 @@ VISUALIZATION_INTENT_PATTERNS = (
     r"\b(ubah|ganti|jadikan|dalam bentuk|tampilkan|show|render)\b",
     r"\b(chart|grafik|visualisasi|table|tabel)\b",
 )
+
+
+def is_document_request(text: str) -> bool:
+    lowered = normalize_text(text)
+    return any(marker in lowered for marker in DOCUMENT_INTENT_MARKERS)
+
+
+def build_rag_unavailable_answer(question: str) -> str:
+    if is_indonesian_text(question):
+        return (
+            "Pertanyaan Anda tampaknya membutuhkan informasi dari dokumen, SOP, atau panduan bisnis. "
+            "Untuk mendapatkan jawaban dari dokumen internal, aktifkan **Knowledge Base** terlebih dahulu:\n\n"
+            "1. Buka menu **Settings** di sidebar kiri\n"
+            "2. Di bagian **Knowledge Base (RAG)**, aktifkan toggle\n"
+            "3. Pilih collection dokumen (misalnya: *bank_jatim_knowledge*)\n"
+            "4. Klik **Save Knowledge Base**\n\n"
+            "Setelah diaktifkan, kirim pertanyaan yang sama dan saya akan menjawab berdasarkan dokumen yang relevan."
+        )
+    return (
+        "Your question appears to require information from documents, SOPs, or business guidelines. "
+        "To get answers from internal documents, please enable the **Knowledge Base** first:\n\n"
+        "1. Open **Settings** in the left sidebar\n"
+        "2. Under **Knowledge Base (RAG)**, toggle it on\n"
+        "3. Select a document collection (e.g. *bank_jatim_knowledge*)\n"
+        "4. Click **Save Knowledge Base**\n\n"
+        "Once enabled, send the same question and I will answer based on the relevant documents."
+    )
 
 
 def is_indonesian_text(text: str) -> bool:

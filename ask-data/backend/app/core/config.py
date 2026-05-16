@@ -179,7 +179,14 @@ class Settings(BaseSettings):
 
     @property
     def is_rag_configured(self) -> bool:
-        return self.chroma_enabled
+        if self.chroma_enabled:
+            return True
+        # Auto-detect: if chromadb is importable, enable RAG regardless of the flag
+        try:
+            import chromadb  # noqa: F401
+            return True
+        except ImportError:
+            return False
 
     @property
     def is_guardrails_configured(self) -> bool:

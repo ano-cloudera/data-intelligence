@@ -54,7 +54,9 @@ from app.services.analytics_store import (
 from app.services.answer_generator import AnswerGeneratorService
 from app.services.chat_router import (
     build_processing_fallback_answer,
+    build_rag_unavailable_answer,
     extract_visualization_preference,
+    is_document_request,
     is_greeting_or_smalltalk,
     is_visualization_followup,
     looks_like_data_request,
@@ -549,6 +551,29 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
     if blocked_decision is not None:
         return _guardrails_block_response(payload, blocked_decision)
 
+    # If the question is clearly about documents/SOPs and RAG is not active, guide the user
+    if is_document_request(payload.question) and rag_client is None:
+        answer = build_rag_unavailable_answer(payload.question)
+        if payload.session_id:
+            memory_store.append_user_message(payload.session_id, payload.question)
+            memory_store.append_assistant_message(payload.session_id, answer)
+            memory_store.set_last_answer(payload.session_id, answer)
+            memory_store.set_last_intent(payload.session_id, "rag_unavailable")
+        return {
+            "session_id": payload.session_id,
+            "original_question": payload.question,
+            "answer": answer,
+            "generated_sql": "",
+            "executed_sql": "",
+            "columns": [],
+            "rows": [],
+            "row_count": 0,
+            "truncated": False,
+            "limit_applied": False,
+            "metadata": {},
+            "visualization": None,
+        }
+
     session_memory = None
     if payload.session_id:
         session_memory = memory_store.get_or_create_session(payload.session_id)
@@ -733,16 +758,36 @@ def _run_rag_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
     )
     context_text = rag_client.build_context_text(sources)
 
+    from app.services.chat_router import is_indonesian_text
+    is_id = is_indonesian_text(payload.question)
+
     llm_client = llm_router.get_client()
-    system_prompt = (
-        "Anda adalah asisten analitik Bank Jawa Timur. "
-        "Jawab berdasarkan konteks dokumen di bawah ini. "
-        "Jika informasi tidak tersedia di dokumen, katakan 'Informasi tidak tersedia di dokumen yang ada.'"
-    )
-    user_prompt = (
-        f"Konteks dokumen:\n{context_text}\n\n"
-        f"Pertanyaan: {payload.question}"
-    )
+    if is_id:
+        system_prompt = (
+            "Anda adalah asisten analitik Bank Jawa Timur. "
+            "Jawab dalam Bahasa Indonesia berdasarkan konteks dokumen di bawah ini. "
+            "Gunakan bahasa yang jelas dan profesional. "
+            "Jika informasi tidak tersedia di dokumen, katakan: "
+            "'Informasi tersebut tidak tersedia di dokumen yang ada.'"
+        )
+        user_prompt = (
+            f"Konteks dokumen:\n{context_text}\n\n"
+            f"Pertanyaan: {payload.question}\n\n"
+            "Jawab dalam Bahasa Indonesia."
+        )
+    else:
+        system_prompt = (
+            "You are an analytics assistant for Bank Jawa Timur. "
+            "Answer in English based on the document context below. "
+            "Use clear and professional language. "
+            "If the information is not in the documents, say: "
+            "'This information is not available in the provided documents.'"
+        )
+        user_prompt = (
+            f"Document context:\n{context_text}\n\n"
+            f"Question: {payload.question}\n\n"
+            "Answer in English."
+        )
     answer = llm_client.chat(
         [
             {"role": "system", "content": system_prompt},
