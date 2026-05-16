@@ -37,7 +37,7 @@ def resolve_mcp_dir() -> Path:
     cwd = Path.cwd()
 
     candidates = [
-        cwd / "bank-jawa-timur" / "ask-data" / "mcp_server",
+        cwd / "data-intelligence" / "ask-data" / "mcp_server",
         cwd / "ask-data" / "mcp_server",
         cwd / "mcp_server",
     ]

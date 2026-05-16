@@ -11,6 +11,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
+# SQLite patch for CAI/Workbench environments with older SQLite (<3.35.0)
+try:
+    import pysqlite3  # type: ignore
+    sys.modules["sqlite3"] = pysqlite3
+except ImportError:
+    pass
+
 from app.core.config import get_settings
 from app.services.rag_client import ChromaRagClient, RagClientError
 

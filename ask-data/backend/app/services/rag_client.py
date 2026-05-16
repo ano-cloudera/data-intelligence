@@ -27,6 +27,8 @@ class ChromaRagClient:
     def _get_client(self) -> Any:
         if self._client is not None:
             return self._client
+        from app.compat import patch_sqlite
+        patch_sqlite()
         import chromadb
         persist_dir = self.settings.chroma_persist_dir
         Path(persist_dir).mkdir(parents=True, exist_ok=True)
