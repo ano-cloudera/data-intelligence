@@ -55,38 +55,66 @@ def resolve_qwen_dir() -> Path:
 
 
 MIN_VLLM_VERSION = (0, 7, 3)
+MIN_TRANSFORMERS_VERSION = (4, 47, 0)
+
+
+def _parse_version(version_str: str) -> tuple:
+    parts = version_str.split(".")
+    return tuple(int(p.split("post")[0].split("rc")[0]) for p in parts[:3])
 
 
 def _vllm_version() -> tuple:
     try:
         import vllm
-        parts = vllm.__version__.split(".")
-        return tuple(int(p.split("post")[0].split("rc")[0]) for p in parts[:3])
+        return _parse_version(vllm.__version__)
     except Exception:
         return (0, 0, 0)
 
 
-def ensure_vllm_installed() -> None:
-    current = _vllm_version()
-    if current >= MIN_VLLM_VERSION:
-        logging.info("vLLM %s already meets minimum requirement.", ".".join(map(str, current)))
+def _transformers_version() -> tuple:
+    try:
+        import transformers
+        return _parse_version(transformers.__version__)
+    except Exception:
+        return (0, 0, 0)
+
+
+def ensure_dependencies_installed() -> None:
+    vllm_ver = _vllm_version()
+    transformers_ver = _transformers_version()
+
+    vllm_ok = vllm_ver >= MIN_VLLM_VERSION
+    transformers_ok = transformers_ver >= MIN_TRANSFORMERS_VERSION
+
+    logging.info(
+        "vLLM: %s (required >=%s) — %s",
+        ".".join(map(str, vllm_ver)),
+        ".".join(map(str, MIN_VLLM_VERSION)),
+        "OK" if vllm_ok else "UPGRADE NEEDED",
+    )
+    logging.info(
+        "transformers: %s (required >=%s) — %s",
+        ".".join(map(str, transformers_ver)),
+        ".".join(map(str, MIN_TRANSFORMERS_VERSION)),
+        "OK" if transformers_ok else "UPGRADE NEEDED",
+    )
+
+    if vllm_ok and transformers_ok:
+        logging.info("All dependencies meet minimum requirements.")
         return
 
-    logging.warning(
-        "vLLM %s < required %s. Installing from requirements.txt...",
-        ".".join(map(str, current)),
-        ".".join(map(str, MIN_VLLM_VERSION)),
-    )
     req_file = resolve_qwen_dir() / "requirements.txt"
     if req_file.exists():
+        logging.warning("Installing from requirements.txt (--upgrade to override system packages)...")
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-r", str(req_file), "-q"],
+            [sys.executable, "-m", "pip", "install", "--upgrade", "-r", str(req_file), "-q"],
             check=True,
         )
     else:
-        logging.warning("requirements.txt not found, installing vllm>=0.8.0 directly...")
+        logging.warning("requirements.txt not found, installing pinned versions directly...")
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "vllm>=0.8.0", "transformers>=4.51.0", "-q"],
+            [sys.executable, "-m", "pip", "install", "--upgrade",
+             "vllm==0.7.3", "torch==2.5.1", "transformers>=4.47.0", "-q"],
             check=True,
         )
 
@@ -113,7 +141,7 @@ def main() -> None:
     logging.info("GPU memory utilization: %s", gpu_memory_utilization)
     logging.info("Tensor parallel size: %s", tensor_parallel_size)
 
-    ensure_vllm_installed()
+    ensure_dependencies_installed()
 
     cmd = [
         sys.executable, "-m", "vllm.entrypoints.openai.api_server",
