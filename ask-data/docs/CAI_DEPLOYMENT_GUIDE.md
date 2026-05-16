@@ -623,6 +623,35 @@ pip uninstall flashinfer -y
 
 Lalu restart Application.
 
+### APP 1 — Error `Qwen2Tokenizer has no attribute all_special_tokens_extended`
+
+Root cause: Library `transformers` yang terinstall di CAI runtime versi terlalu lama dan tidak kompatibel dengan vLLM 0.6.6+. vLLM membutuhkan `transformers >= 4.45.0`.
+
+**Error di Logs:**
+
+```text
+AttributeError: Qwen2Tokenizer has no attribute all_special_tokens_extended
+```
+
+**Fix sementara** — jalankan di terminal Workbench session sebelum restart Application:
+
+```bash
+pip install transformers --upgrade -q
+```
+
+Setelah selesai, restart Application dari UI CAI.
+
+**Verifikasi versi:**
+
+```bash
+python3 -c "import transformers; print(transformers.__version__)"
+# Expected: 4.45.0 atau lebih baru
+```
+
+> `requirements.txt` di repo sudah mencantumkan `transformers>=4.51.0` — pip install di atas memastikan versi yang benar terinstall di runtime session.
+
+---
+
 ### APP 1 — vLLM start lama (>5 menit)
 
 - Normal untuk pertama kali — vLLM loading model ke VRAM GPU (~2–5 menit) + torch.compile (~1–2 menit)
