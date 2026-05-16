@@ -1,7 +1,12 @@
 # Qwen local inference dependencies
 # Install inside Cloudera AI Workbench session with GPU enabled.
-vllm>=0.8.0
-transformers>=4.51.0
+#
+# Pin vLLM to 0.7.3 — last version using torch 2.5.1, compatible with
+# the NCCL version in CAI GPU runtime. vLLM 0.8+ pulls torch 2.11+ which
+# requires ncclCommWindowDeregister (NCCL 2.21+), not available in CAI.
+vllm==0.7.3
+torch==2.5.1
+transformers>=4.47.0
 accelerate>=0.34.0
 huggingface_hub>=0.24.0
 openai>=1.40.0

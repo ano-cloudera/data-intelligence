@@ -54,7 +54,7 @@ def resolve_qwen_dir() -> Path:
     return cwd
 
 
-MIN_VLLM_VERSION = (0, 8, 0)
+MIN_VLLM_VERSION = (0, 7, 3)
 
 
 def _vllm_version() -> tuple:

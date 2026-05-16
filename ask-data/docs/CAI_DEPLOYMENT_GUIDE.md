@@ -649,9 +649,30 @@ Setelah git pull, restart Application dari UI CAI. Di Logs akan muncul:
 WARNING vLLM 0.6.6 < required 0.8.0. Installing from requirements.txt...
 ```
 
-Tunggu install selesai (~3–5 menit), lalu vLLM 0.8+ akan start dengan benar.
+Tunggu install selesai (~3–5 menit), lalu vLLM 0.7.3 akan start dengan benar.
 
-> Install `pip install transformers --upgrade` di terminal session **tidak efektif** — package yang diinstall di session tidak carry over ke Application runtime. Wajib restart Application setelah git pull.
+> Install manual di terminal session **tidak efektif** — package yang diinstall di session tidak carry over ke Application runtime. Wajib restart Application setelah git pull.
+
+---
+
+### APP 1 — Error `ImportError: undefined symbol: ncclCommWindowDeregister`
+
+Root cause: vLLM 0.8+ menarik `torch 2.11+` yang membutuhkan `ncclCommWindowDeregister` (NCCL 2.21+), tapi CAI GPU runtime punya NCCL versi lama yang hanya kompatibel dengan `torch 2.5.x`.
+
+**Error di Logs:**
+
+```text
+ImportError: libtorch_cuda.so: undefined symbol: ncclCommWindowDeregister
+```
+
+**Fix:** `requirements.txt` sudah diupdate ke `vllm==0.7.3` + `torch==2.5.1` (versi stabil terakhir yang kompatibel dengan CAI GPU runtime). Sync repo lalu restart Application:
+
+```bash
+cd /home/cdsw/data-intelligence
+git pull origin main
+```
+
+Restart Application dari UI CAI. `qwen_entry.py` akan deteksi vLLM yang ada < 0.7.3 dan install ulang dengan versi yang benar.
 
 ---
 
