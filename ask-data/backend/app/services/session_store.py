@@ -24,6 +24,8 @@ class SessionStore(Protocol):
 
     def delete_expired_sessions(self) -> int: ...
 
+    def delete_session(self, session_id: str) -> bool: ...
+
     def touch_session(self, session_id: str) -> SessionMemoryState | None: ...
 
     def list_sessions(self, limit: int = 20) -> list[SessionSummaryResponse]: ...
@@ -77,6 +79,13 @@ class InMemorySessionStore:
     def is_expired(self, session: SessionMemoryState) -> bool:
         ttl = timedelta(minutes=self.settings.session_ttl_minutes)
         return utc_now() - session.updated_at > ttl
+
+    def delete_session(self, session_id: str) -> bool:
+        with self._lock:
+            if session_id in self._sessions:
+                del self._sessions[session_id]
+                return True
+            return False
 
     def touch_session(self, session_id: str) -> SessionMemoryState | None:
         with self._lock:
@@ -253,6 +262,13 @@ class SQLiteSessionStore:
                 (session_id,),
             )
             connection.commit()
+
+    def delete_session(self, session_id: str) -> bool:
+        session = self.get_session(session_id)
+        if session is None:
+            return False
+        self._delete_session(session_id)
+        return True
 
     @staticmethod
     def _serialize_session(session: SessionMemoryState) -> str:

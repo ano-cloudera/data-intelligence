@@ -543,14 +543,14 @@ export function ModelSettingsPanel({
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[12px] border border-[var(--color-border-soft)]">
+                <div className="rounded-[12px] border border-[var(--color-border-soft)]" style={{ maxHeight: 480 }}>
                   {tablePreviewLoading ? (
                     <div className="flex items-center justify-center py-10 text-sm text-[var(--color-ink-subtle)]">
                       {lang === "id" ? "Memuat data…" : "Loading data…"}
                     </div>
                   ) : tablePreviewData && tablePreviewData.columns.length > 0 ? (
-                    <div className="overflow-x-auto max-h-[480px]">
-                      <table className="w-full text-xs">
+                    <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: 478 }}>
+                      <table className="text-xs" style={{ minWidth: "max-content", width: "100%" }}>
                         <thead className="sticky top-0 z-10">
                           <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]">
                             {tablePreviewData.columns.map((col) => (

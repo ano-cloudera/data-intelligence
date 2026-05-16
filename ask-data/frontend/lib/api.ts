@@ -358,6 +358,10 @@ export const apiClient = {
     request<SessionListResponse>(`/sessions?limit=${limit}`),
   getSession: (sessionId: string) =>
     request<SessionDetailResponse>(`/sessions/${sessionId}`),
+  deleteSession: (sessionId: string) =>
+    request<{ status: string; session_id: string }>(`/sessions/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE",
+    }),
   getAnalyticsSummary: (windowDays = 30) =>
     request<AnalyticsSummaryResponse>(`/analytics/summary?window_days=${windowDays}`),
   getAnalyticsEvents: (limit = 20) =>

@@ -96,6 +96,9 @@ class SessionMemoryStore:
     def list_sessions(self, limit: int = 20) -> list[SessionSummaryResponse]:
         return self.session_store.list_sessions(limit=limit)
 
+    def delete_session(self, session_id: str) -> bool:
+        return self.session_store.delete_session(session_id)
+
     def set_llm_selection(
         self,
         session_id: str,

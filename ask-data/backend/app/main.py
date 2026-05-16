@@ -219,6 +219,14 @@ def get_session(session_id: str) -> SessionDetailResponse:
     return SessionDetailResponse(session=session)
 
 
+@app.delete("/sessions/{session_id}")
+def delete_session(session_id: str) -> dict[str, str]:
+    deleted = memory_store.delete_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    return {"status": "deleted", "session_id": session_id}
+
+
 @app.get("/analytics/summary", response_model=AnalyticsSummaryResponse)
 def analytics_summary(window_days: int = 30) -> AnalyticsSummaryResponse:
     safe_window = max(1, min(window_days, 365))

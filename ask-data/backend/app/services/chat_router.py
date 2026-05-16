@@ -156,29 +156,28 @@ def normalize_text(text: str) -> str:
 def build_greeting_answer(question: str) -> str:
     if is_indonesian_text(question):
         return (
-            "Selamat datang. Saya Data Analyst Assistant, siap membantu Anda "
-            "mengeksplorasi pertanyaan seputar credit risk, outstanding exposure, "
-            "kualitas portofolio kredit, konsentrasi deposito, dan segmentasi nasabah "
-            "dengan cara yang lebih cepat dan lebih mudah dipahami. Jika Anda perlu "
-            "jawaban yang berasal dari dokumen, SOP, atau knowledge base, aktifkan "
-            "dulu RAG Studio dari aplikasi.\n\n"
+            "Selamat datang. Saya Data Analyst Assistant Bank Jawa Timur, siap membantu Anda "
+            "mengeksplorasi segmentasi nasabah, risiko dormant, rekomendasi kampanye, "
+            "dan distribusi saldo dalam bahasa alami. Jika Anda perlu "
+            "jawaban yang berasal dari dokumen atau SOP, aktifkan Knowledge Base "
+            "melalui menu Settings.\n\n"
             "Kalau mau mulai, Anda bisa tanya hal seperti:\n"
-            "1. Berapa total outstanding kredit saat ini?\n"
-            "2. Siapa nasabah dengan outstanding kredit tertinggi?\n"
-            "3. Bagaimana tren outstanding kredit per bulan?\n"
-            "4. Bagaimana distribusi portofolio berdasarkan segmen atau kota?"
+            "1. Berapa jumlah nasabah di tiap segmen?\n"
+            "2. Tampilkan distribusi nasabah berdasarkan dormant risk level\n"
+            "3. Kampanye apa yang direkomendasikan untuk nasabah dormant risiko tinggi?\n"
+            "4. Tampilkan rata-rata saldo deposito per customer segment"
         )
 
     return (
-        "Hello, it is great to meet you. I am the Data Analyst Assistant, "
-        "ready to help you explore credit risk, outstanding exposure, portfolio quality, "
-        "deposit concentration, and supporting customer analysis in a clear and practical way. "
-        "If you need answers grounded in documents or knowledge-base content, enable RAG Studio first.\n\n"
+        "Hello, I am the Data Analyst Assistant for Bank Jawa Timur, "
+        "ready to help you explore customer segmentation, dormancy risk, campaign recommendations, "
+        "and balance analytics in natural language. "
+        "If you need answers grounded in documents or SOPs, enable the Knowledge Base via Settings.\n\n"
         "You can start with questions like:\n"
-        "1. What is the total outstanding credit right now?\n"
-        "2. Who has the highest outstanding credit?\n"
-        "3. How is outstanding credit trending by month?\n"
-        "4. Which segments or cities hold the largest portfolio exposure?"
+        "1. How many customers are in each segment?\n"
+        "2. Show distribution by dormant risk level\n"
+        "3. What campaigns are recommended for high dormancy risk customers?\n"
+        "4. Show average deposit balance by customer segment"
     )
 
 
@@ -186,27 +185,27 @@ def build_acknowledgement_answer(question: str) -> str:
     if is_indonesian_text(question):
         return (
             "Sama-sama. Senang bisa membantu. Kalau Anda mau, lanjutkan saja "
-            "dengan pertanyaan berikutnya tentang nasabah, deposito, kredit, fraud, segmen, atau cabang."
+            "dengan pertanyaan berikutnya tentang segmentasi nasabah, risiko dormant, kampanye, atau saldo."
         )
 
     return (
         "Glad to help. If you want, just continue with the next question about "
-        "deposit balances, credit exposure, suspicious transactions, customers, segments, or branches."
+        "customer segmentation, dormancy risk, campaign recommendations, or balance analytics."
     )
 
 
 def build_out_of_scope_answer(question: str) -> str:
     if is_indonesian_text(question):
         return (
-            "Saya paling cocok membantu pertanyaan yang berhubungan dengan data "
-            "deposito, kredit, dan konteks nasabah yang mendukung analisis itu. "
-            "Kalau yang Anda butuhkan berasal dari dokumen atau knowledge base, "
-            "aktifkan RAG Studio terlebih dahulu."
+            "Saya paling cocok membantu pertanyaan yang berhubungan dengan segmentasi nasabah, "
+            "risiko dormant, rekomendasi kampanye, dan distribusi saldo. "
+            "Kalau yang Anda butuhkan berasal dari dokumen atau SOP, "
+            "aktifkan Knowledge Base melalui menu Settings."
         )
 
     return (
-        "I am best suited for deposit, credit, and supporting customer-analysis questions. "
-        "If you need answers from documents or a knowledge base, enable RAG Studio first."
+        "I am best suited for customer segmentation, dormancy risk, campaign, and balance analytics questions. "
+        "If you need answers from documents or SOPs, enable the Knowledge Base via Settings."
     )
 
 
@@ -224,14 +223,14 @@ def build_processing_fallback_answer(question: str) -> str:
     if is_indonesian_text(question):
         return (
             "Maaf, saya belum bisa memproses pertanyaan itu dengan baik saat ini. "
-            "Coba tuliskan pertanyaannya lebih spesifik, misalnya tentang total saldo deposito, "
-            "outstanding kredit, komposisi portofolio, nasabah terbesar, atau tren kredit. "
-            "Jika pertanyaannya butuh dokumen atau SOP, aktifkan RAG Studio terlebih dahulu."
+            "Coba tuliskan pertanyaannya lebih spesifik, misalnya tentang distribusi segmen nasabah, "
+            "tingkat risiko dormant, rekomendasi kampanye, saldo deposito, atau adopsi mobile banking. "
+            "Jika pertanyaannya membutuhkan dokumen atau SOP, aktifkan Knowledge Base melalui menu Settings."
         )
 
     return (
         "I am sorry, I could not process that question cleanly just now. "
-        "Please try asking in a more specific way, for example about total deposit balance, "
-        "outstanding credit, portfolio composition, top debtors, or branch-level credit trends. "
-        "If the question depends on documents or SOPs, enable RAG Studio first."
+        "Please try asking in a more specific way, for example about customer segment distribution, "
+        "dormancy risk levels, campaign recommendations, deposit balances, or mobile banking adoption. "
+        "If the question depends on documents or SOPs, enable the Knowledge Base via Settings."
     )

@@ -587,6 +587,19 @@ export default function HomePage() {
     }
   }
 
+  async function handleDeleteSession(sessionId: string) {
+    try {
+      await apiClient.deleteSession(sessionId);
+      if (state.sessionId === sessionId) {
+        handleNewChat();
+      }
+      await refreshSessions();
+    } catch {
+      // session may already be gone — refresh list anyway
+      await refreshSessions();
+    }
+  }
+
   async function handleSelectSession(sessionId: string) {
     if (!sessionId || sessionId === state.sessionId) return;
     setCurrentSessionId(sessionId);
@@ -852,21 +865,35 @@ export default function HomePage() {
             </p>
             <div className="mt-2 space-y-2">
               {sessions.items.slice(0, 4).map((session) => (
-                <button
+                <div
                   key={session.session_id}
-                  type="button"
-                  onClick={() => void handleSelectSession(session.session_id)}
-                  className={`w-full rounded-[12px] border px-3 py-2 text-left transition ${
+                  className={`group relative flex items-center rounded-[12px] border transition ${
                     state.sessionId === session.session_id
                       ? "border-[#6c74ff] bg-white/10"
                       : "border-white/8 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
                   }`}
                 >
-                  <p className="truncate text-[12px] font-semibold text-white/90">{session.title}</p>
-                  <p className="mt-1 truncate text-[10px] text-white/45">
-                    {session.last_user_message || "Open saved conversation"}
-                  </p>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSelectSession(session.session_id)}
+                    className="min-w-0 flex-1 px-3 py-2 text-left"
+                  >
+                    <p className="truncate text-[12px] font-semibold text-white/90">{session.title}</p>
+                    <p className="mt-1 truncate text-[10px] text-white/45">
+                      {session.last_user_message || "Open saved conversation"}
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); void handleDeleteSession(session.session_id); }}
+                    className="mr-1.5 shrink-0 rounded-[8px] p-1 text-white/25 opacity-0 transition hover:bg-white/10 hover:text-rose-400 group-hover:opacity-100"
+                    title="Delete conversation"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" />
+                    </svg>
+                  </button>
+                </div>
               ))}
               {!sessions.loading && sessions.items.length === 0 ? (
                 <p className="rounded-[12px] border border-dashed border-white/10 px-3 py-2 text-[10px] text-white/35">
