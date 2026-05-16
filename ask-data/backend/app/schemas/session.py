@@ -33,6 +33,11 @@ class RagSessionConfigState(BaseModel):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class TableLockState(BaseModel):
+    locked_table: str | None = None
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 class SessionMemoryState(BaseModel):
     session_id: str
     messages: list[ChatMessage] = Field(default_factory=list)
@@ -42,6 +47,7 @@ class SessionMemoryState(BaseModel):
     last_intent: str | None = None
     llm_selection: LLMSelectionState = Field(default_factory=LLMSelectionState)
     rag_config: RagSessionConfigState | None = None
+    table_lock: TableLockState | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

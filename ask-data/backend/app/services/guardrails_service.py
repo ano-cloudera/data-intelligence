@@ -81,8 +81,8 @@ BLOCK_REASON_MESSAGES = {
         "Saya bisa membantu ringkasan data portofolio, tetapi saya tidak bisa menampilkan data pribadi atau sensitif nasabah secara mentah. Coba minta hasil agregat sebagai gantinya.",
     ),
     "out_of_scope": (
-        "This assistant is limited to deposit, credit, fraud, and customer analytics questions for the demo dataset.",
-        "Asisten ini dibatasi untuk pertanyaan analitik deposito, kredit, fraud, dan nasabah pada dataset demo.",
+        "This assistant is focused on dormant customer segmentation and risk analytics. Try asking about customer segments, dormancy risk levels, campaign recommendations, or balance distribution.",
+        "Asisten ini difokuskan pada analitik segmentasi nasabah dormant dan risiko. Coba tanyakan tentang segmen nasabah, tingkat risiko dormant, rekomendasi kampanye, atau distribusi saldo.",
     ),
     "toxic_language": (
         "Please rephrase the request in a professional way and I will continue to help.",

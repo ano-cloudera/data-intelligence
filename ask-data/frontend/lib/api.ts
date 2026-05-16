@@ -102,6 +102,18 @@ export interface RagSessionConfig {
   top_k: number;
 }
 
+export interface TableLockConfig {
+  session_id: string;
+  locked_table: string | null;
+}
+
+export interface TablesListResponse {
+  status: string;
+  database: string;
+  count: number;
+  tables: string[];
+}
+
 export interface SessionMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -353,6 +365,14 @@ export const apiClient = {
     model_id?: string | null;
   }) =>
     request<LLMProviderSelectionResponse>("/llm/providers/select", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  listTables: () => request<TablesListResponse>("/tables"),
+  getTableLock: (sessionId: string) =>
+    request<TableLockConfig>(`/table-lock/${encodeURIComponent(sessionId)}`),
+  saveTableLock: (payload: TableLockConfig) =>
+    request<TableLockConfig>("/table-lock", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

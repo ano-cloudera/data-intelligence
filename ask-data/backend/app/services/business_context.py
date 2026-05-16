@@ -4,24 +4,21 @@ from __future__ import annotations
 def build_supported_question_examples() -> str:
     return """
 Supported business question patterns include:
-- total deposit balance by city
-- total outstanding credit by city
-- top customers by balance
-- top customers by outstanding credit
-- customer count by segment
-- balances by product type
-- credit exposure by collectibility
-- balances by branch
-- active vs non-active deposit counts
-- active vs restructured credit counts
-- maturity analysis
-- customer onboarding trends
-- customer cross-holding between deposits and credits
-- fraud rate by channel
-- fraud amount by origin city
-- top risky transactions by velocity_risk_score
-- customers with repeated new-device fraud
-- fraud distribution by transaction type or fraud reason
+- customer count by dormant_risk_level (low / medium / high)
+- customer count by customer_segment
+- average dormant_probability by customer_segment
+- total deposit balance by dormant_risk_level
+- average savings balance by city or district
+- outstanding loan balance by income_band
+- customers with dormant_flag = true grouped by age_band
+- days_since_last_transaction distribution by segment
+- count of customers with has_mobile_banking = true vs false
+- recommended_campaign distribution for high-risk dormant customers
+- recommended_channel breakdown by customer_segment
+- next_best_action frequency by dormant_reason_code
+- product_holding_count distribution across segments
+- active_months_last_6m average by dormant_risk_level
+- digital_login_count_3m average by customer_type
 """.strip()
 
 
@@ -31,21 +28,19 @@ Interpretation guidance:
 - Prefer the safest reasonable interpretation of ambiguous questions.
 - Do not invent values that are not present in the schema.
 - Use grouping and aggregation for summary questions.
-- Use joins only when needed to answer the question.
-- If a question is broad, return a practical preview query.
-- If a question asks for customer-level analysis, start from customers unless deposit data is required.
-- If a question asks for balance, product, maturity, branch, or account status analysis, deposits is usually required.
-- If a question asks about credit, loans, outstanding balance, principal, collectibility, or interest rate, credits is usually required.
-- If a question asks about fraud rate, suspicious transactions, device changes, velocity patterns, or anomaly reasons, fraud_transactions is usually required.
-- If a question asks for both deposit and credit metrics in one result, consider pre-aggregating each table by customer before joining.
-- If a question mixes fraud metrics with deposits or credits, pre-aggregate each child table by customer, channel, or transaction type before joining.
+- All data is in the customer_dormant_segment table — no joins are needed.
+- If a question asks for "dormant customers", filter on dormant_flag = true or dormant_risk_level = 'high'.
+- If a question asks for segment distribution, GROUP BY customer_segment.
+- If a question asks about balance, use avg_deposit_balance_3m, total_deposit_balance, or avg_savings_balance_3m as appropriate.
+- If a question asks about campaign or reactivation, use recommended_campaign, recommended_channel, or next_best_action.
+- If a question is broad, return a practical preview query with LIMIT applied.
 """.strip()
 
 
 def build_business_context() -> str:
     return "\n\n".join(
         (
-            "Business context: The dataset represents a banking customer, deposit, credit, and fraud analytics demo.",
+            "Business context: The dataset is the customer_dormant_segment table — a single-table view of Bank Jawa Timur customers enriched with dormancy risk scores, segmentation labels, behavioral analytics, and campaign recommendations.",
             build_supported_question_examples(),
             build_ambiguity_guidance(),
         )

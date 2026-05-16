@@ -11,6 +11,7 @@ from app.schemas.session import (
     ResultPreviewContext,
     SessionMemoryState,
     SessionSummaryResponse,
+    TableLockState,
     utc_now,
 )
 from app.services.session_store import InMemorySessionStore, SessionStore
@@ -125,6 +126,15 @@ class SessionMemoryStore:
     def get_rag_config(self, session_id: str) -> RagSessionConfigState | None:
         session = self.session_store.get_session(session_id)
         return None if session is None else session.rag_config
+
+    def set_table_lock(self, session_id: str, locked_table: str | None) -> SessionMemoryState:
+        session = self.get_or_create_session(session_id)
+        session.table_lock = TableLockState(locked_table=locked_table, updated_at=utc_now())
+        return self.session_store.update_session(session)
+
+    def get_table_lock(self, session_id: str) -> TableLockState | None:
+        session = self.session_store.get_session(session_id)
+        return None if session is None else session.table_lock
 
     def _append_message(
         self,

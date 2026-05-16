@@ -15,8 +15,8 @@ class SQLExecutorService:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
 
-    def execute(self, sql: str) -> dict[str, Any]:
-        validated_sql, limit_applied = validate_and_prepare_sql(sql, self.settings)
+    def execute(self, sql: str, session_locked_table: str | None = None) -> dict[str, Any]:
+        validated_sql, limit_applied = validate_and_prepare_sql(sql, self.settings, session_locked_table=session_locked_table)
         try:
             query_result = run_query_with_metadata(validated_sql)
         except (ImpalaConnectionError, ImpalaQueryError) as exc:

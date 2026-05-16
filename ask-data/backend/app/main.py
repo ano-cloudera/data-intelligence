@@ -22,6 +22,17 @@ from app.schemas.rag import (
     RagSessionConfigResponse,
 )
 from app.schemas.session import SessionDetailResponse, SessionListResponse
+from pydantic import BaseModel as _BaseModel
+
+
+class TableLockRequest(_BaseModel):
+    session_id: str
+    locked_table: str | None = None
+
+
+class TableLockResponse(_BaseModel):
+    session_id: str
+    locked_table: str | None = None
 from app.schemas.sql import (
     ChatAnswerResponse,
     ChatQueryRequest,
@@ -542,12 +553,18 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
             "visualization": None,
         }
 
+    table_lock = memory_store.get_table_lock(payload.session_id) if payload.session_id else None
+    session_locked_table = table_lock.locked_table if table_lock else None
+
     try:
         generated = sql_generator.generate_sql(
             question=payload.question,
             memory=session_memory,
         )
-        execution_result = sql_executor.execute(generated["cleaned_generated_sql"])
+        execution_result = sql_executor.execute(
+            generated["cleaned_generated_sql"],
+            session_locked_table=session_locked_table,
+        )
     except SQLValidationError:
         answer = conversation_generator.generate_response(
             question=payload.question,
@@ -807,6 +824,35 @@ def save_rag_config(payload: RagSessionConfigRequest) -> RagSessionConfigRespons
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/table-lock/{session_id}", response_model=TableLockResponse)
+def get_table_lock_endpoint(session_id: str) -> TableLockResponse:
+    lock = memory_store.get_table_lock(session_id)
+    return TableLockResponse(
+        session_id=session_id,
+        locked_table=lock.locked_table if lock else None,
+    )
+
+
+@app.post("/table-lock", response_model=TableLockResponse)
+def set_table_lock_endpoint(payload: TableLockRequest) -> TableLockResponse:
+    if payload.locked_table:
+        allowed = set(settings.sql_allowed_tables_list)
+        db = settings.impala_db.lower()
+        candidate = payload.locked_table.strip().lower()
+        short = candidate.replace(f"{db}.", "").strip()
+        if short not in allowed and candidate not in allowed:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Table not in allowed list: {payload.locked_table}",
+            )
+    memory_store.set_table_lock(payload.session_id, payload.locked_table)
+    lock = memory_store.get_table_lock(payload.session_id)
+    return TableLockResponse(
+        session_id=payload.session_id,
+        locked_table=lock.locked_table if lock else None,
+    )
 
 
 @app.post("/chat/answer", response_model=ChatAnswerResponse)

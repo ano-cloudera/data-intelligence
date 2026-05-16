@@ -85,10 +85,17 @@ def extract_table_references(sql: str) -> list[str]:
     return [match.lower() for match in matches]
 
 
-def validate_allowed_tables(sql: str, settings: Settings | None = None) -> None:
+def validate_allowed_tables(
+    sql: str,
+    settings: Settings | None = None,
+    session_locked_table: str | None = None,
+) -> None:
     active_settings = settings or get_settings()
     cte_names = extract_cte_names(sql)
-    allowed_tables = set(active_settings.sql_allowed_tables_list)
+    if session_locked_table:
+        allowed_tables = {session_locked_table.strip().lower()}
+    else:
+        allowed_tables = set(active_settings.sql_allowed_tables_list)
     qualified_allowed_tables = {
         f"{active_settings.impala_db.lower()}.{table}" for table in allowed_tables
     }
@@ -121,6 +128,7 @@ def apply_default_limit(sql: str, settings: Settings | None = None) -> tuple[str
 def validate_and_prepare_sql(
     sql: str,
     settings: Settings | None = None,
+    session_locked_table: str | None = None,
 ) -> tuple[str, bool]:
     active_settings = settings or get_settings()
     cleaned_sql = normalize_sql(sql)
@@ -130,5 +138,5 @@ def validate_and_prepare_sql(
         cleaned_sql = cleaned_sql[:-1].strip()
     reject_forbidden_keywords(cleaned_sql)
     ensure_read_only_query(cleaned_sql)
-    validate_allowed_tables(cleaned_sql, active_settings)
+    validate_allowed_tables(cleaned_sql, active_settings, session_locked_table=session_locked_table)
     return apply_default_limit(cleaned_sql, active_settings)

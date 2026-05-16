@@ -12,10 +12,8 @@ import { AnswerCard } from "@/components/answer-card";
 import { BrandLogo } from "@/components/brand-logo";
 import { ChatInputPanel } from "@/components/chat-input-panel";
 import { DemoGuidePanel } from "@/components/demo-guide-panel";
-import { DemoBriefingModal } from "@/components/demo-briefing-modal";
 import { ModelSettingsPanel } from "@/components/model-settings-panel";
 import { NoticePanel } from "@/components/notice-panel";
-import { RagConfigModal } from "@/components/rag-config-modal";
 import { ResultChartCard } from "@/components/result-chart-card";
 import { StarterCard } from "@/components/starter-card";
 import { UsageDashboardPanel } from "@/components/usage-dashboard-panel";
@@ -39,6 +37,7 @@ import {
   type RagOptionsResponse,
   type SessionStatePayload,
   type SessionSummary,
+  type TableLockConfig,
   type VisualizationSpec,
 } from "@/lib/api";
 import type { VectorRagConfig } from "@/components/rag-config-modal";
@@ -96,7 +95,6 @@ interface AnalyticsState {
 
 type AppView = "assistant" | "settings" | "usage" | "guide";
 
-const DEMO_BRIEFING_STORAGE_KEY = "ask-data-demo-briefing-seen";
 const LLM_PROVIDER_STORAGE_KEY = "ask-data-llm-provider";
 const LLM_MODEL_STORAGE_KEY = "ask-data-llm-model";
 
@@ -184,7 +182,7 @@ const initialSessionsState: SessionsState = {
 const initialLlmProvidersState: LLMProvidersState = {
   loading: true,
   options: [],
-  activeProvider: "azure",
+  activeProvider: "local_qwen",
   activeModelName: "",
   error: "",
 };
@@ -214,62 +212,56 @@ const navItems = [
   },
   {
     key: "settings",
-    label: "Model Settings",
+    label: "Settings",
     icon: <TuneIcon sx={{ fontSize: 22 }} />,
   },
 ];
 
 const demoBriefingSections = [
   {
+    id: "use-case",
+    label: "Use Cases",
+    labelId: "Use Cases",
+    title: "Customer Segmentation & Dormancy Intelligence",
+    titleId: "Segmentasi Nasabah & Kecerdasan Risiko Dormant",
+    body:
+      "Ask the Data enables relationship and portfolio teams to explore customer segmentation data in natural language — understanding dormancy risk, segment distribution, and campaign opportunities without writing a single query.",
+    bodyId:
+      "Ask the Data memungkinkan tim relationship dan portfolio untuk mengeksplorasi data segmentasi nasabah dalam bahasa alami — memahami risiko dormant, distribusi segmen, dan peluang kampanye tanpa menulis satu baris query.",
+    bullets: [
+      "Segment distribution — instantly see how customers are distributed across risk segments and identify concentration areas.",
+      "Dormancy risk analysis — surface high-risk dormant customers by balance, segment, or product type in real time.",
+      "Campaign targeting — identify which segments have the highest reactivation potential based on balance and activity patterns.",
+      "Governance — sensitive individual customer data is automatically blocked; all answers are aggregate, defensible, and audit-ready.",
+    ],
+    bulletsId: [
+      "Distribusi segmen — lihat seketika bagaimana nasabah terdistribusi di seluruh segmen risiko dan identifikasi area konsentrasi.",
+      "Analisis risiko dormant — temukan nasabah dormant berisiko tinggi berdasarkan saldo, segmen, atau jenis produk secara real time.",
+      "Targeting kampanye — identifikasi segmen dengan potensi reaktivasi tertinggi berdasarkan pola saldo dan aktivitas.",
+      "Tata kelola — data nasabah individu yang sensitif diblokir otomatis; semua jawaban bersifat agregat, dapat dipertahankan, dan siap audit.",
+    ],
+  },
+  {
     id: "business-impact",
     label: "Business Impact",
-    title: "Measurable Impact for Decision Makers",
+    labelId: "Dampak Bisnis",
+    title: "Faster Decisions, Safer Portfolios",
+    titleId: "Keputusan Lebih Cepat, Portofolio Lebih Aman",
     body:
-      "Ask the Data compresses the time between a business question and a management-ready answer — from days to seconds. For leadership teams, that means faster decisions, fewer reporting bottlenecks, and full visibility into portfolio performance at any moment.",
+      "By eliminating the lag between a business question and a management-ready answer, Ask the Data compresses insight cycles from days to seconds — directly improving the quality and speed of portfolio decisions.",
+    bodyId:
+      "Dengan menghilangkan jeda antara pertanyaan bisnis dan jawaban siap manajemen, Ask the Data mempersingkat siklus insight dari hari menjadi detik — langsung meningkatkan kualitas dan kecepatan keputusan portofolio.",
     bullets: [
-      "Reduce time-to-insight from days to seconds — no more waiting for the next reporting cycle to answer a board-level question.",
-      "Enable live hypothesis testing during management meetings without interrupting the conversation to request a new report.",
-      "Lower operational risk with governed, auditable SQL generation — every answer is traceable and defensible.",
-      "Expand self-service analytics safely across business, risk, and relationship teams without exposing raw customer data.",
+      "Reduce insight lag from days to seconds — answer board-level dormancy questions live, without waiting for the next reporting cycle.",
+      "Enable real-time hypothesis testing — management can explore 'what if' segment scenarios during the meeting itself.",
+      "Lower compliance risk — SQL generation is governed, every answer is traceable, and PII is protected by automated guardrails.",
+      "Scale self-service analytics — business, risk, and relationship teams share the same governed experience without separate tooling.",
     ],
-  },
-  {
-    id: "use-case",
-    label: "Use Case",
-    title: "Built for Portfolio & Relationship Teams",
-    body:
-      "This solution is designed for the moments that matter most — portfolio reviews, credit monitoring, and relationship planning. It allows business users to ask questions in plain language and receive structured, chart-ready answers instantly.",
-    bullets: [
-      "Portfolio review meetings — answer live follow-up questions on deposit concentration, credit exposure, and segment performance without leaving the room.",
-      "Credit risk monitoring — surface outstanding credit trends, top debtors, and segment-level exposure in real time.",
-      "Relationship planning — identify high-value customers by deposit balance or credit utilization across cities and segments.",
-      "Compliance & governance — sensitive data requests are automatically blocked or redacted, keeping every session policy-safe.",
-    ],
-  },
-  {
-    id: "data-scope",
-    label: "Data Scope",
-    title: "Three Connected Data Domains",
-    body:
-      "The demo is anchored on three core domains — Customer, Deposit, and Credit — linked through customer relationships. This allows the audience to move seamlessly from portfolio-level questions down to segment or customer-level analysis.",
-    bullets: [
-      "Customer — identity, segment, city, and lifecycle attributes that provide the relationship context behind every portfolio number.",
-      "Deposit — balance totals, concentration by segment and geography, maturity profile, and distribution trends.",
-      "Credit — outstanding exposure, top debtor analysis, financing trend, and portfolio quality indicators.",
-      "Cross-domain — questions can span all three domains in a single conversation without switching tools or context.",
-    ],
-  },
-  {
-    id: "how-to-demo",
-    label: "Demo Flow",
-    title: "Recommended Flow for a 15-Minute Demo",
-    body:
-      "Start with a number the audience already cares about, build confidence with one visual follow-up, then demonstrate governance. Keep the narrative tight — three questions are enough to show the full value of the platform.",
-    bullets: [
-      "Open with one aggregate question (total balance, total credit, customer count) — give the audience an immediate anchor they can validate.",
-      "Follow with a trend or breakdown question to show chart generation and cross-domain continuity in the same conversation.",
-      "Trigger the guardrails intentionally — ask for individual customer PII to show the system blocks it, then pivot to a safe aggregate alternative.",
-      "Introduce RAG Studio only if the discussion shifts to policy or SOP questions — present it as a natural extension, not an extra feature.",
+    bulletsId: [
+      "Kurangi jeda insight dari hari menjadi detik — jawab pertanyaan dormant level direksi secara langsung, tanpa menunggu siklus pelaporan berikutnya.",
+      "Aktifkan pengujian hipotesis real time — manajemen dapat mengeksplorasi skenario segmen 'bagaimana jika' selama rapat berlangsung.",
+      "Turunkan risiko kepatuhan — pembuatan SQL diatur dengan tata kelola, setiap jawaban dapat dilacak, dan PII dilindungi oleh guardrail otomatis.",
+      "Skalakan analitik swalayan — tim bisnis, risiko, dan relationship berbagi pengalaman yang sama tanpa tooling terpisah.",
     ],
   },
 ] as const;
@@ -281,11 +273,11 @@ export default function HomePage() {
   const [llmProviders, setLlmProviders] = useState<LLMProvidersState>(initialLlmProvidersState);
   const [analytics, setAnalytics] = useState<AnalyticsState>(initialAnalyticsState);
   const [activeView, setActiveView] = useState<AppView>("guide");
-  const [draftProvider, setDraftProvider] = useState("azure");
+  const [draftProvider, setDraftProvider] = useState("local_qwen");
   const [draftModelId, setDraftModelId] = useState("");
   const [savingModelSettings, setSavingModelSettings] = useState(false);
-  const [demoBriefingOpen, setDemoBriefingOpen] = useState(false);
-  const [activeBriefingSection, setActiveBriefingSection] = useState<string>("business-impact");
+  const [activeBriefingSection, setActiveBriefingSection] = useState<string>("use-case");
+  const [lang, setLang] = useState<"en" | "id">("en");
   const [health, setHealth] = useState<HealthState>({
     loading: true,
     app: null,
@@ -297,10 +289,12 @@ export default function HomePage() {
   const [ragCollections, setRagCollections] = useState<RagCollectionOption[]>([]);
   const [ragConfig, setRagConfig] = useState<VectorRagConfig>(defaultRagConfig());
   const [ragSessionId, setRagSessionId] = useState<string>("");
-  const [ragPanelOpen, setRagPanelOpen] = useState(false);
   const [ragSaving, setRagSaving] = useState(false);
   const [ragConfigDirty, setRagConfigDirty] = useState(false);
-  const [ragPanelPreparing, setRagPanelPreparing] = useState(false);
+  const [tableLockConfig, setTableLockConfig] = useState<TableLockConfig>({ session_id: "", locked_table: null });
+  const [tableLockSaving, setTableLockSaving] = useState(false);
+  const [tableLockDirty, setTableLockDirty] = useState(false);
+  const [availableTables, setAvailableTables] = useState<string[]>([]);
 
   useEffect(() => {
     const sessionId = getCurrentSessionId() || getOrCreateSessionId();
@@ -310,10 +304,6 @@ export default function HomePage() {
     setRagConfig(defaultRagConfig());
     void loadSessionHistory(sessionId);
 
-    const seenBriefing = window.localStorage.getItem(DEMO_BRIEFING_STORAGE_KEY);
-    if (!seenBriefing) {
-      setDemoBriefingOpen(true);
-    }
   }, []);
 
   useEffect(() => {
@@ -329,8 +319,13 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    apiClient.listTables().then((r) => setAvailableTables(r.tables)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (!state.sessionId) return;
     void loadSavedRagConfig(state.sessionId);
+    void loadSavedTableLock(state.sessionId);
     void loadLlmProviders(state.sessionId);
   }, [state.sessionId]);
 
@@ -474,11 +469,11 @@ export default function HomePage() {
       setLlmProviders({
         loading: false,
         options: [],
-        activeProvider: "azure",
+        activeProvider: "local_qwen",
         activeModelName: "",
         error: error instanceof Error ? error.message : "Unable to load model providers.",
       });
-      setDraftProvider("azure");
+      setDraftProvider("local_qwen");
       setDraftModelId("");
     }
   }
@@ -565,12 +560,14 @@ export default function HomePage() {
       error: "",
       messages: [],
     }));
-    setRagPanelOpen(false);
     setRagConfig(defaultRagConfig());
     setRagSessionId(sessionId);
     setRagConfigDirty(false);
+    setTableLockConfig({ session_id: sessionId, locked_table: null });
+    setTableLockDirty(false);
     await loadSessionHistory(sessionId);
     await loadSavedRagConfig(sessionId);
+    await loadSavedTableLock(sessionId);
   }
 
   async function loadRagOptions() {
@@ -599,31 +596,11 @@ export default function HomePage() {
     await loadRagOptions();
   }
 
-  async function openRagPanel() {
-    if (ragPanelPreparing) return;
-    if (ragOptions !== null) {
-      setRagPanelOpen(true);
-      return;
-    }
-    setRagPanelPreparing(true);
-    try {
-      await loadRagOptions();
-      setRagPanelOpen(true);
-    } finally {
-      setRagPanelPreparing(false);
-    }
-  }
-
   function openGuideView(sectionId?: string) {
     if (sectionId) {
       setActiveBriefingSection(sectionId);
     }
     setActiveView("guide");
-  }
-
-  function closeDemoBriefing() {
-    window.localStorage.setItem(DEMO_BRIEFING_STORAGE_KEY, "true");
-    setDemoBriefingOpen(false);
   }
 
   async function loadSavedRagConfig(sessionId: string) {
@@ -638,6 +615,38 @@ export default function HomePage() {
     } catch {
       setRagConfig(defaultRagConfig());
       setRagConfigDirty(false);
+    }
+  }
+
+  async function loadSavedTableLock(sessionId: string) {
+    try {
+      const saved = await apiClient.getTableLock(sessionId);
+      setTableLockConfig({ session_id: sessionId, locked_table: saved.locked_table });
+      setTableLockDirty(false);
+    } catch {
+      setTableLockConfig({ session_id: sessionId, locked_table: null });
+      setTableLockDirty(false);
+    }
+  }
+
+  async function saveTableLock() {
+    const sessionId = state.sessionId;
+    if (!sessionId) return;
+    setTableLockSaving(true);
+    try {
+      const saved = await apiClient.saveTableLock({
+        session_id: sessionId,
+        locked_table: tableLockConfig.locked_table,
+      });
+      setTableLockConfig({ session_id: sessionId, locked_table: saved.locked_table });
+      setTableLockDirty(false);
+    } catch (error) {
+      setState((cur) => ({
+        ...cur,
+        error: error instanceof Error ? error.message : "Unable to save table lock.",
+      }));
+    } finally {
+      setTableLockSaving(false);
     }
   }
 
@@ -734,7 +743,6 @@ export default function HomePage() {
         top_k: saved.top_k || 3,
       });
       setRagConfigDirty(false);
-      setRagPanelOpen(false);
     } catch (error) {
       setState((cur) => ({
         ...cur,
@@ -747,13 +755,8 @@ export default function HomePage() {
 
   async function handleToggleRag(enabled: boolean) {
     await ensureRagOptionsLoaded();
-
     setRagConfig((cur) => ({ ...cur, enabled }));
     setRagConfigDirty(true);
-
-    if (enabled) {
-      void openRagPanel();
-    }
   }
 
   function handleNewChat() {
@@ -764,8 +767,9 @@ export default function HomePage() {
     setLlmProviders(initialLlmProvidersState);
     setRagConfig(defaultRagConfig());
     setRagSessionId(sessionId);
-    setRagPanelOpen(false);
     setRagConfigDirty(false);
+    setTableLockConfig({ session_id: sessionId, locked_table: null });
+    setTableLockDirty(false);
   }
 
   function handleClearSession() {
@@ -775,8 +779,9 @@ export default function HomePage() {
     setLlmProviders(initialLlmProvidersState);
     setRagConfig(defaultRagConfig());
     setRagSessionId(sessionId);
-    setRagPanelOpen(false);
     setRagConfigDirty(false);
+    setTableLockConfig({ session_id: sessionId, locked_table: null });
+    setTableLockDirty(false);
     setActiveView("assistant");
   }
 
@@ -875,54 +880,36 @@ export default function HomePage() {
       }
       right={
         <div className="flex items-center gap-3">
+          <div className="flex items-center rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-0.5">
+            <button
+              type="button"
+              onClick={() => setLang("en")}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${lang === "en" ? "bg-[var(--color-action-primary)] text-white shadow" : "text-[var(--color-ink-muted)] hover:text-[var(--color-action-primary)]"}`}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang("id")}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${lang === "id" ? "bg-[var(--color-action-primary)] text-white shadow" : "text-[var(--color-ink-muted)] hover:text-[var(--color-action-primary)]"}`}
+            >
+              ID
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => void refreshHealth()}
             className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
           >
-            Refresh status
-          </button>
-          <button
-            type="button"
-            disabled={ragPanelPreparing}
-            onClick={() => void openRagPanel()}
-            className={`inline-flex items-center gap-2 rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-semibold transition ${
-              ragConfig.enabled && ragConfig.collection_name
-                ? "border-emerald-400 bg-emerald-50 text-emerald-700"
-                : "border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
-            } ${ragPanelPreparing ? "cursor-wait opacity-70" : ""}`}
-          >
-            <span
-              className={`relative h-4 w-7 rounded-full transition ${
-                ragConfig.enabled && ragConfig.collection_name ? "bg-emerald-500" : "bg-[#c7ccda]"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition ${
-                  ragConfig.enabled && ragConfig.collection_name ? "left-3.5" : "left-0.5"
-                }`}
-              />
-            </span>
-            <span>
-              {ragPanelPreparing
-                ? "Memuat..."
-                : ragConfig.enabled && ragConfig.collection_name
-                  ? "Knowledge Base Aktif"
-                  : "Knowledge Base"}
-            </span>
+            {lang === "id" ? "Refresh status" : "Refresh status"}
           </button>
           <button
             type="button"
             onClick={handleClearSession}
             className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-rose-400 hover:text-rose-500"
           >
-            Clear Session
+            {lang === "id" ? "Bersihkan Sesi" : "Clear Session"}
           </button>
-          {ragOptions?.enabled ? (
-            <span className="hidden rounded-[var(--radius-pill)] bg-[rgba(92,99,242,0.12)] px-3 py-1.5 text-xs font-semibold text-[#4953d3] sm:inline-flex">
-              ChromaDB siap
-            </span>
-          ) : null}
         </div>
       }
     />
@@ -951,10 +938,14 @@ export default function HomePage() {
                       />
                     </div>
                     <h3 className="font-headline text-2xl font-bold tracking-tight text-[var(--color-ink-strong)]">
-                      Halo, saya Asisten Analitik Bank Jawa Timur.
+                      {lang === "id"
+                        ? "Halo, saya Asisten Analitik Bank Jawa Timur."
+                        : "Hello, I am Bank Jawa Timur Analytics Assistant."}
                     </h3>
                     <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[var(--color-ink-muted)]">
-                      Saya siap membantu analisis segmentasi nasabah, risiko dormant, rekomendasi campaign, saldo deposito, dan performa cabang menggunakan bahasa alami. Data bersumber dari tabel cai_sdx_se_indonesia.customer_dormant_segment.
+                      {lang === "id"
+                        ? "Saya siap membantu analisis segmentasi nasabah, risiko dormant, rekomendasi campaign, dan distribusi saldo menggunakan bahasa alami. Data bersumber dari tabel customer_dormant_segment."
+                        : "I can help you analyze customer segmentation, dormancy risk, campaign recommendations, and balance distribution in natural language. Data sourced from the customer_dormant_segment table."}
                     </p>
                     <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                       <button
@@ -962,7 +953,7 @@ export default function HomePage() {
                         onClick={() => openGuideView("use-case")}
                         className="rounded-[var(--radius-pill)] bg-[var(--color-action-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-action-primary-hover)]"
                       >
-                        Open Demo Guide
+                        {lang === "id" ? "Buka Demo Guide" : "Open Demo Guide"}
                       </button>
                       <button
                         type="button"
@@ -971,7 +962,7 @@ export default function HomePage() {
                         }}
                         className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-white px-4 py-2 text-sm font-semibold text-[var(--color-ink-muted)] transition hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
                       >
-                        Review Model Settings
+                        {lang === "id" ? "Lihat Pengaturan" : "Review Settings"}
                       </button>
                     </div>
                   </section>
@@ -1064,6 +1055,7 @@ export default function HomePage() {
             sections={[...demoBriefingSections]}
             activeSectionId={activeBriefingSection}
             onSelectSection={setActiveBriefingSection}
+            lang={lang}
           />
         ) : null}
 
@@ -1090,6 +1082,13 @@ export default function HomePage() {
             draftProvider={draftProvider}
             draftModelId={draftModelId}
             saving={savingModelSettings}
+            lang={lang}
+            ragConfig={ragConfig}
+            ragOptions={ragOptions}
+            ragOptionsLoading={ragOptionsLoading}
+            ragCollections={ragCollections}
+            ragSaving={ragSaving}
+            ragConfigLocked={Boolean(ragConfig.enabled && ragConfig.collection_name && !ragConfigDirty)}
             onProviderChange={(provider) => {
               setDraftProvider(provider);
               const firstModel = llmProviders.options.find((option) => option.provider === provider);
@@ -1097,32 +1096,24 @@ export default function HomePage() {
             }}
             onModelChange={setDraftModelId}
             onSave={() => void saveModelSettings()}
+            onRagToggle={(enabled) => void handleToggleRag(enabled)}
+            onRagConfigChange={(config) => {
+              setRagConfig(config);
+              setRagConfigDirty(true);
+            }}
+            onRagSave={() => void saveRagConfig()}
+            availableTables={availableTables}
+            tableLockConfig={tableLockConfig}
+            tableLockSaving={tableLockSaving}
+            tableLockConfigLocked={tableLockConfig.locked_table !== null && !tableLockDirty}
+            onTableLockChange={(cfg) => {
+              setTableLockConfig(cfg);
+              setTableLockDirty(true);
+            }}
+            onTableLockSave={() => void saveTableLock()}
           />
         ) : null}
       </PageCanvas>
-      <RagConfigModal
-        open={ragPanelOpen}
-        saving={ragSaving}
-        loadingOptions={ragOptionsLoading}
-        ragAvailable={Boolean(ragOptions?.enabled)}
-        ragConfigLocked={Boolean(ragConfig.enabled && ragConfig.collection_name && !ragConfigDirty)}
-        config={ragConfig}
-        collections={ragCollections}
-        onClose={() => setRagPanelOpen(false)}
-        onToggleEnabled={(enabled) => void handleToggleRag(enabled)}
-        onConfigChange={(config) => {
-          setRagConfig(config);
-          setRagConfigDirty(true);
-        }}
-        onSave={() => void saveRagConfig()}
-      />
-      <DemoBriefingModal
-        open={demoBriefingOpen}
-        sections={[...demoBriefingSections]}
-        activeSectionId={activeBriefingSection}
-        onSelectSection={setActiveBriefingSection}
-        onClose={closeDemoBriefing}
-      />
     </AppShell>
   );
 }
