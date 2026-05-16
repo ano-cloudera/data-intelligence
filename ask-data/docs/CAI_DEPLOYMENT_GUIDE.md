@@ -206,6 +206,38 @@ python3 -c "import sys; import pysqlite3; sys.modules['sqlite3']=pysqlite3; impo
 # Expected: Chunks: 17
 ```
 
+### Step D — Pre-install vLLM Dependencies (Wajib sebelum APP 1)
+
+Install vLLM + torch ke direktori terisolasi `/home/cdsw/.vllm_deps` dari **Workbench session** — bukan dari dalam Application. Ini wajib karena install di dalam Application akan OOM (exit 137) karena RAM terbatas.
+
+Jalankan di terminal Workbench session:
+
+```bash
+PIP_USER=0 pip install --target /home/cdsw/.vllm_deps \
+  vllm==0.7.3 \
+  torch==2.5.1 \
+  "transformers==4.51.3" \
+  "tokenizers>=0.19.0,<0.22" \
+  accelerate \
+  huggingface_hub \
+  -q
+```
+
+> Proses ini membutuhkan **10–20 menit** tergantung bandwidth. Tunggu sampai selesai sebelum lanjut deploy APP 1.
+
+**Verifikasi:**
+
+```bash
+python3 -c "
+import sys
+sys.path.insert(0, '/home/cdsw/.vllm_deps')
+import vllm, transformers
+print('vLLM:', vllm.__version__)
+print('transformers:', transformers.__version__)
+"
+# Expected: vLLM: 0.7.3 / transformers: 4.51.3
+```
+
 ---
 
 ## APP 1 — Qwen LLM Application

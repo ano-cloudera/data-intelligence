@@ -103,25 +103,20 @@ def ensure_deps_installed() -> None:
         logging.info("All pinned deps present in %s.", DEPS_DIR)
         return
 
-    logging.warning("Installing pinned packages into %s ...", DEPS_DIR)
-    # PIP_USER=0 disables the default --user flag CAI injects via pip config,
-    # which conflicts with --target.
-    pip_env = os.environ.copy()
-    pip_env["PIP_USER"] = "0"
-    req_file = resolve_qwen_dir() / "requirements.txt"
-    if req_file.exists():
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--target", str(DEPS_DIR), "-r", str(req_file), "-q"],
-            check=True,
-            env=pip_env,
-        )
-    else:
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--target", str(DEPS_DIR), "-q"] + PINNED_PACKAGES,
-            check=True,
-            env=pip_env,
-        )
-    logging.info("Install complete.")
+    # Installing torch + vllm inside Application OOMs on 8 GiB RAM (exit 137).
+    # Run this manually in a Workbench session before deploying:
+    #   PIP_USER=0 pip install --target /home/cdsw/.vllm_deps \
+    #     vllm==0.7.3 torch==2.5.1 "transformers==4.51.3" \
+    #     "tokenizers>=0.19.0,<0.22" accelerate huggingface_hub -q
+    raise SystemExit(
+        f"\n\n*** DEPS NOT READY in {DEPS_DIR} ***\n"
+        "vLLM + transformers must be pre-installed in a Workbench session before starting this Application.\n"
+        "Run in a Workbench terminal:\n\n"
+        f"  PIP_USER=0 pip install --target {DEPS_DIR} \\\n"
+        "    vllm==0.7.3 torch==2.5.1 'transformers==4.51.3' \\\n"
+        "    'tokenizers>=0.19.0,<0.22' accelerate huggingface_hub -q\n\n"
+        "Then restart this Application."
+    )
 
 
 def main() -> None:
