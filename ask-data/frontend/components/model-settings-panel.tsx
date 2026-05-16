@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import InfoIcon from "@mui/icons-material/Info";
 import SaveIcon from "@mui/icons-material/Save";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import TableChartIcon from "@mui/icons-material/TableChart";
 
-import type { LLMProviderOption, RagCollectionOption, RagOptionsResponse, TableLockConfig } from "@/lib/api";
+import type { LLMProviderOption, RagCollectionOption, RagOptionsResponse, TableLockConfig, TablePreviewResponse } from "@/lib/api";
 import type { VectorRagConfig } from "@/components/rag-config-modal";
 
 interface ModelSettingsPanelProps {
@@ -28,6 +29,8 @@ interface ModelSettingsPanelProps {
   tableLockConfig: TableLockConfig;
   tableLockSaving: boolean;
   tableLockConfigLocked: boolean;
+  tablePreviewData: TablePreviewResponse | null;
+  tablePreviewLoading: boolean;
   onProviderChange: (provider: string) => void;
   onModelChange: (modelId: string) => void;
   onSave: () => void;
@@ -38,15 +41,85 @@ interface ModelSettingsPanelProps {
   onTableLockSave: () => void;
 }
 
-const TABLE_COLUMNS = [
-  { key: "customer_id", type: "VARCHAR", desc_en: "Unique customer identifier", desc_id: "ID nasabah unik" },
-  { key: "customer_name", type: "VARCHAR", desc_en: "Customer full name (masked in output)", desc_id: "Nama lengkap nasabah (disamarkan di output)" },
-  { key: "customer_segment", type: "VARCHAR", desc_en: "Assigned customer segment label", desc_id: "Label segmen nasabah" },
-  { key: "dormant_risk_level", type: "VARCHAR", desc_en: "Dormancy risk: low / medium / high", desc_id: "Risiko dormant: low / medium / high" },
-  { key: "deposit_balance", type: "DECIMAL", desc_en: "Total deposit balance (IDR)", desc_id: "Total saldo deposito (IDR)" },
-  { key: "city", type: "VARCHAR", desc_en: "Customer city / branch city", desc_id: "Kota nasabah / kota cabang" },
-  { key: "product_type", type: "VARCHAR", desc_en: "Primary deposit product type", desc_id: "Jenis produk deposito utama" },
-  { key: "last_transaction_date", type: "DATE", desc_en: "Date of last recorded transaction", desc_id: "Tanggal transaksi terakhir tercatat" },
+const TABLE_SCHEMA_SECTIONS = [
+  {
+    section: { en: "Identity", id: "Identitas" },
+    columns: [
+      { key: "customer_id", type: "VARCHAR", desc_en: "Unique customer identifier", desc_id: "ID nasabah unik" },
+      { key: "customer_name", type: "VARCHAR", desc_en: "Customer full name (masked in output)", desc_id: "Nama lengkap nasabah (disamarkan)" },
+      { key: "customer_code", type: "VARCHAR", desc_en: "Internal customer code", desc_id: "Kode nasabah internal" },
+      { key: "account_number", type: "VARCHAR", desc_en: "Primary account number", desc_id: "Nomor rekening utama" },
+      { key: "customer_since", type: "DATE", desc_en: "Date of first account opening", desc_id: "Tanggal pembukaan rekening pertama" },
+      { key: "customer_tenure_years", type: "INT", desc_en: "Years as active customer", desc_id: "Lama menjadi nasabah (tahun)" },
+    ],
+  },
+  {
+    section: { en: "Demographics", id: "Demografi" },
+    columns: [
+      { key: "age_band", type: "VARCHAR", desc_en: "Age band bracket (e.g. 25–34)", desc_id: "Kelompok usia (misal 25–34)" },
+      { key: "gender", type: "VARCHAR", desc_en: "Customer gender", desc_id: "Jenis kelamin nasabah" },
+      { key: "city", type: "VARCHAR", desc_en: "Customer home city", desc_id: "Kota asal nasabah" },
+      { key: "district", type: "VARCHAR", desc_en: "District / kecamatan", desc_id: "Kecamatan nasabah" },
+      { key: "branch_name", type: "VARCHAR", desc_en: "Servicing branch name", desc_id: "Nama cabang pelayanan" },
+      { key: "occupation", type: "VARCHAR", desc_en: "Customer occupation category", desc_id: "Kategori pekerjaan nasabah" },
+      { key: "income_band", type: "VARCHAR", desc_en: "Monthly income band", desc_id: "Kelompok pendapatan bulanan" },
+    ],
+  },
+  {
+    section: { en: "Product Holding", id: "Kepemilikan Produk" },
+    columns: [
+      { key: "has_savings", type: "BOOLEAN", desc_en: "Holds a savings account", desc_id: "Memiliki rekening tabungan" },
+      { key: "has_current_account", type: "BOOLEAN", desc_en: "Holds a current account", desc_id: "Memiliki rekening giro" },
+      { key: "has_deposit", type: "BOOLEAN", desc_en: "Holds a time deposit", desc_id: "Memiliki deposito berjangka" },
+      { key: "has_loan", type: "BOOLEAN", desc_en: "Has an active loan", desc_id: "Memiliki pinjaman aktif" },
+      { key: "has_mobile_banking", type: "BOOLEAN", desc_en: "Registered for mobile banking", desc_id: "Terdaftar mobile banking" },
+      { key: "has_internet_banking", type: "BOOLEAN", desc_en: "Registered for internet banking", desc_id: "Terdaftar internet banking" },
+    ],
+  },
+  {
+    section: { en: "Balance", id: "Saldo" },
+    columns: [
+      { key: "avg_savings_balance", type: "DECIMAL", desc_en: "3-month average savings balance (IDR)", desc_id: "Rata-rata saldo tabungan 3 bulan (IDR)" },
+      { key: "avg_deposit_balance", type: "DECIMAL", desc_en: "Average time deposit balance (IDR)", desc_id: "Rata-rata saldo deposito (IDR)" },
+      { key: "total_deposit_balance", type: "DECIMAL", desc_en: "Total deposit balance across all tenors", desc_id: "Total saldo deposito semua tenor" },
+      { key: "outstanding_loan_balance", type: "DECIMAL", desc_en: "Outstanding loan principal (IDR)", desc_id: "Saldo pokok pinjaman (IDR)" },
+    ],
+  },
+  {
+    section: { en: "Behavioral", id: "Perilaku" },
+    columns: [
+      { key: "last_transaction_date", type: "DATE", desc_en: "Date of last recorded transaction", desc_id: "Tanggal transaksi terakhir tercatat" },
+      { key: "days_since_last_txn", type: "INT", desc_en: "Days elapsed since last transaction", desc_id: "Hari sejak transaksi terakhir" },
+      { key: "txn_frequency_30d", type: "INT", desc_en: "Transaction count in last 30 days", desc_id: "Jumlah transaksi 30 hari terakhir" },
+      { key: "active_months_12m", type: "INT", desc_en: "Months with at least 1 transaction in last year", desc_id: "Bulan aktif bertransaksi dalam setahun" },
+      { key: "digital_login_count_30d", type: "INT", desc_en: "Digital channel logins in last 30 days", desc_id: "Login digital 30 hari terakhir" },
+    ],
+  },
+  {
+    section: { en: "Dormant Risk", id: "Risiko Dormant" },
+    columns: [
+      { key: "dormant_flag", type: "BOOLEAN", desc_en: "True if account is currently dormant", desc_id: "True jika rekening saat ini dormant" },
+      { key: "dormant_risk_level", type: "VARCHAR", desc_en: "Risk level: low / medium / high", desc_id: "Level risiko: low / medium / high" },
+      { key: "dormant_probability", type: "DECIMAL", desc_en: "Model-predicted dormancy probability (0–1)", desc_id: "Probabilitas dormant dari model (0–1)" },
+      { key: "dormant_reason", type: "VARCHAR", desc_en: "Primary reason code for dormancy classification", desc_id: "Kode alasan utama klasifikasi dormant" },
+    ],
+  },
+  {
+    section: { en: "Segmentation", id: "Segmentasi" },
+    columns: [
+      { key: "customer_segment", type: "VARCHAR", desc_en: "Assigned customer segment label", desc_id: "Label segmen nasabah" },
+      { key: "segment_score", type: "DECIMAL", desc_en: "Numeric score driving the segment assignment", desc_id: "Skor numerik untuk penentuan segmen" },
+      { key: "segment_description", type: "VARCHAR", desc_en: "Human-readable segment description", desc_id: "Deskripsi segmen yang dapat dibaca" },
+    ],
+  },
+  {
+    section: { en: "Campaign", id: "Kampanye" },
+    columns: [
+      { key: "recommended_campaign", type: "VARCHAR", desc_en: "Next-best campaign recommendation", desc_id: "Rekomendasi kampanye terbaik berikutnya" },
+      { key: "recommended_channel", type: "VARCHAR", desc_en: "Preferred contact channel for campaign", desc_id: "Channel kontak yang direkomendasikan" },
+      { key: "next_best_action", type: "VARCHAR", desc_en: "Specific action for relationship manager", desc_id: "Tindakan spesifik untuk relationship manager" },
+    ],
+  },
 ];
 
 const t = {
@@ -111,7 +184,6 @@ export function ModelSettingsPanel({
   error,
   options,
   activeModelName,
-  draftProvider,
   draftModelId,
   saving,
   lang,
@@ -125,6 +197,8 @@ export function ModelSettingsPanel({
   tableLockConfig,
   tableLockSaving,
   tableLockConfigLocked,
+  tablePreviewData,
+  tablePreviewLoading,
   onModelChange,
   onSave,
   onRagToggle,
@@ -133,9 +207,8 @@ export function ModelSettingsPanel({
   onTableLockChange,
   onTableLockSave,
 }: ModelSettingsPanelProps) {
+  const [previewTab, setPreviewTab] = useState<"schema" | "data">("schema");
   const qwenModels = options.filter((o) => o.provider === "local_qwen");
-  const selectedModel =
-    qwenModels.find((o) => o.model_id === draftModelId) ?? qwenModels[0] ?? null;
 
   const ragCanSave =
     !ragSaving &&
@@ -415,38 +488,105 @@ export function ModelSettingsPanel({
                     {tr("tableSection", lang)}
                   </p>
                   <p className="mt-0.5 text-[10px] font-mono text-[#4968cf]">
-                    cai_sdx_se_indonesia.customer_dormant_segment
+                    customer_dormant_segment
                   </p>
                 </div>
               </div>
-              <p className="mb-3 text-xs leading-5 text-[var(--color-ink-muted)]">
+              <p className="mb-4 text-xs leading-5 text-[var(--color-ink-muted)]">
                 {tr("tableNote", lang)}
               </p>
-              <div className="overflow-x-auto rounded-[12px] border border-[var(--color-border-soft)]">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]">
-                      <th className="px-3 py-2 text-left font-semibold text-[var(--color-ink-subtle)]">{tr("colName", lang)}</th>
-                      <th className="px-3 py-2 text-left font-semibold text-[var(--color-ink-subtle)]">{tr("colType", lang)}</th>
-                      <th className="px-3 py-2 text-left font-semibold text-[var(--color-ink-subtle)]">{tr("colDesc", lang)}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {TABLE_COLUMNS.map((col, idx) => (
-                      <tr
-                        key={col.key}
-                        className={idx < TABLE_COLUMNS.length - 1 ? "border-b border-[var(--color-border-soft)]" : ""}
-                      >
-                        <td className="px-3 py-2 font-mono text-[#4953d3]">{col.key}</td>
-                        <td className="px-3 py-2 text-[var(--color-ink-subtle)]">{col.type}</td>
-                        <td className="px-3 py-2 text-[var(--color-ink-muted)]">
-                          {lang === "id" ? col.desc_id : col.desc_en}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+              {/* Tab switcher */}
+              <div className="mb-3 flex gap-1 rounded-[12px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-1">
+                {(["schema", "data"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setPreviewTab(tab)}
+                    className={`flex-1 rounded-[10px] py-1.5 text-xs font-semibold transition ${
+                      previewTab === tab
+                        ? "bg-white text-[var(--color-ink-strong)] shadow-sm"
+                        : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink-strong)]"
+                    }`}
+                  >
+                    {tab === "schema"
+                      ? lang === "id" ? "Skema" : "Schema"
+                      : lang === "id" ? "Data Langsung" : "Live Data"}
+                  </button>
+                ))}
               </div>
+
+              {previewTab === "schema" ? (
+                <div className="max-h-[520px] overflow-y-auto rounded-[12px] border border-[var(--color-border-soft)]">
+                  {TABLE_SCHEMA_SECTIONS.map((section) => (
+                    <div key={section.section.en}>
+                      <div className="sticky top-0 z-10 border-b border-[var(--color-border-soft)] bg-[#eef1ff] px-3 py-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#4953d3]">
+                          {section.section[lang]}
+                        </span>
+                      </div>
+                      {section.columns.map((col, idx) => (
+                        <div
+                          key={col.key}
+                          className={`flex items-start gap-2 px-3 py-2 text-xs ${
+                            idx < section.columns.length - 1 ? "border-b border-[var(--color-border-soft)]" : ""
+                          }`}
+                        >
+                          <span className="w-44 shrink-0 font-mono text-[#4953d3]">{col.key}</span>
+                          <span className="w-20 shrink-0 text-[var(--color-ink-subtle)]">{col.type}</span>
+                          <span className="text-[var(--color-ink-muted)]">
+                            {lang === "id" ? col.desc_id : col.desc_en}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-[12px] border border-[var(--color-border-soft)]">
+                  {tablePreviewLoading ? (
+                    <div className="flex items-center justify-center py-10 text-sm text-[var(--color-ink-subtle)]">
+                      {lang === "id" ? "Memuat data…" : "Loading data…"}
+                    </div>
+                  ) : tablePreviewData && tablePreviewData.columns.length > 0 ? (
+                    <div className="overflow-x-auto max-h-[480px]">
+                      <table className="w-full text-xs">
+                        <thead className="sticky top-0 z-10">
+                          <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]">
+                            {tablePreviewData.columns.map((col) => (
+                              <th key={col} className="whitespace-nowrap px-3 py-2 text-left font-mono font-semibold text-[#4953d3]">
+                                {col}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tablePreviewData.rows.map((row, rowIdx) => (
+                            <tr
+                              key={rowIdx}
+                              className={rowIdx < tablePreviewData.rows.length - 1 ? "border-b border-[var(--color-border-soft)]" : ""}
+                            >
+                              {tablePreviewData.columns.map((col) => (
+                                <td key={col} className="whitespace-nowrap px-3 py-2 text-[var(--color-ink-muted)]">
+                                  {row[col] === null || row[col] === undefined ? (
+                                    <span className="text-[var(--color-ink-subtle)] italic">null</span>
+                                  ) : (
+                                    String(row[col])
+                                  )}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-10 text-sm text-[var(--color-ink-subtle)]">
+                      {lang === "id" ? "Tidak ada data tersedia." : "No preview data available."}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

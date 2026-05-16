@@ -74,7 +74,7 @@ class Settings(BaseSettings):
         alias="BEDROCK_MODEL_ID",
     )
     bedrock_model_name: str = Field(
-        default="Claude Sonnet 4",
+        default="",
         alias="BEDROCK_MODEL_NAME",
     )
     bedrock_discover_models: bool = Field(default=False, alias="BEDROCK_DISCOVER_MODELS")

@@ -14,9 +14,23 @@ from app.schemas.llm import (
 from app.schemas.session import SessionMemoryState
 
 
+def _qwen_display_name(model_id: str) -> str:
+    table = {
+        "Qwen/Qwen2.5-14B-Instruct-AWQ": "Qwen 2.5 · 14B Instruct",
+        "Qwen/Qwen2.5-7B-Instruct-AWQ": "Qwen 2.5 · 7B Instruct",
+        "Qwen/Qwen2.5-3B-Instruct-AWQ": "Qwen 2.5 · 3B Instruct",
+        "Qwen/Qwen3-8B-AWQ": "Qwen 3 · 8B",
+        "Qwen/Qwen3-14B-AWQ": "Qwen 3 · 14B",
+    }
+    return table.get(model_id, model_id.split("/")[-1])
+
+
 class LLMProviderService:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
+
+    def _is_local_qwen(self) -> bool:
+        return self.settings.llm_provider.strip().lower() == "local_qwen"
 
     def list_options(
         self,
@@ -36,6 +50,14 @@ class LLMProviderService:
         self,
         session_memory: SessionMemoryState | None = None,
     ) -> LLMSelectionState:
+        # local_qwen takes absolute priority when env is set
+        if self._is_local_qwen():
+            return LLMSelectionState(
+                provider="local_qwen",
+                model_id=self.settings.qwen_model,
+                model_name=_qwen_display_name(self.settings.qwen_model),
+            )
+
         requested_provider = (
             session_memory.llm_selection.provider if session_memory is not None else None
         )
@@ -136,6 +158,17 @@ class LLMProviderService:
         )
 
     def _build_options(self) -> list[LLMProviderOption]:
+        if self._is_local_qwen():
+            return [
+                LLMProviderOption(
+                    provider="local_qwen",
+                    label="Qwen (Local vLLM)",
+                    model_id=self.settings.qwen_model,
+                    model_name=_qwen_display_name(self.settings.qwen_model),
+                    available=True,
+                    description="Qwen hosted on Cloudera AI Workbench via vLLM.",
+                )
+            ]
         options: list[LLMProviderOption] = []
         azure_opt = self._azure_option()
         if azure_opt is not None:

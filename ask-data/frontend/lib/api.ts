@@ -107,6 +107,13 @@ export interface TableLockConfig {
   locked_table: string | null;
 }
 
+export interface TablePreviewResponse {
+  status: string;
+  table: string;
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
+}
+
 export interface TablesListResponse {
   status: string;
   database: string;
@@ -369,6 +376,8 @@ export const apiClient = {
       body: JSON.stringify(payload),
     }),
   listTables: () => request<TablesListResponse>("/tables"),
+  getTablePreview: (tableName: string) =>
+    request<TablePreviewResponse>(`/tables/${encodeURIComponent(tableName)}/preview`),
   getTableLock: (sessionId: string) =>
     request<TableLockConfig>(`/table-lock/${encodeURIComponent(sessionId)}`),
   saveTableLock: (payload: TableLockConfig) =>

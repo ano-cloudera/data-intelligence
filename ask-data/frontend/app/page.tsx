@@ -15,7 +15,7 @@ import { DemoGuidePanel } from "@/components/demo-guide-panel";
 import { ModelSettingsPanel } from "@/components/model-settings-panel";
 import { NoticePanel } from "@/components/notice-panel";
 import { ResultChartCard } from "@/components/result-chart-card";
-import { StarterCard } from "@/components/starter-card";
+import { StarterCard, type StarterCardVariant } from "@/components/starter-card";
 import { UsageDashboardPanel } from "@/components/usage-dashboard-panel";
 import { UserMessageCard } from "@/components/user-message-card";
 import {
@@ -38,6 +38,7 @@ import {
   type SessionStatePayload,
   type SessionSummary,
   type TableLockConfig,
+  type TablePreviewResponse,
   type VisualizationSpec,
 } from "@/lib/api";
 import type { VectorRagConfig } from "@/components/rag-config-modal";
@@ -104,21 +105,47 @@ const defaultRagConfig = (): VectorRagConfig => ({
   top_k: 3,
 });
 
-const starterPrompts = [
+const starterPrompts: Array<{
+  title: { en: string; id: string };
+  description: { en: string; id: string };
+  prompt: { en: string; id: string };
+  variant: StarterCardVariant;
+}> = [
   {
-    title: "Segmentasi Nasabah",
-    description: "Tampilkan jumlah nasabah berdasarkan customer segment.",
-    prompt: "Tampilkan jumlah nasabah berdasarkan customer segment.",
+    title: { en: "Customer Segment Distribution", id: "Distribusi Segmen Nasabah" },
+    description: { en: "How many customers are in each segment?", id: "Berapa nasabah di tiap segmen?" },
+    prompt: { en: "Show customer count by customer segment", id: "Tampilkan jumlah nasabah berdasarkan customer segment" },
+    variant: "segment",
   },
   {
-    title: "Risiko Dormant",
-    description: "Segmen mana yang memiliki risiko dormant paling tinggi?",
-    prompt: "Segmen mana yang memiliki risiko dormant paling tinggi?",
+    title: { en: "Dormancy Risk Breakdown", id: "Distribusi Risiko Dormant" },
+    description: { en: "Distribution by dormancy risk level", id: "Distribusi berdasarkan level risiko dormant" },
+    prompt: { en: "Show customer count by dormant risk level", id: "Tampilkan jumlah nasabah per dormant risk level" },
+    variant: "risk",
   },
   {
-    title: "Saldo Deposito Dormant",
-    description: "Total saldo deposito untuk nasabah dormant risk high.",
-    prompt: "Berapa total saldo deposito untuk nasabah dormant risk high?",
+    title: { en: "Deposit Balance by Segment", id: "Saldo Deposito per Segmen" },
+    description: { en: "Average deposit balance per segment", id: "Rata-rata saldo deposito per segmen" },
+    prompt: { en: "Show average deposit balance by customer segment", id: "Tampilkan rata-rata saldo deposito per customer segment" },
+    variant: "balance",
+  },
+  {
+    title: { en: "Campaign Recommendations", id: "Rekomendasi Kampanye" },
+    description: { en: "Top campaigns for high-risk dormant customers", id: "Kampanye terbaik untuk nasabah dormant risiko tinggi" },
+    prompt: { en: "What campaigns are recommended for high dormancy risk customers?", id: "Kampanye apa yang direkomendasikan untuk nasabah dormant risk high?" },
+    variant: "campaign",
+  },
+  {
+    title: { en: "City-Level Dormancy", id: "Dormant per Kota" },
+    description: { en: "Dormant customer count by city", id: "Jumlah nasabah dormant per kota" },
+    prompt: { en: "Show dormant customer count by city", id: "Tampilkan jumlah nasabah dormant per kota" },
+    variant: "city",
+  },
+  {
+    title: { en: "Digital Banking Adoption", id: "Adopsi Mobile Banking" },
+    description: { en: "Mobile banking adoption rate by segment", id: "Tingkat adopsi mobile banking per segmen" },
+    prompt: { en: "Show mobile banking adoption rate by customer segment", id: "Tampilkan tingkat adopsi mobile banking per customer segment" },
+    variant: "digital",
   },
 ];
 
@@ -295,6 +322,8 @@ export default function HomePage() {
   const [tableLockSaving, setTableLockSaving] = useState(false);
   const [tableLockDirty, setTableLockDirty] = useState(false);
   const [availableTables, setAvailableTables] = useState<string[]>([]);
+  const [tablePreviewData, setTablePreviewData] = useState<TablePreviewResponse | null>(null);
+  const [tablePreviewLoading, setTablePreviewLoading] = useState(false);
 
   useEffect(() => {
     const sessionId = getCurrentSessionId() || getOrCreateSessionId();
@@ -321,6 +350,16 @@ export default function HomePage() {
   useEffect(() => {
     apiClient.listTables().then((r) => setAvailableTables(r.tables)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const table = tableLockConfig.locked_table ?? availableTables[0] ?? null;
+    if (!table) return;
+    setTablePreviewLoading(true);
+    apiClient.getTablePreview(table)
+      .then((data) => setTablePreviewData(data))
+      .catch(() => setTablePreviewData(null))
+      .finally(() => setTablePreviewLoading(false));
+  }, [tableLockConfig.locked_table, availableTables]);
 
   useEffect(() => {
     if (!state.sessionId) return;
@@ -967,13 +1006,14 @@ export default function HomePage() {
                     </div>
                   </section>
 
-                  <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  <div className="mt-6 grid gap-4 grid-cols-2 md:grid-cols-3">
                     {starterPrompts.map((item) => (
                       <StarterCard
-                        key={item.title}
-                        title={item.title}
-                        description={item.description}
-                        onClick={() => submitQuestion(item.prompt)}
+                        key={item.title.en}
+                        title={item.title[lang]}
+                        description={item.description[lang]}
+                        onClick={() => submitQuestion(item.prompt[lang])}
+                        variant={item.variant}
                       />
                     ))}
                   </div>
@@ -1042,7 +1082,7 @@ export default function HomePage() {
             <ChatInputPanel
               question={state.question}
               loading={state.loading}
-              starterPrompts={starterPrompts.map((item) => item.prompt)}
+              starterPrompts={starterPrompts.map((item) => item.prompt[lang])}
               onQuestionChange={(question) => setState((cur) => ({ ...cur, question, error: "" }))}
               onStarterSelect={(prompt) => submitQuestion(prompt)}
               onSubmit={() => submitQuestion(state.question)}
@@ -1111,6 +1151,8 @@ export default function HomePage() {
               setTableLockDirty(true);
             }}
             onTableLockSave={() => void saveTableLock()}
+            tablePreviewData={tablePreviewData}
+            tablePreviewLoading={tablePreviewLoading}
           />
         ) : null}
       </PageCanvas>

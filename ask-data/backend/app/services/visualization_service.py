@@ -8,7 +8,10 @@ from app.schemas.sql import VisualizationSpec
 
 
 TEMPORAL_COLUMN_MARKERS = ("date", "month", "year", "week", "day", "period", "time")
-PIE_COLUMN_MARKERS = ("segment", "collectibility", "category", "product", "status", "composition")
+PIE_COLUMN_MARKERS = (
+    "segment", "collectibility", "category", "product", "status", "composition",
+    "risk", "channel", "dormant", "reason",
+)
 MAX_PLOT_POINTS = 8
 MAX_TABLE_ROWS = 6
 
@@ -177,14 +180,14 @@ class VisualizationService:
             sorted_rows = sorted(filtered_rows, key=lambda item: item[y_key], reverse=True)
             series = sorted_rows[:MAX_PLOT_POINTS]
             table_rows = series[:MAX_TABLE_ROWS]
-            if len(series) <= 5 and any(marker in lowered_question or marker in lowered_x for marker in PIE_COLUMN_MARKERS):
+            if len(series) <= 8 and any(marker in lowered_question or marker in lowered_x for marker in PIE_COLUMN_MARKERS):
                 chart_type = "pie"
 
         if len(series) < 2 and chart_type != "table":
             chart_type = "table"
 
         if preferred_type in {"bar", "line", "pie", "table"}:
-            if preferred_type == "pie" and len(series) > 5:
+            if preferred_type == "pie" and len(series) > 8:
                 chart_type = "bar"
             elif preferred_type == "line" and len(series) >= 2:
                 chart_type = "line"

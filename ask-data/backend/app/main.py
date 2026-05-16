@@ -9,6 +9,7 @@ from app.db.connection import (
     ImpalaQueryError,
     check_impala_health,
     run_query,
+    run_query_with_metadata,
 )
 from app.schemas.analytics import AnalyticsEventsResponse, AnalyticsSummaryResponse
 from app.schemas.llm import (
@@ -178,6 +179,30 @@ def list_tables() -> dict[str, object]:
         "count": len(tables),
         "tables": tables,
     }
+
+
+@app.get("/tables/{table_name}/preview")
+def get_table_preview(table_name: str) -> dict[str, object]:
+    table_clean = table_name.strip().lower()
+    allowed = settings.sql_allowed_tables_list
+    db = settings.impala_db.lower()
+    qualified = f"{db}.{table_clean}"
+    if table_clean not in allowed and qualified not in allowed:
+        raise HTTPException(status_code=403, detail=f"Table not allowed: {table_name}")
+    try:
+        result = run_query_with_metadata(
+            f"SELECT * FROM {settings.impala_db}.{table_clean} LIMIT 10"
+        )
+        return {
+            "status": "ok",
+            "table": table_clean,
+            "columns": result["columns"],
+            "rows": result["rows"],
+        }
+    except ImpalaConnectionError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except ImpalaQueryError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.get("/sessions", response_model=SessionListResponse)
