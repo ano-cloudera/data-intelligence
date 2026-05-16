@@ -6,11 +6,7 @@ from importlib import metadata
 from pathlib import Path
 
 
-EXPECTED_VERSIONS = {
-    "fastapi": "0.127.0",
-    "starlette": "0.50.0",
-    "uvicorn": "0.30.6",
-}
+REQUIRED_PACKAGES = ["fastapi", "uvicorn", "impyla", "chromadb", "openai", "pysqlite3"]
 
 
 def resolve_port() -> int:
@@ -35,9 +31,8 @@ def resolve_backend_dir() -> Path:
         logging.warning("Could not list cwd: %s", exc)
 
     candidates: list[Path] = [
-        cwd / "cai-se-indo-demo" / "ask-data" / "backend",  # current CAI project folder
+        cwd / "data-intelligence" / "ask-data" / "backend",
         cwd / "ask-data" / "backend",
-        cwd / "bni-demo" / "backend",                        # legacy folder name
         cwd / "backend",
     ]
 
@@ -61,25 +56,16 @@ def resolve_backend_dir() -> Path:
     return cwd
 
 
-def get_dependency_mismatches() -> list[str]:
-    actual_versions: dict[str, str | None] = {}
-    mismatches: list[str] = []
-
-    for package_name, expected_version in EXPECTED_VERSIONS.items():
+def _missing_packages() -> list[str]:
+    missing = []
+    for pkg in REQUIRED_PACKAGES:
         try:
-            actual_version = metadata.version(package_name)
-            actual_versions[package_name] = actual_version
-            logging.info("%s version: %s", package_name, actual_version)
-            if actual_version != expected_version:
-                mismatches.append(
-                    f"{package_name}=={actual_version} (expected {expected_version})"
-                )
+            metadata.version(pkg)
+            logging.info("%s: installed", pkg)
         except metadata.PackageNotFoundError:
-            actual_versions[package_name] = None
-            logging.warning("%s is not installed", package_name)
-            mismatches.append(f"{package_name} is not installed (expected {expected_version})")
-
-    return mismatches
+            logging.warning("%s: NOT installed", pkg)
+            missing.append(pkg)
+    return missing
 
 
 def run_command(cmd: list[str], cwd: Path, env: dict[str, str]) -> None:
@@ -92,35 +78,23 @@ def run_command(cmd: list[str], cwd: Path, env: dict[str, str]) -> None:
 
 
 def ensure_runtime_dependencies(backend_dir: Path, env: dict[str, str]) -> None:
-    mismatches = get_dependency_mismatches()
-    if not mismatches:
+    missing = _missing_packages()
+    if not missing:
+        logging.info("All required packages present.")
         return
 
     requirements_file = backend_dir / "requirements.txt"
     if not requirements_file.exists():
-        mismatch_summary = ", ".join(mismatches)
         raise SystemExit(
-            "Incompatible Python package versions detected for Ask Data backend: "
-            f"{mismatch_summary}. requirements.txt was not found next to the backend entrypoint."
+            f"Missing packages {missing} and requirements.txt not found at {requirements_file}."
         )
 
-    logging.warning("Backend dependency mismatch detected: %s", ", ".join(mismatches))
-    logging.info("Attempting automatic install from %s", requirements_file)
+    logging.warning("Missing packages: %s — installing from requirements.txt...", missing)
     run_command(
-        [sys.executable, "-m", "pip", "install", "--upgrade", "-r", "requirements.txt"],
+        [sys.executable, "-m", "pip", "install", "-r", str(requirements_file), "-q"],
         cwd=backend_dir,
         env=env,
     )
-
-    remaining = get_dependency_mismatches()
-    if remaining:
-        mismatch_summary = ", ".join(remaining)
-        raise SystemExit(
-            "Incompatible Python package versions detected for Ask Data backend after automatic install: "
-            f"{mismatch_summary}. "
-            "Set the Application working directory to ask-data/backend and the install command "
-            "to 'pip install --upgrade -r requirements.txt', then redeploy."
-        )
 
 
 def main() -> None:

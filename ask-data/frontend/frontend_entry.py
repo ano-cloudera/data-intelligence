@@ -27,9 +27,8 @@ def resolve_frontend_dir() -> Path:
         logging.warning("Could not list cwd: %s", exc)
 
     candidates: list[Path] = [
-        cwd / "cai-se-indo-demo" / "ask-data" / "frontend",  # current CAI project folder
+        cwd / "data-intelligence" / "ask-data" / "frontend",
         cwd / "ask-data" / "frontend",
-        cwd / "bni-demo" / "frontend",                        # legacy folder name
         cwd / "frontend",
     ]
 
