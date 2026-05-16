@@ -54,24 +54,41 @@ def resolve_qwen_dir() -> Path:
     return cwd
 
 
-def ensure_vllm_installed() -> None:
+MIN_VLLM_VERSION = (0, 8, 0)
+
+
+def _vllm_version() -> tuple:
     try:
-        import vllm  # noqa: F401
-        logging.info("vLLM already installed.")
-    except ImportError:
-        logging.warning("vLLM not found. Installing from requirements.txt...")
-        req_file = resolve_qwen_dir() / "requirements.txt"
-        if req_file.exists():
-            subprocess.run(
-                [sys.executable, "-m", "pip", "install", "-r", str(req_file)],
-                check=True,
-            )
-        else:
-            logging.warning("requirements.txt not found, installing vllm directly...")
-            subprocess.run(
-                [sys.executable, "-m", "pip", "install", "vllm"],
-                check=True,
-            )
+        import vllm
+        parts = vllm.__version__.split(".")
+        return tuple(int(p.split("post")[0].split("rc")[0]) for p in parts[:3])
+    except Exception:
+        return (0, 0, 0)
+
+
+def ensure_vllm_installed() -> None:
+    current = _vllm_version()
+    if current >= MIN_VLLM_VERSION:
+        logging.info("vLLM %s already meets minimum requirement.", ".".join(map(str, current)))
+        return
+
+    logging.warning(
+        "vLLM %s < required %s. Installing from requirements.txt...",
+        ".".join(map(str, current)),
+        ".".join(map(str, MIN_VLLM_VERSION)),
+    )
+    req_file = resolve_qwen_dir() / "requirements.txt"
+    if req_file.exists():
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", str(req_file), "-q"],
+            check=True,
+        )
+    else:
+        logging.warning("requirements.txt not found, installing vllm>=0.8.0 directly...")
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "vllm>=0.8.0", "transformers>=4.51.0", "-q"],
+            check=True,
+        )
 
 
 def main() -> None:

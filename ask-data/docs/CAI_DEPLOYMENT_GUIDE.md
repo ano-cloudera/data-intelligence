@@ -625,30 +625,33 @@ Lalu restart Application.
 
 ### APP 1 — Error `Qwen2Tokenizer has no attribute all_special_tokens_extended`
 
-Root cause: Library `transformers` yang terinstall di CAI runtime versi terlalu lama dan tidak kompatibel dengan vLLM 0.6.6+. vLLM membutuhkan `transformers >= 4.45.0`.
+Root cause: vLLM versi lama (0.6.x) sudah terinstall di CAI runtime sebelumnya. vLLM 0.6.6 mengakses atribut `all_special_tokens_extended` yang belum ada di versi `transformers` lama — bug ini sudah di-fix di vLLM 0.7+.
 
 **Error di Logs:**
 
 ```text
+INFO: Initializing an LLM engine (v0.6.6.post1) ...
 AttributeError: Qwen2Tokenizer has no attribute all_special_tokens_extended
 ```
 
-**Fix sementara** — jalankan di terminal Workbench session sebelum restart Application:
+**Penyebab:** `qwen_entry.py` versi lama hanya skip install jika `import vllm` sudah berhasil — sehingga vLLM 0.6.x yang sudah ada tidak di-upgrade. `qwen_entry.py` di repo terbaru sudah diperbaiki: akan otomatis upgrade vLLM ke `>=0.8.0` jika mendeteksi versi lama.
+
+**Fix — sync repo lalu restart Application:**
 
 ```bash
-pip install transformers --upgrade -q
+cd /home/cdsw/data-intelligence
+git pull origin main
 ```
 
-Setelah selesai, restart Application dari UI CAI.
+Setelah git pull, restart Application dari UI CAI. Di Logs akan muncul:
 
-**Verifikasi versi:**
-
-```bash
-python3 -c "import transformers; print(transformers.__version__)"
-# Expected: 4.45.0 atau lebih baru
+```text
+WARNING vLLM 0.6.6 < required 0.8.0. Installing from requirements.txt...
 ```
 
-> `requirements.txt` di repo sudah mencantumkan `transformers>=4.51.0` — pip install di atas memastikan versi yang benar terinstall di runtime session.
+Tunggu install selesai (~3–5 menit), lalu vLLM 0.8+ akan start dengan benar.
+
+> Install `pip install transformers --upgrade` di terminal session **tidak efektif** — package yang diinstall di session tidak carry over ke Application runtime. Wajib restart Application setelah git pull.
 
 ---
 
