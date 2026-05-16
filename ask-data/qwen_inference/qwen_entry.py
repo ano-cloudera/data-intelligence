@@ -115,6 +115,8 @@ def main() -> None:
     logging.info("Launching vLLM: %s", " ".join(cmd))
 
     env = os.environ.copy()
+    # Disable flashinfer JIT compile — nvcc not available in CAI runtime
+    env.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
     process = subprocess.Popen(cmd, env=env)
     process.wait()
 

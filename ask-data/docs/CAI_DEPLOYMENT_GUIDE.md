@@ -256,6 +256,7 @@ Di bagian **Environment Variables** (bawah form), tambahkan key-value berikut sa
 | `QWEN_MAX_MODEL_LEN` | `8192` | Max context window (token) |
 | `QWEN_GPU_MEMORY_UTILIZATION` | `0.85` | 85% VRAM — aman untuk 2 L4 GPU |
 | `QWEN_TENSOR_PARALLEL_SIZE` | `2` | Pakai kedua L4 GPU secara paralel |
+| `VLLM_USE_FLASHINFER_SAMPLER` | `0` | Disable flashinfer JIT compile — `nvcc` tidak tersedia di CAI runtime |
 
 > Model sudah ter-cache dari Step B — `HUGGING_FACE_HUB_TOKEN` tidak perlu diisi.
 
@@ -603,14 +604,28 @@ Contoh: `https://bjt-ask-data-frontend.ml-xxxxx.cloudera.site`
 
 ### APP 1 — Qwen tidak start / terus Pending
 
-- Pastikan resource profile dipilih yang punya GPU L40 — bukan CPU-only profile
+- Pastikan resource profile dipilih yang punya GPU — bukan CPU-only profile
 - Di tab Logs, cari error `CUDA out of memory` → turunkan `QWEN_GPU_MEMORY_UTILIZATION` ke `0.80`
 - Cari error `Repository not found` → model belum ter-cache, set `HUGGING_FACE_HUB_TOKEN` dan jalankan ulang download (Step B)
 - Cari error `model not found` → pastikan `QWEN_MODEL` sama persis dengan yang didownload
 
+### APP 1 — Error `Could not find nvcc` atau `flashinfer` gagal
+
+Root cause: vLLM versi terbaru mencoba JIT compile `flashinfer` kernel dan butuh `nvcc` (CUDA compiler), tapi CAI runtime hanya punya CUDA runtime — bukan full CUDA toolkit.
+
+**Fix:** Pastikan env var `VLLM_USE_FLASHINFER_SAMPLER=0` sudah diset di Application (lihat Step 1.3). Env var ini sudah di-set otomatis oleh `qwen_entry.py`, tapi wajib ada di Application env vars supaya aktif saat startup.
+
+Jika masih error setelah set env var, jalankan di terminal session:
+
+```bash
+pip uninstall flashinfer -y
+```
+
+Lalu restart Application.
+
 ### APP 1 — vLLM start lama (>5 menit)
 
-- Normal untuk pertama kali — vLLM loading model ke VRAM L40 (~2–5 menit)
+- Normal untuk pertama kali — vLLM loading model ke VRAM GPU (~2–5 menit) + torch.compile (~1–2 menit)
 - Pantau Logs sampai muncul: `INFO: Application startup complete`
 
 ### APP 2 — Backend health/db gagal
