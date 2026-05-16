@@ -270,10 +270,15 @@ print('transformers:', transformers.__version__)
 | **Version** | `2025.06` |
 | **Enable GPU** | ☑ On |
 | **Resource Group** | `GPU Group 9ac2` |
-| **Number & Type of GPUs** | `2 L4 GPU` |
-| **vCPU / Memory GiB** | `4 vCPU / 8 GiB` |
+| **Number & Type of GPUs** | `1 L4 GPU` |
+| **vCPU / Memory GiB** | `4 vCPU / 16 GiB` |
 
 Centang: **☑ Allow Unauthenticated Access**
+
+> **Resource minimum yang confirmed working:** 1 L4 GPU (22 GB VRAM) + 4 vCPU / 16 GiB RAM.
+> Model 14B-AWQ butuh ~9.4 GB VRAM untuk weights + ~8.9 GB untuk KV cache = ~18 GB total.
+> RAM 16 GiB dibutuhkan karena deps (~3 GB di `/home/cdsw/.vllm_deps`) dimuat saat startup.
+> 2x L4 GPU (tensor_parallel=2) tidak disarankan — CAI membatasi `/dev/shm` sehingga NCCL gagal.
 
 ---
 
@@ -285,9 +290,9 @@ Di bagian **Environment Variables** (bawah form), tambahkan key-value berikut sa
 |---|---|---|
 | `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | Harus cocok dengan model yang didownload di Step B |
 | `QWEN_API_KEY` | `local-dev-token` | Token autentikasi internal |
-| `QWEN_MAX_MODEL_LEN` | `8192` | Max context window (token) |
-| `QWEN_GPU_MEMORY_UTILIZATION` | `0.85` | 85% VRAM — aman untuk 2 L4 GPU |
-| `QWEN_TENSOR_PARALLEL_SIZE` | `2` | Pakai kedua L4 GPU secara paralel |
+| `QWEN_MAX_MODEL_LEN` | `4096` | Max context window — 4096 aman untuk 1 L4 GPU |
+| `QWEN_GPU_MEMORY_UTILIZATION` | `0.90` | 90% VRAM untuk 1 L4 GPU |
+| `QWEN_TENSOR_PARALLEL_SIZE` | `1` | Single GPU — 2 GPU tidak kompatibel karena `/dev/shm` limit CAI |
 | `VLLM_USE_FLASHINFER_SAMPLER` | `0` | Disable flashinfer JIT compile — `nvcc` tidak tersedia di CAI runtime |
 
 > Model sudah ter-cache dari Step B — `HUGGING_FACE_HUB_TOKEN` tidak perlu diisi.
@@ -300,10 +305,20 @@ Klik **Create Application**.
 
 Tunggu status berubah dari `Starting` → `Running`.
 
-- Jika model sudah ter-cache (Step B): **2–5 menit**
+- Jika deps sudah ada di `/home/cdsw/.vllm_deps` (Step D) dan model sudah ter-cache (Step B): **3–5 menit**
 - Jika model belum ter-cache (download saat start): **15–30 menit**
 
-Pantau progress di tab **Logs** Application.
+Pantau progress di tab **Logs** Application. Startup normal terlihat seperti:
+
+```text
+INFO vLLM in deps: 0.7.3 — OK
+INFO transformers in deps: 4.51.3 — OK
+INFO All pinned deps present in /home/cdsw/.vllm_deps.
+INFO Launching vLLM: ... --enforce-eager
+INFO Loading model weights took 9.38 GB
+INFO the current vLLM instance can use total_gpu_memory (22.03GiB) x gpu_memory_utilization (0.90) = 19.83GiB
+INFO Application startup complete.
+```
 
 ---
 
@@ -748,13 +763,14 @@ Restart Application dari UI CAI. `qwen_entry.py` akan deteksi vLLM yang ada < 0.
 - [ ] `sync_project.py` dijalankan → folder `data-intelligence/ask-data/` tersedia di session
 - [ ] `download_model.py` dijalankan → model ter-cache di `~/.cache/huggingface/hub/models--Qwen--Qwen2.5-14B-Instruct-AWQ/` (~8–9 GB)
 - [ ] ChromaDB disiapkan → `col.count()` = 17
+- [ ] Step D dijalankan → `/home/cdsw/.vllm_deps` berisi vLLM 0.7.3 + transformers 4.51.3
 
 ### APP 1 — Qwen LLM (`bjt-ask-data-qwen`)
 
 - [ ] Application name: `bjt-ask-data-qwen`, subdomain: `bjt-ask-data-qwen`
 - [ ] Script: `data-intelligence/ask-data/qwen_inference/qwen_entry.py`
-- [ ] Engine Profile: GPU L40, Python 3.11
-- [ ] Env vars diisi: `QWEN_MODEL`, `QWEN_API_KEY`, `QWEN_MAX_MODEL_LEN`, `QWEN_GPU_MEMORY_UTILIZATION`, `QWEN_TENSOR_PARALLEL_SIZE`
+- [ ] **Resource: 1 L4 GPU, 4 vCPU / 16 GiB** ← minimum confirmed working
+- [ ] Env vars: `QWEN_MODEL`, `QWEN_API_KEY`, `QWEN_MAX_MODEL_LEN=4096`, `QWEN_GPU_MEMORY_UTILIZATION=0.90`, `QWEN_TENSOR_PARALLEL_SIZE=1`, `VLLM_USE_FLASHINFER_SAMPLER=0`
 - [ ] Enable Unauthenticated Access: ☑
 - [ ] Status: **Running**
 - [ ] `curl https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site/v1/models` → model ID terdaftar
