@@ -104,16 +104,22 @@ def ensure_deps_installed() -> None:
         return
 
     logging.warning("Installing pinned packages into %s ...", DEPS_DIR)
+    # PIP_USER=0 disables the default --user flag CAI injects via pip config,
+    # which conflicts with --target.
+    pip_env = os.environ.copy()
+    pip_env["PIP_USER"] = "0"
     req_file = resolve_qwen_dir() / "requirements.txt"
     if req_file.exists():
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "--target", str(DEPS_DIR), "-r", str(req_file), "-q"],
             check=True,
+            env=pip_env,
         )
     else:
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "--target", str(DEPS_DIR), "-q"] + PINNED_PACKAGES,
             check=True,
+            env=pip_env,
         )
     logging.info("Install complete.")
 
