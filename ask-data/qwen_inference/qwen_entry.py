@@ -28,17 +28,50 @@ def resolve_port() -> int:
         return 8000
 
 
+def resolve_qwen_dir() -> Path:
+    """Locate qwen_inference directory regardless of how the script is invoked."""
+    # When run as a proper .py file
+    try:
+        return Path(__file__).parent
+    except NameError:
+        pass
+    # When run as a Jupyter/CAI notebook cell — search from cwd
+    cwd = Path.cwd()
+    candidates = [
+        cwd / "data-intelligence" / "ask-data" / "qwen_inference",
+        cwd / "ask-data" / "qwen_inference",
+        cwd / "qwen_inference",
+    ]
+    try:
+        for entry in sorted(cwd.iterdir()):
+            if entry.is_dir():
+                candidates.append(entry / "ask-data" / "qwen_inference")
+    except Exception:
+        pass
+    for c in candidates:
+        if (c / "requirements.txt").exists():
+            return c
+    return cwd
+
+
 def ensure_vllm_installed() -> None:
     try:
         import vllm  # noqa: F401
         logging.info("vLLM already installed.")
     except ImportError:
         logging.warning("vLLM not found. Installing from requirements.txt...")
-        req_file = Path(__file__).parent / "requirements.txt"
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-r", str(req_file)],
-            check=True,
-        )
+        req_file = resolve_qwen_dir() / "requirements.txt"
+        if req_file.exists():
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", str(req_file)],
+                check=True,
+            )
+        else:
+            logging.warning("requirements.txt not found, installing vllm directly...")
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "vllm"],
+                check=True,
+            )
 
 
 def main() -> None:
