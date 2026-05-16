@@ -209,50 +209,69 @@ export function AnswerCard({ answer, sources = [] }: AnswerCardProps) {
 
         {sources.length > 0 ? (
           <div className="mt-5 border-t border-[var(--color-border-soft)] pt-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-ink-subtle)]">
-              Sources
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-ink-subtle)]">
+              Relevant Documents ({sources.length})
             </p>
-            <div className="mt-3 grid gap-3">
+            <div className="grid gap-3">
               {sources.map((source, index) => (
                 <div
                   key={`${source.document_id ?? "doc"}-${source.node_id ?? index}`}
                   className="rounded-[14px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] px-4 py-3"
                 >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(255,107,0,0.1)] text-[var(--color-brand-orange)]">
-                          <ArticleIcon sx={{ fontSize: 15 }} />
-                        </span>
+                  {/* Header row */}
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(255,107,0,0.1)] text-[var(--color-brand-orange)]">
+                        <ArticleIcon sx={{ fontSize: 15 }} />
+                      </span>
+                      <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-[var(--color-ink-strong)]">
                           {source.title}
                         </p>
-                        <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-rose-700">
-                          PDF
-                        </span>
+                        {formatScore(source.score) ? (
+                          <p className="text-[10px] text-[var(--color-ink-subtle)]">
+                            Relevance: {formatScore(source.score)}
+                          </p>
+                        ) : null}
                       </div>
-                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--color-ink-subtle)]">
-                        {formatScore(source.score) ? <span>Relevance: {formatScore(source.score)}</span> : null}
-                        {source.document_id ? <span>PDF source available</span> : null}
-                      </div>
+                      <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-rose-700">
+                        PDF
+                      </span>
                     </div>
-                    {source.preview_url ? (
-                      <div className="flex shrink-0 gap-2">
+                    {/* Action buttons */}
+                    <div className="flex shrink-0 gap-2">
+                      {source.preview_url ? (
                         <a
                           href={source.preview_url}
                           target="_blank"
                           rel="noreferrer"
                           className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
                         >
-                          Open Source PDF
+                          Buka PDF
                         </a>
-                      </div>
-                    ) : (
-                      <span className="shrink-0 rounded-[12px] border border-[var(--color-border-soft)] bg-white/50 px-3 py-1.5 text-xs font-medium text-[var(--color-ink-subtle)]">
-                        PDF link unavailable
-                      </span>
-                    )}
+                      ) : null}
+                      {source.download_url ? (
+                        <a
+                          href={source.download_url}
+                          download
+                          className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-[#5c63f2] hover:text-[#5c63f2]"
+                        >
+                          Unduh
+                        </a>
+                      ) : null}
+                      {!source.preview_url && !source.download_url ? (
+                        <span className="rounded-[12px] border border-[var(--color-border-soft)] bg-white/50 px-3 py-1.5 text-xs font-medium text-[var(--color-ink-subtle)]">
+                          Link tidak tersedia
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
+                  {/* Excerpt */}
+                  {source.excerpt ? (
+                    <p className="mt-3 line-clamp-3 text-xs leading-5 text-[var(--color-ink-muted)]">
+                      {source.excerpt}
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>

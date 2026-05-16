@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -98,6 +99,13 @@ class ChromaRagClient:
         if not path.exists():
             raise RagClientError(f"PDF not found: {pdf_path}")
 
+        # Copy PDF into rag_pdf_dir so it can be served later
+        pdf_dir = Path(self.settings.rag_pdf_dir)
+        pdf_dir.mkdir(parents=True, exist_ok=True)
+        dest = pdf_dir / path.name
+        if not dest.exists() or dest.resolve() != path.resolve():
+            shutil.copy2(str(path), str(dest))
+
         reader = pypdf.PdfReader(str(path))
         texts: list[str] = []
         metadatas: list[dict[str, Any]] = []
@@ -110,7 +118,7 @@ class ChromaRagClient:
                 continue
             chunk_id = f"{path.stem}_p{i+1}"
             texts.append(text)
-            metadatas.append({"source": path.name, "page": i + 1})
+            metadatas.append({"source": path.name, "page": i + 1, "pdf_filename": path.name})
             ids.append(chunk_id)
 
         if not texts:
@@ -147,19 +155,26 @@ class ChromaRagClient:
 
         for doc, meta, dist in zip(docs, metas, distances):
             score = round(1.0 - float(dist), 4)
+            pdf_filename = meta.get("pdf_filename") or meta.get("source")
             title = meta.get("source", collection_name)
             page = meta.get("page")
             if page:
                 title = f"{title} (halaman {page})"
+            preview_url = (
+                f"/api/backend/rag/documents/{pdf_filename}" if pdf_filename else None
+            )
+            download_url = (
+                f"/api/backend/rag/documents/{pdf_filename}?download=true" if pdf_filename else None
+            )
             sources.append(
                 AnswerSource(
                     title=title,
-                    document_id=meta.get("source"),
+                    document_id=pdf_filename,
                     node_id=None,
                     score=score,
-                    preview_url=None,
-                    download_url=None,
-                    excerpt=doc[:500] if doc else None,
+                    preview_url=preview_url,
+                    download_url=download_url,
+                    excerpt=doc[:600] if doc else None,
                 )
             )
 

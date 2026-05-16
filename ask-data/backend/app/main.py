@@ -1,7 +1,9 @@
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.core.config import get_settings
 from app.db.connection import (
@@ -836,6 +838,24 @@ def rag_ingest(collection_name: str, pdf_path: str) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/rag/documents/{filename}")
+def serve_rag_document(filename: str, download: bool = False) -> FileResponse:
+    pdf_dir = Path(settings.rag_pdf_dir).resolve()
+    # Prevent path traversal — only allow the exact filename, no subdirs
+    safe_name = Path(filename).name
+    if safe_name != filename or not safe_name.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    file_path = pdf_dir / safe_name
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"Document not found: {safe_name}")
+    disposition = "attachment" if download else "inline"
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'{disposition}; filename="{safe_name}"'},
+    )
 
 
 @app.get("/rag/config/{session_id}", response_model=RagSessionConfigResponse)
