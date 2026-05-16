@@ -131,7 +131,7 @@ def main() -> None:
     port = resolve_port()
     model = os.getenv("QWEN_MODEL", "Qwen/Qwen2.5-14B-Instruct-AWQ")
     api_key = os.getenv("QWEN_API_KEY", "local-dev-token")
-    max_model_len = os.getenv("QWEN_MAX_MODEL_LEN", "8192")
+    max_model_len = os.getenv("QWEN_MAX_MODEL_LEN", "4096")
     gpu_memory_utilization = os.getenv("QWEN_GPU_MEMORY_UTILIZATION", "0.90")
     tensor_parallel_size = os.getenv("QWEN_TENSOR_PARALLEL_SIZE", "1")
 
@@ -155,6 +155,7 @@ def main() -> None:
         "--served-model-name", model,
         "--api-key", api_key,
         "--trust-remote-code",
+        "--enforce-eager",
     ]
 
     logging.info("Launching vLLM: %s", " ".join(cmd))
