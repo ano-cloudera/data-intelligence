@@ -162,6 +162,18 @@ def main() -> None:
     env = os.environ.copy()
     # Disable flashinfer JIT compile — nvcc not available in CAI runtime
     env.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
+    # Suppress deprecation warnings from vLLM / transformers
+    env.setdefault("PYTHONWARNINGS", "ignore::DeprecationWarning,ignore::UserWarning")
+    # Prepend user site-packages so pip --upgrade packages override system /usr/local ones.
+    # CAI GPU runtime has an old transformers in /usr/local that shadows ~/.local installs
+    # when vLLM spawns child processes (SpawnProcess inherits sys.path from the OS, not
+    # the running interpreter). Putting ~/.local first fixes the shadowing.
+    import site
+    user_site = site.getusersitepackages()
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = f"{user_site}:{existing_pythonpath}" if existing_pythonpath else user_site
+    logging.info("PYTHONPATH set to: %s", env["PYTHONPATH"])
+
     process = subprocess.Popen(cmd, env=env)
     process.wait()
 
