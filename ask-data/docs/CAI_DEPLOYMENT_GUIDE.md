@@ -229,34 +229,35 @@ python3 -c "import sys; import pysqlite3; sys.modules['sqlite3']=pysqlite3; impo
 | Field | Value |
 |---|---|
 | **Name** | `bjt-ask-data-qwen` |
-| **Subdomain** | `bjt-ask-data-qwen` _(auto-fill, bisa dibiarkan)_ |
+| **Subdomain** | `bjt-ask-data-qwen` _(auto-fill)_ |
 | **Description** | `Qwen2.5-14B-Instruct-AWQ via vLLM — LLM inference server` |
 | **Script** | `data-intelligence/ask-data/qwen_inference/qwen_entry.py` |
-| **Engine Kernel** | `Python 3.11` |
-| **Engine Profile** | Pilih profile GPU dengan **NVIDIA L40** — minimal 1 GPU, 48 GB VRAM |
-| **Replicas** | `1` |
+| **Editor** | `JupyterLab` |
+| **Kernel** | `Python 3.10` |
+| **Edition** | `Standard` |
+| **Version** | `2025.06` |
+| **Enable GPU** | ☑ On |
+| **Resource Group** | `GPU Group 9ac2` |
+| **Number & Type of GPUs** | `2 L4 GPU` |
+| **vCPU / Memory GiB** | `4 vCPU / 8 GiB` |
 
-Centang: **☑ Enable Unauthenticated Access**
+Centang: **☑ Allow Unauthenticated Access**
 
 ---
 
 ### Step 1.3 — Set Environment Variables
 
-Klik tab **Environment Variables**, tambahkan:
+Di bagian **Environment Variables** (bawah form), tambahkan key-value berikut satu per satu dengan klik `+`:
 
 | Key | Value | Keterangan |
 |---|---|---|
 | `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | Harus cocok dengan model yang didownload di Step B |
 | `QWEN_API_KEY` | `local-dev-token` | Token autentikasi internal |
 | `QWEN_MAX_MODEL_LEN` | `8192` | Max context window (token) |
-| `QWEN_GPU_MEMORY_UTILIZATION` | `0.90` | 90% VRAM L40 (bisa turunkan ke 0.85 jika 2 GPU) |
-| `QWEN_TENSOR_PARALLEL_SIZE` | `1` | Set ke `2` jika pakai kedua GPU L40 |
+| `QWEN_GPU_MEMORY_UTILIZATION` | `0.85` | 85% VRAM — aman untuk 2 L4 GPU |
+| `QWEN_TENSOR_PARALLEL_SIZE` | `2` | Pakai kedua L4 GPU secara paralel |
 
-> **Jika model belum ter-cache** (skip Step B), tambahkan juga:
-> `HUGGING_FACE_HUB_TOKEN` = `hf_xxxxxxxxxxxxxxxx`
->
-> **Jika pakai 2 GPU L40**, set:
-> `QWEN_TENSOR_PARALLEL_SIZE` = `2` dan `QWEN_GPU_MEMORY_UTILIZATION` = `0.85`
+> Model sudah ter-cache dari Step B — `HUGGING_FACE_HUB_TOKEN` tidak perlu diisi.
 
 ---
 
