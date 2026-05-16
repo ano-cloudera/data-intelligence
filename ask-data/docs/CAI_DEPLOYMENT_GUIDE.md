@@ -279,9 +279,10 @@ Pantau progress di tab **Logs** Application.
 Setelah status `Running`, klik nama Application untuk lihat URL-nya.
 Contoh URL: `https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site`
 
-Verifikasi dari terminal Workbench session:
+> **Jika ada Workbench session yang sedang berjalan**, verifikasi bisa dilakukan langsung dari terminal session — tidak perlu buka browser atau tool lain.
 
 ```bash
+# Jalankan dari terminal Workbench session
 QWEN_URL="https://bjt-ask-data-qwen.ml-xxxxx.cloudera.site"
 
 # Test vLLM models list
