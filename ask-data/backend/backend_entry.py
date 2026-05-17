@@ -97,6 +97,73 @@ def ensure_runtime_dependencies(backend_dir: Path, env: dict[str, str]) -> None:
     )
 
 
+def ensure_rag_collection(backend_dir: Path, env: dict[str, str]) -> None:
+    """Auto-ingest PDF documents if the configured RAG collection is missing or empty."""
+    chroma_enabled = env.get("CHROMA_ENABLED", "").lower() == "true"
+    if not chroma_enabled:
+        return
+
+    collection_name = env.get("CHROMA_COLLECTION", "bank_jatim_knowledge").strip()
+    chroma_dir = env.get("CHROMA_PERSIST_DIR", str(backend_dir / "chroma_db")).strip()
+    docs_dir = backend_dir.parent / "data" / "documents"
+
+    if not docs_dir.exists() or not any(docs_dir.glob("*.pdf")):
+        logging.warning("RAG: no PDF files found in %s — skipping auto-ingest", docs_dir)
+        return
+
+    try:
+        # Patch sqlite3 first (CAI systems often have old sqlite3)
+        sys.path.insert(0, str(backend_dir))
+        try:
+            from app.compat import patch_sqlite  # type: ignore
+            patch_sqlite()
+        except Exception:
+            pass
+
+        import chromadb  # type: ignore
+        client = chromadb.PersistentClient(path=chroma_dir)
+        existing = {c.name for c in client.list_collections()}
+
+        if collection_name in existing:
+            col = client.get_collection(collection_name)
+            if col.count() > 0:
+                logging.info("RAG: collection '%s' already has %d chunks — skipping ingest", collection_name, col.count())
+                return
+            logging.info("RAG: collection '%s' exists but is empty — re-ingesting", collection_name)
+            client.delete_collection(collection_name)
+        else:
+            logging.info("RAG: collection '%s' not found — starting auto-ingest", collection_name)
+
+        # Run ingest_documents.py as subprocess so it runs in the correct env
+        ingest_script = backend_dir / "ingest_documents.py"
+        if not ingest_script.exists():
+            logging.warning("RAG: ingest_documents.py not found at %s", ingest_script)
+            return
+
+        ingest_env = env.copy()
+        ingest_env["CHROMA_ENABLED"] = "true"
+        ingest_env["CHROMA_COLLECTION"] = collection_name
+        ingest_env["CHROMA_PERSIST_DIR"] = chroma_dir
+        ingest_env["FORCE_OLLAMA_EMBED"] = ""  # force SentenceTransformer
+
+        logging.info("RAG: running auto-ingest from %s", docs_dir)
+        result = subprocess.run(
+            [sys.executable, str(ingest_script)],
+            cwd=str(backend_dir),
+            env=ingest_env,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        logging.info("RAG ingest stdout: %s", result.stdout[-1000:] if result.stdout else "")
+        if result.returncode != 0:
+            logging.warning("RAG ingest stderr: %s", result.stderr[-500:] if result.stderr else "")
+        else:
+            logging.info("RAG: auto-ingest complete")
+    except Exception as exc:
+        logging.warning("RAG: auto-ingest failed (non-fatal): %s", exc)
+
+
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -117,6 +184,7 @@ def main() -> None:
     env["PYTHONPATH"] = f"{backend_dir}:{pythonpath}" if pythonpath else str(backend_dir)
 
     ensure_runtime_dependencies(backend_dir, env)
+    ensure_rag_collection(backend_dir, env)
 
     cmd = [
         sys.executable,
