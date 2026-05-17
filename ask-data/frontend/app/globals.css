@@ -347,6 +347,11 @@ code, pre, .font-mono {
 ::-webkit-scrollbar-thumb { background: #1E3A5F; border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: #2D5A8F; }
 
+.scrollbar-thin::-webkit-scrollbar { width: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
 /* === Icon box wrapper (stat/feature icons) === */
 .icon-box {
   display: inline-flex;

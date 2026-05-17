@@ -863,8 +863,8 @@ export default function HomePage() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
               Recent Sessions
             </p>
-            <div className="mt-2 space-y-2">
-              {sessions.items.slice(0, 4).map((session) => (
+            <div className="mt-2 max-h-[220px] space-y-2 overflow-y-auto pr-0.5 scrollbar-thin">
+              {sessions.items.map((session) => (
                 <div
                   key={session.session_id}
                   className={`group relative flex items-center rounded-[12px] border transition ${
