@@ -100,6 +100,7 @@ class Settings(BaseSettings):
     qwen_model: str = Field(default="Qwen/Qwen3-8B-AWQ", alias="QWEN_MODEL")
     chroma_persist_dir: str = Field(default="./chroma_db", alias="CHROMA_PERSIST_DIR")
     chroma_enabled: bool = Field(default=False, alias="CHROMA_ENABLED")
+    chroma_collection: str = Field(default="", alias="CHROMA_COLLECTION")
     rag_pdf_dir: str = Field(default="./rag_pdfs", alias="RAG_PDF_DIR")
     embed_model: str = Field(default="nomic-embed-text", alias="EMBED_MODEL")
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")

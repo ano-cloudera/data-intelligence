@@ -731,20 +731,24 @@ _PREFERRED_RAG_COLLECTIONS = ["bank_jatim_knowledge", "bankjatim_docs"]
 
 
 def _resolve_default_rag_collection() -> str | None:
-    """Return the first available collection, preferring known names."""
+    """Return the best available collection name for auto-routing."""
     if rag_client is None:
         return None
+    # 1. Honour explicit env var CHROMA_COLLECTION
+    if settings.chroma_collection.strip():
+        return settings.chroma_collection.strip()
+    # 2. Try preferred names against what's in ChromaDB
     try:
         available = {c["name"] for c in rag_client.list_collections()}
         for name in _PREFERRED_RAG_COLLECTIONS:
             if name in available:
                 return name
-        # Fall back to whatever collection exists
         if available:
             return next(iter(available))
     except Exception:
         pass
-    return None
+    # 3. Fall back to first preferred name (let ChromaDB create-on-query handle it)
+    return _PREFERRED_RAG_COLLECTIONS[0]
 
 
 def _run_rag_chat_flow(
