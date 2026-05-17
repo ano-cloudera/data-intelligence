@@ -728,7 +728,14 @@ def _validate_rag_config(payload: RagSessionConfigRequest) -> None:
         )
 
 
-def _run_rag_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
+_DEFAULT_RAG_COLLECTION = "bank_jatim_knowledge"
+_DEFAULT_RAG_TOP_K = 5
+
+
+def _run_rag_chat_flow(
+    payload: ChatQueryRequest,
+    override_collection: str | None = None,
+) -> dict[str, object]:
     blocked_decision = _maybe_block_with_guardrails(payload.question)
     if blocked_decision is not None:
         blocked_payload = _guardrails_block_response(payload, blocked_decision)
@@ -748,13 +755,18 @@ def _run_rag_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
         raise RagClientError("RAG requests require a session ID.")
 
     rag_config = memory_store.get_rag_config(payload.session_id)
-    if rag_config is None or not rag_config.enabled or not rag_config.collection_name:
+    collection_name = override_collection
+    top_k = _DEFAULT_RAG_TOP_K
+    if rag_config is not None and rag_config.enabled and rag_config.collection_name:
+        collection_name = rag_config.collection_name
+        top_k = rag_config.top_k
+    if not collection_name:
         raise RagClientError("RAG is not enabled or collection is not set for this session.")
 
     sources = rag_client.query(
-        collection_name=rag_config.collection_name,
+        collection_name=collection_name,
         question=payload.question,
-        top_k=rag_config.top_k,
+        top_k=top_k,
     )
     context_text = rag_client.build_context_text(sources)
 
@@ -962,8 +974,18 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
     )
 
     try:
-        if rag_config is not None and rag_config.enabled and rag_config.collection_name:
+        rag_explicitly_enabled = (
+            rag_config is not None and rag_config.enabled and rag_config.collection_name
+        )
+        rag_auto_eligible = (
+            not rag_explicitly_enabled
+            and rag_client is not None
+            and is_document_request(payload.question)
+        )
+        if rag_explicitly_enabled:
             response_payload = _run_rag_chat_flow(payload)
+        elif rag_auto_eligible:
+            response_payload = _run_rag_chat_flow(payload, override_collection=_DEFAULT_RAG_COLLECTION)
         else:
             response_payload = _run_chat_flow(payload)
     except (ValueError, SQLValidationError, SQLExecutionError, GuardrailsServiceError):
