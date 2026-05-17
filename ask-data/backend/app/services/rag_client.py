@@ -36,20 +36,27 @@ class ChromaRagClient:
         self._client = chromadb.PersistentClient(path=persist_dir)
         return self._client
 
+    def _get_sentence_transformer_ef(self) -> Any:
+        from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+        return SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+
     def _get_embedding_function(self) -> Any:
         if self._ef is not None:
             return self._ef
-        try:
-            from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
-            self._ef = OllamaEmbeddingFunction(
-                url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-                model_name=os.getenv("EMBED_MODEL", "nomic-embed-text"),
-            )
-        except Exception:
-            from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-            self._ef = SentenceTransformerEmbeddingFunction(
-                model_name="all-MiniLM-L6-v2"
-            )
+        # Default to SentenceTransformer — runs locally, no external service needed.
+        # Set FORCE_OLLAMA_EMBED=true to use Ollama instead (only if a real Ollama
+        # server is available; vLLM/Qwen does not support the Ollama embedding API).
+        if os.getenv("FORCE_OLLAMA_EMBED", "").lower() == "true":
+            try:
+                from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
+                self._ef = OllamaEmbeddingFunction(
+                    url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+                    model_name=os.getenv("EMBED_MODEL", "nomic-embed-text"),
+                )
+                return self._ef
+            except Exception:
+                pass
+        self._ef = self._get_sentence_transformer_ef()
         return self._ef
 
     # ── Collections ──────────────────────────────────────────────────────────
@@ -147,23 +154,11 @@ class ChromaRagClient:
         except Exception as exc:
             raise RagClientError(f"Collection '{collection_name}' not found: {exc}") from exc
 
-        try:
-            results = collection.query(
-                query_texts=[question],
-                n_results=min(top_k, collection.count()),
-                include=["documents", "metadatas", "distances"],
-            )
-        except Exception:
-            # Ollama embedding failed — retry with SentenceTransformer
-            collection = client.get_collection(
-                name=collection_name,
-                embedding_function=self._get_sentence_transformer_ef(),
-            )
-            results = collection.query(
-                query_texts=[question],
-                n_results=min(top_k, collection.count()),
-                include=["documents", "metadatas", "distances"],
-            )
+        results = collection.query(
+            query_texts=[question],
+            n_results=min(top_k, collection.count()),
+            include=["documents", "metadatas", "distances"],
+        )
 
         sources: list[AnswerSource] = []
         docs = (results.get("documents") or [[]])[0]
