@@ -225,9 +225,7 @@ def get_session(session_id: str) -> SessionDetailResponse:
 
 @app.delete("/sessions/{session_id}")
 def delete_session(session_id: str) -> dict[str, str]:
-    deleted = memory_store.delete_session(session_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Session not found.")
+    memory_store.delete_session(session_id)
     return {"status": "deleted", "session_id": session_id}
 
 
