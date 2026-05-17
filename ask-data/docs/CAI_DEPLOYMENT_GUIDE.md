@@ -15,11 +15,17 @@ Deploy urutan wajib:
 
 | Komponen | Spesifikasi |
 |---|---|
-| Cloudera AI (CAI) Workbench | 2025.x (CML runtime) |
-| Python | 3.10 atau 3.11 (tersedia di CAI runtime) |
-| Node.js & npm | Tersedia di CAI runtime (dipakai oleh APP 4) |
-| GPU (untuk APP 1) | NVIDIA L4 (22 GB VRAM) — minimum 1 unit |
-| CUDA | 12.x (tersedia di CAI GPU runtime) |
+| **Cloudera AI — On-Premises** | CDP Private Cloud Data Services **1.5.5 SP2** (atau lebih baru) |
+| **Cloudera AI — Cloud** | Cloudera AI Cloud release **2.0.50+** (ML Runtimes **2025.01.1** atau lebih baru) |
+| **CML Runtime (CPU)** | `PBJ Workbench – Python 3.10` atau `Python 3.11` |
+| **CML Runtime (GPU)** | `PBJ Workbench – Python 3.10 – Nvidia GPU` atau `Python 3.11 – Nvidia GPU` |
+| **Python** | 3.10 atau 3.11 *(3.12 didukung di ML Runtimes 2025.01.1+)* |
+| **Node.js** | 18.x atau 20.x (bundled di CAI runtime, dipakai APP 4) |
+| **GPU (APP 1)** | NVIDIA L4 (22 GB VRAM) — minimum 1 unit |
+| **CUDA** | 12.x (bundled di CML GPU runtime — tidak perlu install terpisah) |
+| **vLLM** | 0.8.4+ *(on-premises 1.5.5 SP1)* / 0.8.5+ *(1.5.5 SP2)* |
+
+> **Cara cek versi CAI di environment kamu:** *Admin → About* di Cloudera AI Workbench.
 
 ### Akses Eksternal
 
