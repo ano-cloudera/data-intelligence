@@ -726,8 +726,25 @@ def _validate_rag_config(payload: RagSessionConfigRequest) -> None:
         )
 
 
-_DEFAULT_RAG_COLLECTION = "bank_jatim_knowledge"
 _DEFAULT_RAG_TOP_K = 5
+_PREFERRED_RAG_COLLECTIONS = ["bank_jatim_knowledge", "bankjatim_docs"]
+
+
+def _resolve_default_rag_collection() -> str | None:
+    """Return the first available collection, preferring known names."""
+    if rag_client is None:
+        return None
+    try:
+        available = {c["name"] for c in rag_client.list_collections()}
+        for name in _PREFERRED_RAG_COLLECTIONS:
+            if name in available:
+                return name
+        # Fall back to whatever collection exists
+        if available:
+            return next(iter(available))
+    except Exception:
+        pass
+    return None
 
 
 def _run_rag_chat_flow(
@@ -983,7 +1000,7 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
         if rag_explicitly_enabled:
             response_payload = _run_rag_chat_flow(payload)
         elif rag_auto_eligible:
-            response_payload = _run_rag_chat_flow(payload, override_collection=_DEFAULT_RAG_COLLECTION)
+            response_payload = _run_rag_chat_flow(payload, override_collection=_resolve_default_rag_collection())
         else:
             response_payload = _run_chat_flow(payload)
     except (ValueError, SQLValidationError, SQLExecutionError, GuardrailsServiceError):
