@@ -27,7 +27,6 @@ import {
 import {
   apiClient,
   type AnswerSource,
-  type ChatResponsePayload,
   type HealthResponse,
   type AnalyticsEventRecord,
   type AnalyticsSummaryResponse,
@@ -724,14 +723,6 @@ export default function HomePage() {
       setState((cur) => ({ ...cur, error: "Please enter a question first." }));
       return;
     }
-    if (ragConfig.enabled && (!ragConfig.collection_name || ragConfigDirty)) {
-      setState((cur) => ({
-        ...cur,
-        error: "Simpan konfigurasi RAG terlebih dahulu sebelum mengirim pertanyaan.",
-      }));
-      return;
-    }
-
     const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: "user", content: trimmed };
     submitInFlightRef.current = true;
     setState((cur) => ({
@@ -744,15 +735,13 @@ export default function HomePage() {
     }));
 
     try {
-      const response: ChatResponsePayload = ragConfig.enabled && ragConfig.collection_name
-        ? { kind: "answer", ...(await apiClient.chatAnswer({ question: trimmed, session_id: sessionId })) }
-        : { kind: "query", ...(await apiClient.chatQuery({ question: trimmed, session_id: sessionId })) };
+      const response = await apiClient.chatAnswer({ question: trimmed, session_id: sessionId });
 
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
         content: response.answer,
-        sources: response.kind === "answer" ? response.sources ?? [] : [],
+        sources: response.sources ?? [],
         metadata: response.metadata ?? {},
         visualization: response.visualization ?? null,
       };

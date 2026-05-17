@@ -165,6 +165,13 @@ const t = {
   ragConfigUnsaved: { en: "Changes take effect after saving.", id: "Perubahan berlaku setelah disimpan." },
   ragSave: { en: "Save Knowledge Base", id: "Simpan Knowledge Base" },
   ragSaving: { en: "Saving...", id: "Menyimpan..." },
+  ragAutoStatus: { en: "Knowledge Base: Auto", id: "Knowledge Base: Otomatis" },
+  ragAutoNote: {
+    en: "Document and policy questions are automatically routed to the knowledge base. No manual configuration needed.",
+    id: "Pertanyaan dokumen dan kebijakan secara otomatis diarahkan ke knowledge base. Tidak perlu konfigurasi manual.",
+  },
+  ragAutoActiveBadge: { en: "Auto-routing active", id: "Auto-routing aktif" },
+  ragConfigureManually: { en: "Override manually", id: "Konfigurasi manual" },
   tableLockSection: { en: "Active Table Lock", id: "Kunci Tabel Aktif" },
   tableLockNote: { en: "Lock all queries in this session to one table.", id: "Kunci semua query sesi ini ke satu tabel." },
   tableLockSelect: { en: "Select table", id: "Pilih tabel" },
@@ -208,7 +215,10 @@ export function ModelSettingsPanel({
   onTableLockSave,
 }: ModelSettingsPanelProps) {
   const [previewTab, setPreviewTab] = useState<"schema" | "data">("schema");
+  const [showAdvancedRag, setShowAdvancedRag] = useState(false);
   const qwenModels = options.filter((o) => o.provider === "local_qwen");
+
+  const isRagAutoMode = ragOptions?.enabled === true && !ragConfig.enabled;
 
   const ragCanSave =
     !ragSaving &&
@@ -345,116 +355,167 @@ export function ModelSettingsPanel({
                 {tr("ragNote", lang)}
               </p>
 
-              <div className="mt-4 space-y-4">
-                {/* Enable toggle */}
-                <div className="flex flex-wrap items-center justify-between gap-4 rounded-[16px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--color-ink-strong)]">
-                      {tr("ragEnable", lang)}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--color-ink-subtle)]">
-                      {tr("ragEnableNote", lang)}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!ragOptions?.enabled}
-                    onClick={() => onRagToggle(!ragConfig.enabled)}
-                    className={`inline-flex items-center gap-3 rounded-[var(--radius-pill)] border px-3 py-2 text-sm font-semibold transition ${
-                      ragConfig.enabled
-                        ? "border-emerald-400 bg-emerald-50 text-emerald-700"
-                        : "border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-ink-muted)]"
-                    } ${!ragOptions?.enabled ? "cursor-not-allowed opacity-50" : ""}`}
-                  >
-                    <span>{ragConfig.enabled ? tr("ragActive", lang) : tr("ragInactive", lang)}</span>
-                    <span
-                      className={`relative h-6 w-11 rounded-full transition ${
-                        ragConfig.enabled ? "bg-emerald-500" : "bg-[#c7ccda]"
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
-                          ragConfig.enabled ? "left-[22px]" : "left-0.5"
-                        }`}
-                      />
+              {isRagAutoMode ? (
+                /* AUTO-MODE: chromadb detected, user hasn't manually configured */
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-start gap-3 rounded-[16px] border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-emerald-800">
+                        {tr("ragAutoStatus", lang)}
+                      </p>
+                      <p className="mt-0.5 text-xs leading-4 text-emerald-700">
+                        {tr("ragAutoNote", lang)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700 whitespace-nowrap">
+                      {tr("ragAutoActiveBadge", lang)}
                     </span>
-                  </button>
-                </div>
-
-                {!ragOptions?.enabled && (
-                  <div className="rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                    {tr("ragUnavailable", lang)}
                   </div>
-                )}
 
-                {ragOptionsLoading && (
-                  <div className="rounded-[12px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-ink-subtle)]">
-                    {tr("ragLoading", lang)}
-                  </div>
-                )}
-
-                {/* Collection picker */}
-                <label className="flex flex-col gap-2 text-sm text-[var(--color-ink-muted)]">
-                  <span className="font-medium text-[var(--color-ink-strong)]">{tr("ragCollection", lang)}</span>
-                  <select
-                    value={ragConfig.collection_name ?? ""}
-                    disabled={ragOptionsLoading || !ragConfig.enabled}
-                    onChange={(e) =>
-                      onRagConfigChange({ ...ragConfig, collection_name: e.target.value || null })
-                    }
-                    className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2.5 outline-none disabled:opacity-50"
-                  >
-                    <option value="">{tr("ragCollectionPlaceholder", lang)}</option>
-                    {ragCollections.map((col) => (
-                      <option key={col.name} value={col.name}>
-                        {col.name} ({col.document_count} chunk)
-                      </option>
-                    ))}
-                  </select>
-                  {ragCollections.length === 0 && !ragOptionsLoading && ragConfig.enabled && (
-                    <p className="text-xs text-[var(--color-ink-subtle)]">
-                      {tr("ragNoCollection", lang)}
-                    </p>
-                  )}
-                </label>
-
-                {/* Top-K slider */}
-                <label className="flex flex-col gap-2 text-sm text-[var(--color-ink-muted)]">
-                  <span className="font-medium text-[var(--color-ink-strong)]">
-                    {tr("ragTopK", lang)}: <span className="text-[var(--color-ink-strong)]">{ragConfig.top_k}</span>
-                  </span>
-                  <input
-                    type="range"
-                    min={1}
-                    max={10}
-                    step={1}
-                    value={ragConfig.top_k}
-                    disabled={!ragConfig.enabled}
-                    onChange={(e) =>
-                      onRagConfigChange({ ...ragConfig, top_k: Number(e.target.value) })
-                    }
-                    className="disabled:opacity-50"
-                  />
-                  <p className="text-xs text-[var(--color-ink-subtle)]">
-                    {tr("ragTopKNote", lang)}
-                  </p>
-                </label>
-
-                {/* RAG save */}
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <p className="text-xs text-[var(--color-ink-subtle)]">
-                    {ragConfigLocked ? tr("ragConfigLocked", lang) : tr("ragConfigUnsaved", lang)}
-                  </p>
                   <button
                     type="button"
-                    onClick={onRagSave}
-                    disabled={!ragCanSave}
-                    className="rounded-[var(--radius-pill)] bg-[linear-gradient(135deg,#6970ff_0%,#5c63f2_100%)] px-5 py-2 text-sm font-semibold text-white shadow-[var(--shadow-accent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => setShowAdvancedRag((v) => !v)}
+                    className="flex items-center gap-1 text-xs font-semibold text-[#5c63f2] hover:underline"
                   >
-                    {ragSaving ? tr("ragSaving", lang) : tr("ragSave", lang)}
+                    {tr("ragConfigureManually", lang)}
+                    <span className="text-[10px]">{showAdvancedRag ? "▲" : "▶"}</span>
                   </button>
+
+                  {showAdvancedRag && (
+                    <div className="space-y-4 pt-1">
+                      {ragOptionsLoading && (
+                        <div className="rounded-[12px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-ink-subtle)]">
+                          {tr("ragLoading", lang)}
+                        </div>
+                      )}
+                      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[16px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-4">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--color-ink-strong)]">{tr("ragEnable", lang)}</p>
+                          <p className="mt-1 text-xs text-[var(--color-ink-subtle)]">{tr("ragEnableNote", lang)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onRagToggle(!ragConfig.enabled)}
+                          className="inline-flex items-center gap-3 rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-ink-muted)] transition"
+                        >
+                          <span>{tr("ragInactive", lang)}</span>
+                          <span className="relative h-6 w-11 rounded-full bg-[#c7ccda] transition">
+                            <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition" />
+                          </span>
+                        </button>
+                      </div>
+                      <label className="flex flex-col gap-2 text-sm text-[var(--color-ink-muted)]">
+                        <span className="font-medium text-[var(--color-ink-strong)]">{tr("ragCollection", lang)}</span>
+                        <select
+                          value={ragConfig.collection_name ?? ""}
+                          disabled={ragOptionsLoading}
+                          onChange={(e) => onRagConfigChange({ ...ragConfig, collection_name: e.target.value || null })}
+                          className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2.5 outline-none disabled:opacity-50"
+                        >
+                          <option value="">{tr("ragCollectionPlaceholder", lang)}</option>
+                          {ragCollections.map((col) => (
+                            <option key={col.name} value={col.name}>{col.name} ({col.document_count} chunk)</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-2 text-sm text-[var(--color-ink-muted)]">
+                        <span className="font-medium text-[var(--color-ink-strong)]">
+                          {tr("ragTopK", lang)}: <span className="text-[var(--color-ink-strong)]">{ragConfig.top_k}</span>
+                        </span>
+                        <input type="range" min={1} max={10} step={1} value={ragConfig.top_k}
+                          onChange={(e) => onRagConfigChange({ ...ragConfig, top_k: Number(e.target.value) })}
+                        />
+                        <p className="text-xs text-[var(--color-ink-subtle)]">{tr("ragTopKNote", lang)}</p>
+                      </label>
+                      <div className="flex items-center justify-between gap-3 pt-1">
+                        <p className="text-xs text-[var(--color-ink-subtle)]">{tr("ragConfigUnsaved", lang)}</p>
+                        <button type="button" onClick={onRagSave} disabled={!ragCanSave}
+                          className="rounded-[var(--radius-pill)] bg-[linear-gradient(135deg,#6970ff_0%,#5c63f2_100%)] px-5 py-2 text-sm font-semibold text-white shadow-[var(--shadow-accent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
+                          {ragSaving ? tr("ragSaving", lang) : tr("ragSave", lang)}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                /* MANUAL MODE: user explicitly configured, or chromadb not available */
+                <div className="mt-4 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-[16px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-4">
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--color-ink-strong)]">{tr("ragEnable", lang)}</p>
+                      <p className="mt-1 text-xs text-[var(--color-ink-subtle)]">{tr("ragEnableNote", lang)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!ragOptions?.enabled}
+                      onClick={() => onRagToggle(!ragConfig.enabled)}
+                      className={`inline-flex items-center gap-3 rounded-[var(--radius-pill)] border px-3 py-2 text-sm font-semibold transition ${
+                        ragConfig.enabled
+                          ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                          : "border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-ink-muted)]"
+                      } ${!ragOptions?.enabled ? "cursor-not-allowed opacity-50" : ""}`}
+                    >
+                      <span>{ragConfig.enabled ? tr("ragActive", lang) : tr("ragInactive", lang)}</span>
+                      <span className={`relative h-6 w-11 rounded-full transition ${ragConfig.enabled ? "bg-emerald-500" : "bg-[#c7ccda]"}`}>
+                        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${ragConfig.enabled ? "left-[22px]" : "left-0.5"}`} />
+                      </span>
+                    </button>
+                  </div>
+
+                  {!ragOptions?.enabled && (
+                    <div className="rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                      {tr("ragUnavailable", lang)}
+                    </div>
+                  )}
+
+                  {ragOptionsLoading && (
+                    <div className="rounded-[12px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-ink-subtle)]">
+                      {tr("ragLoading", lang)}
+                    </div>
+                  )}
+
+                  <label className="flex flex-col gap-2 text-sm text-[var(--color-ink-muted)]">
+                    <span className="font-medium text-[var(--color-ink-strong)]">{tr("ragCollection", lang)}</span>
+                    <select
+                      value={ragConfig.collection_name ?? ""}
+                      disabled={ragOptionsLoading || !ragConfig.enabled}
+                      onChange={(e) => onRagConfigChange({ ...ragConfig, collection_name: e.target.value || null })}
+                      className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2.5 outline-none disabled:opacity-50"
+                    >
+                      <option value="">{tr("ragCollectionPlaceholder", lang)}</option>
+                      {ragCollections.map((col) => (
+                        <option key={col.name} value={col.name}>{col.name} ({col.document_count} chunk)</option>
+                      ))}
+                    </select>
+                    {ragCollections.length === 0 && !ragOptionsLoading && ragConfig.enabled && (
+                      <p className="text-xs text-[var(--color-ink-subtle)]">{tr("ragNoCollection", lang)}</p>
+                    )}
+                  </label>
+
+                  <label className="flex flex-col gap-2 text-sm text-[var(--color-ink-muted)]">
+                    <span className="font-medium text-[var(--color-ink-strong)]">
+                      {tr("ragTopK", lang)}: <span className="text-[var(--color-ink-strong)]">{ragConfig.top_k}</span>
+                    </span>
+                    <input type="range" min={1} max={10} step={1} value={ragConfig.top_k}
+                      disabled={!ragConfig.enabled}
+                      onChange={(e) => onRagConfigChange({ ...ragConfig, top_k: Number(e.target.value) })}
+                      className="disabled:opacity-50"
+                    />
+                    <p className="text-xs text-[var(--color-ink-subtle)]">{tr("ragTopKNote", lang)}</p>
+                  </label>
+
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <p className="text-xs text-[var(--color-ink-subtle)]">
+                      {ragConfigLocked ? tr("ragConfigLocked", lang) : tr("ragConfigUnsaved", lang)}
+                    </p>
+                    <button type="button" onClick={onRagSave} disabled={!ragCanSave}
+                      className="rounded-[var(--radius-pill)] bg-[linear-gradient(135deg,#6970ff_0%,#5c63f2_100%)] px-5 py-2 text-sm font-semibold text-white shadow-[var(--shadow-accent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
+                      {ragSaving ? tr("ragSaving", lang) : tr("ragSave", lang)}
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
           </div>
 
