@@ -128,25 +128,42 @@ class ChromaRagClient:
 
     # ── Query ─────────────────────────────────────────────────────────────────
 
+    def _get_sentence_transformer_ef(self) -> Any:
+        from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+        return SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+
     def query(
         self,
         collection_name: str,
         question: str,
         top_k: int = 5,
     ) -> list[AnswerSource]:
+        client = self._get_client()
         try:
-            collection = self._get_client().get_collection(
+            collection = client.get_collection(
                 name=collection_name,
                 embedding_function=self._get_embedding_function(),
             )
         except Exception as exc:
             raise RagClientError(f"Collection '{collection_name}' not found: {exc}") from exc
 
-        results = collection.query(
-            query_texts=[question],
-            n_results=min(top_k, collection.count()),
-            include=["documents", "metadatas", "distances"],
-        )
+        try:
+            results = collection.query(
+                query_texts=[question],
+                n_results=min(top_k, collection.count()),
+                include=["documents", "metadatas", "distances"],
+            )
+        except Exception:
+            # Ollama embedding failed — retry with SentenceTransformer
+            collection = client.get_collection(
+                name=collection_name,
+                embedding_function=self._get_sentence_transformer_ef(),
+            )
+            results = collection.query(
+                query_texts=[question],
+                n_results=min(top_k, collection.count()),
+                include=["documents", "metadatas", "distances"],
+            )
 
         sources: list[AnswerSource] = []
         docs = (results.get("documents") or [[]])[0]

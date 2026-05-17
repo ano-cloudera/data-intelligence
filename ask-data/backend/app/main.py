@@ -1024,7 +1024,8 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
             "metadata": {},
             "visualization": None,
         }
-    except Exception:
+    except Exception as exc:
+        logger.exception("chat_answer unhandled exception: %s", exc)
         fallback_answer = build_processing_fallback_answer(payload.question)
         if payload.session_id:
             memory_store.append_user_message(payload.session_id, payload.question)
