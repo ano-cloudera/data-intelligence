@@ -5,7 +5,7 @@
 > wajib disesuaikan dengan environment target sebelum deploy.
 
 Deploy urutan wajib:
-**Step 0 Credential → Persiapan (A–D) → APP 1 Qwen LLM → APP 2 Backend → APP 3 MCP Server → APP 4 Frontend**
+**Step 0 Credential → Persiapan (A–C) → APP 1 Qwen LLM → APP 2 Backend → APP 3 MCP Server → APP 4 Frontend**
 
 ---
 
@@ -50,7 +50,7 @@ Deploy urutan wajib:
 Dependencies **diinstall otomatis** oleh masing-masing entry script saat Application pertama start.
 Tidak perlu install manual di dalam Application.
 
-**APP 1 — Qwen LLM** (pre-install di Workbench session, bukan di Application — lihat Step D):
+**APP 1 — Qwen LLM** (pre-install di Workbench session, bukan di Application — lihat Step C):
 
 | Package | Versi |
 |---|---|
@@ -71,10 +71,10 @@ Tidak perlu install manual di dalam Application.
 | `impyla` | 0.19.0 |
 | `chromadb` | ≥0.5.0 |
 | `pysqlite3-binary` | ≥0.5.0 |
+| `sentence-transformers` | ≥2.7.0 |
+| `pypdf` | ≥4.0.0 |
 | `openai` | 1.51.2 |
 | `httpx` | 0.27.2 |
-| `ollama` | ≥0.3.0 |
-| `pypdf` | ≥4.0.0 |
 | `boto3` | 1.42.97 |
 
 **APP 3 — MCP Server** (diinstall dari `mcp_server/requirements.txt`):
@@ -87,7 +87,6 @@ Tidak perlu install manual di dalam Application.
 | `impyla` | 0.19.0 |
 | `chromadb` | ≥0.5.0 |
 | `pysqlite3-binary` | ≥0.5.0 |
-| `ollama` | ≥0.3.0 |
 
 **APP 4 — Frontend** (diinstall via `npm install` dari `frontend/package.json`):
 
@@ -269,37 +268,7 @@ du -sh ~/.cache/huggingface/hub/models--Qwen--Qwen2.5-14B-Instruct-AWQ/
 
 ---
 
-### Step C — Siapkan ChromaDB
-
-File `chroma_db.zip` sudah ada di dalam repo dan berisi 17 chunks dari 5 dokumen PDF kebijakan.
-
-**Extract dari repo:**
-
-```bash
-cd /home/cdsw/data-intelligence/ask-data
-unzip chroma_db.zip
-```
-
-**Verifikasi:**
-
-```bash
-pip install pysqlite3-binary -q
-python3 -c "
-import sys, pysqlite3
-sys.modules['sqlite3'] = pysqlite3
-import chromadb
-c = chromadb.PersistentClient('/home/cdsw/data-intelligence/ask-data/chroma_db')
-col = c.get_collection('bankjatim_docs')
-print('Chunks:', col.count())
-"
-# Expected: Chunks: 17
-```
-
-> Nama collection default adalah `bankjatim_docs`. Bisa diganti via env var `CHROMA_COLLECTION` di APP 2 & 3, asalkan nama yang sama konsisten.
-
----
-
-### Step D — Pre-install vLLM Dependencies (Wajib Sebelum APP 1)
+### Step C — Pre-install vLLM Dependencies (Wajib Sebelum APP 1)
 
 Jalankan di terminal **Workbench session** — bukan dari dalam Application.
 Install di dalam Application OOM (exit 137) karena RAM runtime terbatas.
@@ -406,7 +375,7 @@ curl -X POST $QWEN_URL/v1/chat/completions \
 # Expected: response JSON dengan content dari Qwen
 ```
 
-> **Simpan URL ini** — akan dipakai sebagai `QWEN_BASE_URL` dan `OLLAMA_BASE_URL` di APP 2 & 3.
+> **Simpan URL ini** — akan dipakai sebagai `QWEN_BASE_URL` di APP 2 & 3.
 
 ---
 
@@ -455,8 +424,8 @@ Centang: **☑ Enable Unauthenticated Access**
 | `CDP_USER` | `<cdp-username>` | |
 | `CDP_PASS` | `<cdp-password>` | |
 | `DB_NAME` | `<nama-database>` | Database yang berisi tabel target |
-| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/chroma_db` | **Absolute path** hasil unzip Step C — sesuaikan jika repo di-clone ke lokasi lain |
-| `OLLAMA_BASE_URL` | `https://<url-app1>` | URL APP 1 **tanpa** `/v1` — untuk embedding |
+| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` | **Absolute path** — sesuaikan jika repo di-clone ke lokasi lain. Wajib menyertakan `backend/` di akhir path. |
+| `CHROMA_COLLECTION` | `bank_jatim_knowledge` | Nama collection ChromaDB — harus konsisten dengan ingest |
 
 **Opsional (ada default — ubah jika perlu):**
 
@@ -469,22 +438,31 @@ Centang: **☑ Enable Unauthenticated Access**
 | `MEMORY_MAX_HISTORY` | `10` | Max pesan history per sesi |
 | `SQL_DEFAULT_LIMIT` | `100` | Default LIMIT pada query tanpa LIMIT eksplisit |
 | `SQL_ALLOWED_TABLES` | `customer_dormant_segment` | Whitelist tabel — pisahkan koma jika lebih dari satu |
-| `CHROMA_ENABLED` | `false` | Set `true` untuk aktifkan RAG (Knowledge Base) |
-| `CHROMA_COLLECTION` | `bankjatim_docs` | **Sesuaikan** dengan nama collection yang diingest |
-| `EMBED_MODEL` | `nomic-embed-text` | Embedding model via Ollama compat |
+| `CHROMA_ENABLED` | `false` | RAG diaktifkan otomatis jika `chromadb` terinstall — env var ini tidak wajib diset `true` |
 | `GUARDRAILS_ENABLED` | `false` | Set `true` untuk aktifkan PII blocking heuristic |
 | `CORS_ALLOW_ORIGINS` | `*` | Batasi ke domain Frontend jika perlu |
 
 > **Penting:**
 > - `QWEN_BASE_URL` wajib ada `/v1` di akhir
-> - `OLLAMA_BASE_URL` **tanpa** `/v1`
-> - `CHROMA_PERSIST_DIR` harus absolute path ke folder hasil unzip Step C
+> - `CHROMA_PERSIST_DIR` harus **absolute path** dan wajib menyertakan `backend/` — contoh: `/home/cdsw/data-intelligence/ask-data/backend/chroma_db`
+> - **Tidak perlu set `OLLAMA_BASE_URL`** — embedding kini menggunakan `sentence-transformers` (lokal, tidak butuh Ollama)
+> - ChromaDB akan **di-ingest otomatis** saat APP 2 pertama kali start, selama PDF ada di `ask-data/data/documents/`
 
 ---
 
 ### Step 2.4 — Deploy dan Verifikasi
 
 Klik **Create Application**. Tunggu status `Running` (1–3 menit).
+
+Saat pertama kali start di environment baru, APP 2 akan otomatis mengingest dokumen PDF ke ChromaDB. Pantau di tab **Logs**:
+
+```text
+INFO RAG: collection 'bank_jatim_knowledge' not found — starting auto-ingest
+INFO RAG: running auto-ingest from .../data/documents
+INFO RAG: auto-ingest complete
+```
+
+Setelah Running:
 
 ```bash
 BACKEND_URL="https://<subdomain-app2>.<domain-cai-kamu>"
@@ -496,7 +474,7 @@ curl $BACKEND_URL/health/db
 # Expected: {"status":"ok","database":"<nama-database>","result":1}
 
 curl $BACKEND_URL/rag/options
-# Expected: {"enabled":true,"collections":[{"name":"bankjatim_docs","document_count":17}]}
+# Expected: {"enabled":true,"collections":[{"name":"bank_jatim_knowledge","document_count":17}]}
 
 curl $BACKEND_URL/tables
 # Expected: {"status":"ok","tables":["customer_dormant_segment"],...}
@@ -548,15 +526,13 @@ Centang: **☑ Enable Unauthenticated Access**
 | `CDP_USER` | `<cdp-username>` | |
 | `CDP_PASS` | `<cdp-password>` | |
 | `DB_NAME` | `<nama-database>` | Sama dengan APP 2 |
-| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/chroma_db` | **Harus sama absolute path** dengan APP 2 |
-| `OLLAMA_BASE_URL` | `https://<url-app1>` | URL APP 1 tanpa `/v1` |
+| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` | **Harus sama absolute path** dengan APP 2 — wajib ada `backend/` |
 
 **Opsional:**
 
 | Key | Default | Keterangan |
 |---|---|---|
-| `CHROMA_COLLECTION` | `bankjatim_docs` | Sama dengan APP 2 |
-| `EMBED_MODEL` | `nomic-embed-text` | Sama dengan APP 2 |
+| `CHROMA_COLLECTION` | `bank_jatim_knowledge` | Sama dengan APP 2 |
 
 ---
 
@@ -640,9 +616,11 @@ Buka URL Frontend di browser:
 
 **Test 2 — SQL query:** Ketik *"Tampilkan jumlah nasabah per segmen"* → tunggu 5–15 detik → jawaban + bar chart muncul.
 
-**Test 3 — Settings panel:** Klik ikon Settings → dropdown table lock bisa dipilih → RAG section bisa dikonfigurasi dan disimpan.
+**Test 3 — RAG (Knowledge Base):** Ketik *"Apa kebijakan rekening dormant?"* → jawaban dari dokumen PDF + "Relevant Documents" muncul di bawah jawaban. Tidak perlu mengaktifkan RAG manual di Settings — routing otomatis.
 
-**Test 4 — Guardrails:** Ketik *"tampilkan nomor hp semua nasabah"* → respons diblok dengan pesan PII protection.
+**Test 4 — Settings panel:** Klik ikon Settings → dropdown table lock bisa dipilih → RAG section tampil badge "Knowledge Base: Auto".
+
+**Test 5 — Guardrails:** Ketik *"tampilkan nomor hp semua nasabah"* → respons diblok dengan pesan PII protection.
 
 ---
 
@@ -668,15 +646,15 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 |---|---|---|---|
 | `QWEN_BASE_URL` | `http://localhost:8000/v1` | **Ya** | URL APP 1 + `/v1` |
 | `QWEN_API_KEY` | `local-dev-token` | **Ya** | Sama dengan APP 1 |
-| `QWEN_MODEL` | `Qwen/Qwen3-8B-AWQ` | **Ya** | Sama dengan APP 1 |
+| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | **Ya** | Sama dengan APP 1 |
 | `IMPALA_HOST` | _(kosong)_ | **Ya** | Hostname Impala |
 | `IMPALA_PORT` | `443` | **Ya** | |
 | `IMPALA_HTTP_PATH` | _(kosong)_ | **Ya** | |
 | `CDP_USER` | _(kosong)_ | **Ya** | |
 | `CDP_PASS` | _(kosong)_ | **Ya** | |
 | `DB_NAME` | `cai_sdx_se_indonesia` | **Ya** | Nama database — **sesuaikan** |
-| `CHROMA_PERSIST_DIR` | `./chroma_db` | **Ya** | Absolute path ke ChromaDB — **sesuaikan** |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | **Ya** | URL APP 1 tanpa `/v1` |
+| `CHROMA_PERSIST_DIR` | `./chroma_db` | **Ya** | Absolute path ke ChromaDB — wajib ada `backend/` di path: `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` |
+| `CHROMA_COLLECTION` | `bank_jatim_knowledge` | **Ya** | Nama collection ChromaDB |
 | `LLM_PROVIDER` | `local_qwen` | Tidak | Provider aktif |
 | `SESSION_BACKEND` | `sqlite` | Tidak | `sqlite` atau `memory` |
 | `SESSION_SQLITE_PATH` | `data/ask_data_sessions.db` | Tidak | Path file SQLite |
@@ -684,11 +662,11 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 | `MEMORY_MAX_HISTORY` | `10` | Tidak | Max history pesan per sesi |
 | `SQL_DEFAULT_LIMIT` | `100` | Tidak | Default LIMIT query |
 | `SQL_ALLOWED_TABLES` | `customer_dormant_segment` | Tidak | Whitelist tabel, pisah koma |
-| `CHROMA_ENABLED` | `false` | Tidak | `true` untuk aktifkan RAG |
-| `CHROMA_COLLECTION` | `bankjatim_docs` | Tidak | Nama collection ChromaDB |
-| `EMBED_MODEL` | `nomic-embed-text` | Tidak | Embedding model |
+| `CHROMA_ENABLED` | `false` | Tidak | RAG aktif otomatis jika chromadb terinstall — tidak wajib diset `true` |
 | `GUARDRAILS_ENABLED` | `false` | Tidak | `true` untuk aktifkan PII blocking |
 | `CORS_ALLOW_ORIGINS` | `*` | Tidak | Domain yang diizinkan |
+
+> **Tidak perlu set:** `OLLAMA_BASE_URL`, `EMBED_MODEL` — embedding kini menggunakan `sentence-transformers` secara lokal, bukan Ollama.
 
 ### APP 3 — MCP Server
 
@@ -700,10 +678,8 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 | `CDP_USER` | _(kosong)_ | **Ya** | |
 | `CDP_PASS` | _(kosong)_ | **Ya** | |
 | `DB_NAME` | `cai_sdx_se_indonesia` | **Ya** | **Sesuaikan** |
-| `CHROMA_PERSIST_DIR` | `./chroma_db` | **Ya** | Absolute path, sama dengan APP 2 |
-| `OLLAMA_BASE_URL` | _(kosong)_ | **Ya** | URL APP 1 tanpa `/v1` |
-| `CHROMA_COLLECTION` | `bankjatim_docs` | Tidak | Sama dengan APP 2 |
-| `EMBED_MODEL` | `nomic-embed-text` | Tidak | Sama dengan APP 2 |
+| `CHROMA_PERSIST_DIR` | `./chroma_db` | **Ya** | Absolute path, sama dengan APP 2 — wajib ada `backend/` |
+| `CHROMA_COLLECTION` | `bank_jatim_knowledge` | Tidak | Sama dengan APP 2 |
 
 ### APP 4 — Frontend
 
@@ -717,7 +693,7 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 
 ### APP 1 — Error `DEPS NOT READY`
 
-Step D belum dijalankan, atau deps tidak valid. Jalankan ulang Step D dari terminal Workbench session, lalu restart Application.
+Step C belum dijalankan, atau deps tidak valid. Jalankan ulang Step C dari terminal Workbench session, lalu restart Application.
 
 ### APP 1 — Error `CUDA out of memory`
 
@@ -725,7 +701,7 @@ Turunkan `QWEN_GPU_MEMORY_UTILIZATION` ke `0.80` atau `0.75`, atau ganti ke mode
 
 ### APP 1 — Error `undefined symbol: ncclCommWindowDeregister`
 
-Versi torch tidak kompatibel dengan NCCL di CAI. Pastikan Step D menginstall `torch==2.5.1` (bukan versi lebih baru). Jalankan ulang Step D jika perlu.
+Versi torch tidak kompatibel dengan NCCL di CAI. Pastikan Step C menginstall `torch==2.5.1` (bukan versi lebih baru). Jalankan ulang Step C jika perlu.
 
 ### APP 1 — Error `Could not find nvcc` / flashinfer gagal
 
@@ -737,7 +713,7 @@ Model belum ter-cache. Jalankan ulang Step B, atau set `HUGGING_FACE_HUB_TOKEN` 
 
 ### APP 1 — Error `Qwen2Tokenizer has no attribute all_special_tokens_extended`
 
-Versi transformers tidak kompatibel (5.x terinstall, butuh 4.51.x). Jalankan ulang Step D dengan versi yang benar, lalu restart Application.
+Versi transformers tidak kompatibel (5.x terinstall, butuh 4.51.x). Jalankan ulang Step C dengan versi yang benar, lalu restart Application.
 
 ### APP 2 — `/health/db` return error
 
@@ -759,15 +735,32 @@ print('Impala OK:', cur.fetchone())
 "
 ```
 
-### APP 2 — `/rag/options` return `{"enabled":false}`
+### APP 2 — `/rag/options` return `{"enabled":false}` atau `document_count: 0`
 
-- `CHROMA_ENABLED=true` belum diset, atau
-- `CHROMA_PERSIST_DIR` menunjuk ke folder yang kosong / belum di-unzip
+- Pastikan `CHROMA_PERSIST_DIR` menunjuk ke path yang benar — **wajib ada `backend/`** di path:
+  `/home/cdsw/data-intelligence/ask-data/backend/chroma_db`
+- Cek Logs APP 2 — jika auto-ingest belum berjalan, pastikan PDF ada di `ask-data/data/documents/`
+- Auto-ingest hanya berjalan sekali saat startup. Jika gagal, restart APP 2 untuk trigger ulang
+
+### APP 2 — Auto-ingest gagal: `Your system has an unsupported version of sqlite3`
+
+ChromaDB membutuhkan sqlite3 ≥ 3.35. Backend otomatis patch ini via `pysqlite3-binary`. Pastikan `pysqlite3-binary` ada di `requirements.txt` dan terinstall:
+
+```bash
+# Di Workbench session:
+pip show pysqlite3-binary
+```
 
 ### APP 2 — `/chat/query` timeout atau error 502
 
 - Pastikan APP 1 sudah `Running`
 - Pastikan `QWEN_BASE_URL` ada `/v1` di akhir
+
+### APP 2 — Pertanyaan dokumen tidak dijawab oleh RAG (jawaban umum/fallback)
+
+- Pastikan `CHROMA_COLLECTION=bank_jatim_knowledge` sudah diset di env vars APP 2
+- Pastikan `CHROMA_PERSIST_DIR` path benar (lihat di atas)
+- Cek `/rag/options` — `document_count` harus > 0
 
 ### APP 4 — Blank page / CORS error
 
@@ -788,7 +781,6 @@ print('Impala OK:', cur.fetchone())
 
 - [ ] Repo di-clone ke `/home/cdsw/data-intelligence/`
 - [ ] Model ter-cache di `~/.cache/huggingface/hub/` (~8–9 GB)
-- [ ] ChromaDB siap — `col.count()` = 17
 - [ ] `/home/cdsw/.vllm_deps` berisi vLLM 0.7.3 + transformers 4.51.3
 
 ### APP 1 — Qwen LLM
@@ -804,17 +796,18 @@ print('Impala OK:', cur.fetchone())
 
 - [ ] Script: `data-intelligence/ask-data/backend/backend_entry.py`
 - [ ] Resource: 4 vCPU / 8 GiB, no GPU
-- [ ] Env wajib: `QWEN_BASE_URL` (+`/v1`), `QWEN_API_KEY`, `QWEN_MODEL`, semua `IMPALA_*` & `CDP_*`, `DB_NAME`, `CHROMA_PERSIST_DIR`, `OLLAMA_BASE_URL`
-- [ ] Env opsional: `CHROMA_ENABLED=true`, `GUARDRAILS_ENABLED=true`
+- [ ] Env wajib: `QWEN_BASE_URL` (+`/v1`), `QWEN_API_KEY`, `QWEN_MODEL`, semua `IMPALA_*` & `CDP_*`, `DB_NAME`
+- [ ] Env RAG: `CHROMA_PERSIST_DIR` (absolute, dengan `backend/`), `CHROMA_COLLECTION=bank_jatim_knowledge`
 - [ ] Unauthenticated Access: ☑
-- [ ] Status: **Running** — `/health`, `/health/db`, `/rag/options` semua OK
+- [ ] Status: **Running** — logs menampilkan "RAG: auto-ingest complete" atau "already has N chunks"
+- [ ] `/health`, `/health/db`, `/rag/options` (document_count=17) semua OK
 - [ ] **URL dicatat**
 
 ### APP 3 — MCP Server
 
 - [ ] Script: `data-intelligence/ask-data/mcp_server/mcp_entry.py`
 - [ ] Resource: 2 vCPU / 4 GiB, no GPU
-- [ ] Env wajib: semua `IMPALA_*` & `CDP_*`, `DB_NAME`, `CHROMA_PERSIST_DIR`, `OLLAMA_BASE_URL`
+- [ ] Env wajib: semua `IMPALA_*` & `CDP_*`, `DB_NAME`, `CHROMA_PERSIST_DIR` (sama dengan APP 2)
 - [ ] Unauthenticated Access: ☑
 - [ ] Status: **Running** — `/health` OK, `/tools` return 6 tools
 
@@ -826,5 +819,6 @@ print('Impala OK:', cur.fetchone())
 - [ ] Unauthenticated Access: ☑
 - [ ] Status: **Running** — UI terbuka di browser
 - [ ] SQL query → jawaban + chart ✓
-- [ ] Settings panel → table lock & RAG config berfungsi ✓
+- [ ] Pertanyaan dokumen → jawaban RAG + "Relevant Documents" muncul ✓ _(tanpa perlu aktifkan manual)_
+- [ ] Settings panel → badge "Knowledge Base: Auto" terlihat ✓
 - [ ] Guardrails → PII query diblok ✓
