@@ -726,7 +726,7 @@ def _validate_rag_config(payload: RagSessionConfigRequest) -> None:
         )
 
 
-_DEFAULT_RAG_TOP_K = 5
+_DEFAULT_RAG_TOP_K = 2
 _PREFERRED_RAG_COLLECTIONS = ["bank_jatim_knowledge", "bankjatim_docs"]
 
 

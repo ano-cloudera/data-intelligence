@@ -875,7 +875,7 @@ export default function HomePage() {
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); void handleDeleteSession(session.session_id); }}
-                    className="mr-1.5 shrink-0 rounded-[8px] p-1 text-white/25 opacity-0 transition hover:bg-white/10 hover:text-rose-400 group-hover:opacity-100"
+                    className="mr-1.5 shrink-0 rounded-[8px] p-1 text-white/30 transition hover:bg-white/10 hover:text-rose-400"
                     title="Delete conversation"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
