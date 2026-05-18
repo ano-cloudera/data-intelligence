@@ -520,7 +520,7 @@ export function ModelSettingsPanel({
           </div>
 
           {/* Right: Disclaimer + Data Table Preview */}
-          <div className="space-y-5">
+          <div className="min-w-0 space-y-5 overflow-hidden">
             {/* Disclaimer */}
             <div className="rounded-[20px] border border-[var(--color-border-soft)] bg-[linear-gradient(180deg,#fbfcff_0%,#eef4ff_100%)] p-5 shadow-panel">
               <div className="flex items-start gap-3">
@@ -539,7 +539,7 @@ export function ModelSettingsPanel({
             </div>
 
             {/* Data Table Preview */}
-            <div className="rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5 shadow-panel">
+            <div className="min-w-0 overflow-hidden rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5 shadow-panel">
               <div className="flex items-center gap-2 mb-3">
                 <div className="icon-box h-8 w-8 shrink-0 rounded-[12px]">
                   <TableChartIcon sx={{ fontSize: 16 }} />
