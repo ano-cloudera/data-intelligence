@@ -702,14 +702,15 @@ export default function HomePage() {
     }
   }
 
-  async function saveTableLock() {
+  async function saveTableLock(overrideLockedTable?: string | null) {
     const sessionId = state.sessionId;
     if (!sessionId) return;
+    const lockedTable = overrideLockedTable !== undefined ? overrideLockedTable : tableLockConfig.locked_table;
     setTableLockSaving(true);
     try {
       const saved = await apiClient.saveTableLock({
         session_id: sessionId,
-        locked_table: tableLockConfig.locked_table,
+        locked_table: lockedTable,
       });
       setTableLockConfig({ session_id: sessionId, locked_table: saved.locked_table });
       setTableLockDirty(false);
@@ -1188,7 +1189,7 @@ export default function HomePage() {
               setTableLockConfig(cfg);
               setTableLockDirty(true);
             }}
-            onTableLockSave={() => void saveTableLock()}
+            onTableLockSave={(lockedTable) => void saveTableLock(lockedTable)}
             tablePreviewData={tablePreviewData}
             tablePreviewLoading={tablePreviewLoading}
           />

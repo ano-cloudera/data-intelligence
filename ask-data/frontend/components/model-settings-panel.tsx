@@ -38,7 +38,7 @@ interface ModelSettingsPanelProps {
   onRagConfigChange: (config: VectorRagConfig) => void;
   onRagSave: () => void;
   onTableLockChange: (cfg: TableLockConfig) => void;
-  onTableLockSave: () => void;
+  onTableLockSave: (lockedTable?: string | null) => void;
 }
 
 const TABLE_SCHEMA_SECTIONS = [
@@ -316,10 +316,13 @@ export function ModelSettingsPanel({
                   <span className="font-medium text-[var(--color-ink-strong)]">{tr("tableLockSelect", lang)}</span>
                   <select
                     value={tableLockConfig.locked_table ?? ""}
-                    onChange={(e) =>
-                      onTableLockChange({ ...tableLockConfig, locked_table: e.target.value || null })
-                    }
-                    className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2.5 outline-none"
+                    disabled={tableLockSaving}
+                    onChange={(e) => {
+                      const val = e.target.value || null;
+                      onTableLockChange({ ...tableLockConfig, locked_table: val });
+                      onTableLockSave(val);
+                    }}
+                    className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2.5 outline-none disabled:opacity-60"
                   >
                     <option value="">{tr("tableLockPlaceholder", lang)}</option>
                     {availableTables.map((tbl) => (
@@ -330,19 +333,13 @@ export function ModelSettingsPanel({
                   </select>
                 </label>
 
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <p className="text-xs text-[var(--color-ink-subtle)]">
-                    {tableLockConfigLocked ? tr("tableLockLocked", lang) : tr("tableLockUnsaved", lang)}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={onTableLockSave}
-                    disabled={tableLockSaving}
-                    className="rounded-[var(--radius-pill)] bg-[linear-gradient(135deg,#6970ff_0%,#5c63f2_100%)] px-5 py-2 text-sm font-semibold text-white shadow-[var(--shadow-accent)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {tableLockSaving ? tr("tableLockSaving", lang) : tr("tableLockSave", lang)}
-                  </button>
-                </div>
+                <p className="text-xs text-[var(--color-ink-subtle)]">
+                  {tableLockSaving
+                    ? tr("tableLockSaving", lang)
+                    : tableLockConfigLocked
+                      ? tr("tableLockLocked", lang)
+                      : tr("tableLockUnsaved", lang)}
+                </p>
               </div>
             </section>
 
