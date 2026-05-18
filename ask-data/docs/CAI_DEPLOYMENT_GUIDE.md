@@ -95,12 +95,12 @@ User ketik pertanyaan di APP 4
 
 ### File konfigurasi kunci
 
-| File | Lokasi | Fungsi |
-|---|---|---|
-| `domain_config.yaml` | `ask-data/backend/` | Business name, kolom, contoh pertanyaan, guardrail — **edit ini untuk ganti domain** |
-| `backend_entry.py` | `ask-data/backend/` | Entry point APP 2: install deps, auto-ingest ChromaDB, start uvicorn |
-| `app/core/config.py` | `ask-data/backend/` | Runtime settings dari env vars (host, credential, flags) |
-| `.env` | `ask-data/backend/` | Env vars lokal dev — tidak di-commit, digantikan env vars CAI saat deploy |
+| File | Lokasi | Fungsi | Developer perlu? |
+|---|---|---|---|
+| `domain_config.yaml` | `ask-data/backend/` | Business name, kolom, contoh pertanyaan, guardrail message | **Ya — wajib edit** saat ganti domain/dataset (lihat [Ganti Domain/Dataset](#ganti-domaindataset)) |
+| `backend_entry.py` | `ask-data/backend/` | Entry point APP 2: install deps, auto-ingest ChromaDB, start uvicorn | Tidak — jalan otomatis |
+| `app/core/config.py` | `ask-data/backend/` | Runtime settings yang dibaca dari env vars (host, credential, flags) | Tidak — dikontrol via env vars CAI |
+| `.env` | `ask-data/backend/` | Env vars untuk development lokal | Hanya jika dev lokal — tidak dipakai di CAI |
 
 ---
 
