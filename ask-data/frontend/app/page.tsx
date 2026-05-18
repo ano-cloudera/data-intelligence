@@ -347,7 +347,16 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    apiClient.listTables().then((r) => setAvailableTables(r.tables)).catch(() => {});
+    apiClient.listTables().then((r) => {
+      setAvailableTables(r.tables);
+      // Auto-lock ke tabel pertama jika belum ada lock tersimpan dan hanya satu tabel
+      setTableLockConfig((cur) => {
+        if (cur.locked_table === null && r.tables.length === 1) {
+          return { ...cur, locked_table: r.tables[0] };
+        }
+        return cur;
+      });
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {

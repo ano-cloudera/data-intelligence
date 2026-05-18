@@ -604,43 +604,69 @@ export function ModelSettingsPanel({
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[12px] border border-[var(--color-border-soft)]" style={{ maxHeight: 480 }}>
+                <div className="rounded-[12px] border border-[var(--color-border-soft)]">
                   {tablePreviewLoading ? (
                     <div className="flex items-center justify-center py-10 text-sm text-[var(--color-ink-subtle)]">
                       {lang === "id" ? "Memuat data…" : "Loading data…"}
                     </div>
                   ) : tablePreviewData && tablePreviewData.columns.length > 0 ? (
-                    <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: 478 }}>
-                      <table className="text-xs" style={{ minWidth: "max-content", width: "100%" }}>
-                        <thead className="sticky top-0 z-10">
-                          <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]">
-                            {tablePreviewData.columns.map((col) => (
-                              <th key={col} className="whitespace-nowrap px-3 py-2 text-left font-mono font-semibold text-[#4953d3]">
-                                {col}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {tablePreviewData.rows.map((row, rowIdx) => (
-                            <tr
-                              key={rowIdx}
-                              className={rowIdx < tablePreviewData.rows.length - 1 ? "border-b border-[var(--color-border-soft)]" : ""}
-                            >
-                              {tablePreviewData.columns.map((col) => (
-                                <td key={col} className="whitespace-nowrap px-3 py-2 text-[var(--color-ink-muted)]">
-                                  {row[col] === null || row[col] === undefined ? (
-                                    <span className="text-[var(--color-ink-subtle)] italic">null</span>
-                                  ) : (
-                                    String(row[col])
-                                  )}
-                                </td>
+                    (() => {
+                      // Kolom prioritas yang paling informatif untuk preview compact
+                      const PRIORITY_COLS = [
+                        "customer_id", "snapshot_date", "age_band", "gender", "city",
+                        "customer_segment", "dormant_flag", "dormant_risk_level",
+                        "dormant_probability", "recommended_campaign",
+                      ];
+                      const allCols = tablePreviewData.columns;
+                      const displayCols = PRIORITY_COLS.filter((c) => allCols.includes(c)).slice(0, 6);
+                      const finalCols = displayCols.length > 0 ? displayCols : allCols.slice(0, 6);
+                      const truncate = (val: unknown, max = 18): string => {
+                        const s = val === null || val === undefined ? "" : String(val);
+                        return s.length > max ? s.slice(0, max) + "…" : s;
+                      };
+                      return (
+                        <div className="overflow-y-auto" style={{ maxHeight: 360 }}>
+                          <table className="w-full text-xs">
+                            <thead className="sticky top-0 z-10">
+                              <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]">
+                                {finalCols.map((col) => (
+                                  <th key={col} className="px-3 py-2 text-left font-mono font-semibold text-[#4953d3]" style={{ maxWidth: 120 }}>
+                                    <span className="block truncate">{col}</span>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {tablePreviewData.rows.map((row, rowIdx) => (
+                                <tr
+                                  key={rowIdx}
+                                  className={rowIdx < tablePreviewData.rows.length - 1 ? "border-b border-[var(--color-border-soft)]" : ""}
+                                >
+                                  {finalCols.map((col) => (
+                                    <td key={col} className="px-3 py-2 text-[var(--color-ink-muted)]" style={{ maxWidth: 120 }}>
+                                      {row[col] === null || row[col] === undefined ? (
+                                        <span className="italic text-[var(--color-ink-subtle)]">—</span>
+                                      ) : (
+                                        <span className="block truncate" title={String(row[col])}>
+                                          {truncate(row[col])}
+                                        </span>
+                                      )}
+                                    </td>
+                                  ))}
+                                </tr>
                               ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                            </tbody>
+                          </table>
+                          <div className="border-t border-[var(--color-border-soft)] px-3 py-1.5">
+                            <span className="text-[10px] text-[var(--color-ink-subtle)]">
+                              {lang === "id"
+                                ? `Menampilkan ${finalCols.length} dari ${allCols.length} kolom · ${tablePreviewData.rows.length} baris`
+                                : `Showing ${finalCols.length} of ${allCols.length} columns · ${tablePreviewData.rows.length} rows`}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()
                   ) : (
                     <div className="flex items-center justify-center py-10 text-sm text-[var(--color-ink-subtle)]">
                       {lang === "id" ? "Tidak ada data tersedia." : "No preview data available."}
