@@ -831,114 +831,235 @@ pip show pysqlite3-binary
 
 Gunakan bagian ini jika kamu deploy Ask Data untuk use case atau dataset yang **berbeda** dari Bank Jawa Timur dormant customer analytics — misalnya fraud detection, credit scoring, atau data nasabah bank lain.
 
-### Yang perlu diubah
+**Tidak perlu mengubah kode Python.** Semua customization domain dilakukan di dua tempat:
 
-Ada dua lapisan konfigurasi:
-
-| Lapisan | File | Isi |
+| Lapisan | Lokasi | Isi |
 |---|---|---|
-| **Runtime credentials** | Env vars CAI (APP 2, APP 3) | Host Impala, database, tabel, credential CDP |
+| **Runtime credentials** | Env vars CAI (APP 2 & APP 3) | Host Impala, database, nama tabel, credential CDP |
 | **Domain & schema** | `ask-data/backend/domain_config.yaml` | Nama bisnis, kolom, contoh pertanyaan, guardrail message |
 
-### Step 1 — Update env vars (runtime)
+---
 
-Di APP 2 dan APP 3, sesuaikan env vars berikut:
+### Step D1 — Cek skema tabel di Impala
 
-| Key | Keterangan |
-|---|---|
-| `DB_NAME` | Nama database Impala yang berisi tabel baru |
-| `SQL_ALLOWED_TABLES` | Nama tabel baru (satu atau beberapa, pisah koma) |
-| `CHROMA_COLLECTION` | Nama collection ChromaDB untuk dataset baru (jika pakai RAG) |
-| `IMPALA_HOST`, `CDP_USER`, `CDP_PASS` | Sesuaikan jika environment CDW berbeda |
+Sebelum edit config, ambil daftar kolom dari tabel target. Jalankan di terminal **Workbench session**:
 
-### Step 2 — Edit `domain_config.yaml`
+```bash
+python3 - <<'EOF'
+from impala.dbapi import connect
 
-File ini ada di: `ask-data/backend/domain_config.yaml`
+conn = connect(
+    host='<impala-host>',
+    port=443,
+    use_ssl=True,
+    auth_mechanism='PLAIN',
+    user='<cdp-user>',
+    password='<cdp-pass>',
+)
+cur = conn.cursor()
+cur.execute("DESCRIBE <nama-database>.<nama-tabel>")
+rows = cur.fetchall()
+print("# Kolom tersedia:")
+for name, dtype, comment in rows:
+    desc = comment.strip() if comment and comment.strip() else f"{dtype} column"
+    print(f"  - name: {name}")
+    print(f"    description: \"{desc}\"")
+EOF
+```
 
-Edit bagian-bagian berikut sesuai dataset baru:
+Salin output — akan langsung dipakai di bagian `columns:` pada `domain_config.yaml`.
+
+---
+
+### Step D2 — Update env vars APP 2 & APP 3
+
+Di CAI dashboard, buka **APP 2 (Backend)** dan **APP 3 (MCP Server)** → **Edit** → **Environment Variables**. Sesuaikan:
+
+| Key | Nilai baru | Keterangan |
+|---|---|---|
+| `DB_NAME` | `<nama-database-baru>` | Database Impala yang berisi tabel target |
+| `SQL_ALLOWED_TABLES` | `<nama-tabel-baru>` | Tabel yang boleh di-query (pisah koma jika lebih dari satu) |
+| `CHROMA_COLLECTION` | `<nama-collection-baru>` | Nama collection ChromaDB (jika pakai RAG) — bebas diisi, misal `bank_xyz_knowledge` |
+| `IMPALA_HOST` | `<impala-host-baru>` | Sesuaikan jika CDW environment berbeda |
+| `CDP_USER` / `CDP_PASS` | `<credential-baru>` | Sesuaikan jika credential berbeda |
+| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` | Path tetap sama, collection-nya yang diganti |
+
+> Simpan perubahan env vars — jangan restart dulu, lakukan setelah Step D3.
+
+---
+
+### Step D3 — Edit `domain_config.yaml`
+
+File ini ada di repo: `ask-data/backend/domain_config.yaml`
+
+Edit langsung di terminal Workbench session:
+
+```bash
+nano /home/cdsw/data-intelligence/ask-data/backend/domain_config.yaml
+```
+
+Atau edit di lokal lalu push ke repo (direkomendasikan agar tersimpan di git).
+
+Berikut **template lengkap** — ganti semua nilai yang relevan:
 
 ```yaml
-# 1. Identitas bisnis
-business_name: "Nama Bank / Perusahaan Kamu"
-business_domain: "deskripsi singkat use case — dipakai di system prompt dan intro chatbot"
+# =============================================================================
+# Identitas bisnis
+# =============================================================================
+business_name: "Nama Bank / Perusahaan"          # muncul di intro chatbot & system prompt
+business_domain: "deskripsi singkat use case"    # contoh: "credit risk analytics and loan portfolio analysis"
 
-# 2. Nama database & tabel — harus konsisten dengan env vars DB_NAME dan SQL_ALLOWED_TABLES
+# =============================================================================
+# Database & tabel — harus konsisten dengan env vars DB_NAME & SQL_ALLOWED_TABLES
+# =============================================================================
 database_name: "nama_database_impala"
 table_name: "nama_tabel_utama"
 table_description: "Deskripsi singkat tabel untuk LLM"
-table_grain: "one row per ..."
+table_grain: "one row per ..."                   # contoh: "one row per customer per snapshot date"
 
-# 3. Scope bisnis — bullet points yang muncul di system prompt
+# =============================================================================
+# Scope bisnis — muncul sebagai bullet di system prompt LLM
+# =============================================================================
 business_scope:
-  - "Area analitik 1"
-  - "Area analitik 2"
+  - "Area analitik 1: contoh isi dan kolom yang relevan."
+  - "Area analitik 2: contoh isi dan kolom yang relevan."
+  - "Area analitik 3: ..."
 
-# 4. Kolom — daftar kolom yang tersedia di tabel
+# =============================================================================
+# Kolom tabel — salin output dari Step D1
+# =============================================================================
 columns:
   - name: kolom_1
     description: "Deskripsi kolom 1"
   - name: kolom_2
     description: "Deskripsi kolom 2"
+  # tambahkan semua kolom dari hasil DESCRIBE ...
 
-# 5. Business term mappings — istilah lokal ke kolom SQL
+# =============================================================================
+# Business term mappings — terjemahan istilah lokal ke filter SQL
+# Dipakai LLM saat menerjemahkan pertanyaan bisnis ke query
+# =============================================================================
 term_mappings:
   - term: "istilah bahasa indonesia"
     column: "nama_kolom = 'nilai'"
+  - term: "another business term"
+    column: "column_name"
 
-# 6. Contoh pertanyaan bisnis
+# =============================================================================
+# Contoh pertanyaan bisnis — panduan LLM memahami jenis pertanyaan yang valid
+# =============================================================================
 example_questions:
-  - "Contoh pertanyaan 1?"
-  - "Contoh pertanyaan 2?"
+  - "Berapa total X per kategori Y?"
+  - "Tampilkan distribusi Z berdasarkan W"
+  - "Apa rata-rata A untuk segmen B?"
 
-# 7. SQL rules tambahan (opsional)
+# =============================================================================
+# SQL rules tambahan — opsional, untuk hint GROUP BY atau filter spesifik
+# =============================================================================
 sql_extra_rules:
   - "Untuk distribusi X: GROUP BY kolom_x."
+  - "Untuk filter risiko tinggi: WHERE kolom_risk = 'HIGH'."
 
-# 8. Pesan guardrail out-of-scope
+# =============================================================================
+# Pesan guardrail — ditampilkan ketika user tanya di luar domain
+# =============================================================================
 guardrail_out_of_scope_en: >
-  This assistant is focused on [your domain]. Try asking about ...
-guardrail_out_of_scope_id: >
-  Asisten ini difokuskan pada [domain kamu]. Coba tanyakan tentang ...
+  This assistant is focused on [your domain]. Try asking about [topic 1],
+  [topic 2], or [topic 3].
 
-# 9. Panduan interpretasi ambiguitas
+guardrail_out_of_scope_id: >
+  Asisten ini difokuskan pada [domain kamu]. Coba tanyakan tentang [topik 1],
+  [topik 2], atau [topik 3].
+
+# =============================================================================
+# Panduan interpretasi pertanyaan ambigu
+# =============================================================================
 ambiguity_guidance:
   - "All data is in the main table — no joins are needed."
-  - "Jika pertanyaan ambigu, ..."
+  - "Jika pertanyaan tidak spesifik, gunakan agregasi dengan LIMIT."
+  - "Tambahkan hint spesifik domain kamu di sini."
 ```
 
-### Step 3 — Upload PDF dokumen baru (jika pakai RAG)
+---
 
-Letakkan PDF kebijakan/SOP baru di: `ask-data/data/documents/`
+### Step D4 — Push perubahan ke repo & pull di CAI
 
-Hapus folder `chroma_db` lama jika ada (agar auto-ingest berjalan ulang dengan koleksi baru):
+Jika edit dilakukan di lokal:
 
 ```bash
-rm -rf /home/cdsw/data-intelligence/ask-data/backend/chroma_db
+# Di lokal
+git add ask-data/backend/domain_config.yaml
+git commit -m "Update domain config for <nama-use-case>"
+git push origin main
 ```
 
-Restart APP 2 — auto-ingest akan berjalan otomatis saat startup.
-
-### Step 4 — Restart APP 2
-
-Setelah `domain_config.yaml` diedit dan di-push ke repo:
+Lalu pull di Workbench session:
 
 ```bash
 cd /home/cdsw/data-intelligence
 git pull origin main
 ```
 
-Lalu restart APP 2 dari CAI dashboard. Tidak perlu restart APP lain.
+Jika edit langsung di Workbench session (via `nano`), perubahan sudah ada di filesystem — tidak perlu pull.
+
+---
+
+### Step D5 — Reset ChromaDB & upload PDF baru (jika pakai RAG)
+
+Hapus collection lama agar auto-ingest berjalan ulang dengan collection baru:
+
+```bash
+rm -rf /home/cdsw/data-intelligence/ask-data/backend/chroma_db
+```
+
+Letakkan PDF kebijakan/SOP baru di:
+
+```bash
+ls /home/cdsw/data-intelligence/ask-data/data/documents/
+# Salin PDF baru ke sini:
+cp /path/to/dokumen-baru.pdf /home/cdsw/data-intelligence/ask-data/data/documents/
+```
+
+Auto-ingest berjalan otomatis saat APP 2 restart di Step D6.
+
+---
+
+### Step D6 — Restart APP 2
+
+Di CAI dashboard → **APP 2 (Backend)** → **Restart**.
+
+Pantau tab **Logs** — startup sukses:
+
+```text
+INFO RAG: collection '<nama-collection-baru>' not found — starting auto-ingest
+INFO RAG: auto-ingest complete
+INFO Application startup complete.
+```
+
+> Hanya APP 2 yang perlu restart. APP 1, APP 3, APP 4 tidak perlu disentuh.
+
+---
 
 ### Verifikasi
 
 ```bash
 BACKEND_URL="https://<subdomain-app2>.<domain-cai-kamu>"
 
-# Cek system prompt sudah pakai domain baru
+# 1. Cek health
 curl $BACKEND_URL/health
-# Cek schema context
+# Expected: {"status":"ok",...}
+
+# 2. Cek tabel baru terdaftar
+curl $BACKEND_URL/tables
+# Expected: {"tables":["<nama-tabel-baru>"],...}
+
+# 3. Cek RAG collection baru (jika pakai RAG)
+curl $BACKEND_URL/rag/options
+# Expected: {"enabled":true,"collections":[{"name":"<nama-collection-baru>","document_count":N}]}
+
+# 4. Cek intro chatbot menyebut domain baru
 curl -X POST $BACKEND_URL/chat/answer \
   -H "Content-Type: application/json" \
-  -d '{"question": "halo, kamu bisa bantu apa?", "session_id": "test-domain"}'
-# Expected: intro menyebut business_name dan business_domain yang baru
+  -d '{"question": "halo, kamu bisa bantu apa?", "session_id": "test-domain-check"}'
+# Expected: respons menyebut business_name dan business_domain yang baru
 ```
