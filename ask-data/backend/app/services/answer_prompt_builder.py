@@ -35,7 +35,7 @@ Result preview JSON:
 
 Write one concise, natural, business-friendly answer grounded only in this result.
 Lead with the key takeaway.
-Respond in the same language as the original business question.
+CRITICAL: Respond ENTIRELY in the same language as the original business question. If the question is in Bahasa Indonesia, your entire answer MUST be in Bahasa Indonesia. If the question is in English, answer entirely in English. Do not mix languages.
 If no rows are present, say that no matching records were found.
 If truncation is true, mention that only a preview is shown.
 Do not invent any unsupported interpretation.

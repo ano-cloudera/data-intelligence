@@ -796,28 +796,31 @@ def _run_rag_chat_flow(
     if is_id:
         system_prompt = (
             "Anda adalah asisten analitik Bank Jawa Timur. "
-            "Jawab dalam Bahasa Indonesia berdasarkan konteks dokumen di bawah ini. "
-            "Gunakan bahasa yang jelas dan profesional. "
-            "Jika informasi tidak tersedia di dokumen, katakan: "
-            "'Informasi tersebut tidak tersedia di dokumen yang ada.'"
+            "PENTING: Anda HARUS menjawab SELURUHNYA dalam Bahasa Indonesia. "
+            "Dilarang keras menggunakan kata atau kalimat dalam bahasa Inggris. "
+            "Gunakan bahasa yang jelas, natural, dan profesional. "
+            "Jawab hanya berdasarkan konteks dokumen yang diberikan. "
+            "Jika informasi tidak tersedia di dokumen, katakan dengan natural dalam Bahasa Indonesia."
         )
         user_prompt = (
+            f"[INSTRUKSI: Jawab HANYA dalam Bahasa Indonesia]\n\n"
             f"Konteks dokumen:\n{context_text}\n\n"
             f"Pertanyaan: {payload.question}\n\n"
-            "Jawab dalam Bahasa Indonesia."
+            "Berikan jawaban yang jelas dan ringkas dalam Bahasa Indonesia."
         )
     else:
         system_prompt = (
             "You are an analytics assistant for Bank Jawa Timur. "
-            "Answer in English based on the document context below. "
-            "Use clear and professional language. "
-            "If the information is not in the documents, say: "
-            "'This information is not available in the provided documents.'"
+            "IMPORTANT: You MUST answer entirely in English. "
+            "Use clear, natural, and professional language. "
+            "Answer only based on the provided document context. "
+            "If the information is not in the documents, say so naturally in English."
         )
         user_prompt = (
+            f"[INSTRUCTION: Answer ONLY in English]\n\n"
             f"Document context:\n{context_text}\n\n"
             f"Question: {payload.question}\n\n"
-            "Answer in English."
+            "Provide a clear and concise answer in English."
         )
     answer = llm_client.chat(
         [
