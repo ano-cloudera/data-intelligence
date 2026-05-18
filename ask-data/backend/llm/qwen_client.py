@@ -15,7 +15,7 @@ from openai import OpenAI
 class QwenClient:
     def __init__(self) -> None:
         self.base_url = os.getenv("QWEN_BASE_URL", "http://localhost:8000/v1")
-        self.api_key = os.getenv("QWEN_API_KEY", "local-dev-token")
+        self.api_key = os.getenv("QWEN_API_KEY", "bjt-local-vllm")
         self.model = os.getenv("QWEN_MODEL", "Qwen/Qwen3-8B-AWQ")
         self.client = OpenAI(base_url=self.base_url, api_key=self.api_key)
 
