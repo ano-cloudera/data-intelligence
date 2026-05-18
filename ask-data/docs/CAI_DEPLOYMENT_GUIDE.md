@@ -93,32 +93,34 @@ Ask Data terdiri dari **4 Application** yang berjalan di Cloudera AI dan berkomu
 
 ### Alur request end-to-end
 
-```text
-User ketik pertanyaan di APP 4
-         │
-         │  POST /chat/answer
-         ▼
-    APP 2 — chat router
-         │
-         ├── Pertanyaan SQL? ──────────────────────────────────────┐
-         │                                                          │
-         │   1. Generate SQL  →  APP 1 (Qwen LLM)                 │
-         │   2. Validasi SQL  →  guardrails + allowed tables       │
-         │   3. Eksekusi      →  Impala CDW                        │
-         │   4. Format hasil  →  jawaban teks + tabel/chart        │
-         │                                              └──► APP 4 │
-         │                                                          │
-         ├── Pertanyaan dokumen / kebijakan? ──────────────────────┤
-         │                                                          │
-         │   1. Embed query   →  all-MiniLM-L6-v2                  │
-         │   2. Vector search →  ChromaDB (top-2 chunks)           │
-         │   3. Generate RAG  →  APP 1 (Qwen LLM) + PDF context   │
-         │   4. Jawaban teks + link PDF sumber        └──► APP 4  │
-         │                                                          │
-         └── Percakapan biasa (greeting, clarification)? ──────────┤
-                                                                    │
-             1. LLM reply  →  APP 1 (Qwen LLM)       └──► APP 4  │
-```
+**1. User** ketik pertanyaan di APP 4 → `POST /chat/answer` → **APP 2 chat router**
+
+APP 2 menentukan jenis pertanyaan dan menjalankan salah satu dari tiga path:
+
+---
+
+**Path A — Pertanyaan SQL** *(analitik data, agregasi, distribusi)*
+
+1. Generate SQL → APP 1 (Qwen LLM)
+2. Validasi SQL → guardrails + allowed tables check
+3. Eksekusi query → Impala CDW
+4. Format hasil → jawaban teks + tabel/chart → **APP 4**
+
+---
+
+**Path B — Pertanyaan dokumen** *(kebijakan, SOP, panduan)*
+
+1. Embed query → model `all-MiniLM-L6-v2` (lokal)
+2. Vector search → ChromaDB, ambil top-2 chunks paling relevan
+3. Generate jawaban → APP 1 (Qwen LLM) + konteks PDF
+4. Jawaban teks + link PDF sumber → **APP 4**
+
+---
+
+**Path C — Percakapan biasa** *(greeting, clarification, small talk)*
+
+1. LLM reply → APP 1 (Qwen LLM)
+2. Jawaban conversational → **APP 4**
 
 ### File konfigurasi kunci
 
