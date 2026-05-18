@@ -1,0 +1,224 @@
+# =============================================================================
+# domain_config.yaml — Domain Customization File
+# =============================================================================
+# Edit file ini ketika kamu deploy Ask Data untuk use case atau dataset berbeda.
+# Tidak perlu mengubah kode Python sama sekali — cukup sesuaikan nilai di sini.
+#
+# Setelah diedit, restart APP 2 (Backend) agar perubahan berlaku.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. Identitas bisnis
+# -----------------------------------------------------------------------------
+business_name: "Bank Jawa Timur"
+
+# Deskripsi singkat use case — dipakai di system prompt dan conversation prompt
+business_domain: "dormant customer risk analysis, customer segmentation, campaign recommendations, and behavioral analytics"
+
+# -----------------------------------------------------------------------------
+# 2. Database & tabel utama
+# -----------------------------------------------------------------------------
+# Nama database dan tabel dikontrol oleh env vars DB_NAME dan SQL_ALLOWED_TABLES.
+# Nilai di bawah ini dipakai di schema context dan prompt — harus konsisten
+# dengan env vars tersebut.
+database_name: "cai_sdx_se_indonesia"
+table_name: "customer_dormant_segment"
+table_description: "AI-enriched customer profile for segmentation and dormant risk scoring"
+table_grain: "one row per customer per snapshot date"
+
+# -----------------------------------------------------------------------------
+# 3. Scope bisnis — dipakai di system prompt
+# Setiap item adalah satu bullet point yang menjelaskan area analitik yang didukung
+# -----------------------------------------------------------------------------
+business_scope:
+  - "Customer segmentation: distribution by segment, segment scores, segment descriptions."
+  - "Dormancy risk: dormant flags, dormant risk levels, dormant probability, dormant reason codes."
+  - "Behavioral analytics: transaction frequency, days since last transaction, active months, digital login counts."
+  - "Product holding: savings, current account, deposit, loan, mobile/internet banking flags."
+  - "Balance analytics: average savings balance, average deposit balance, total deposit balance, outstanding loan balance."
+  - "Campaign intelligence: recommended campaigns, recommended channels, next best actions."
+  - "Demographic context: age band, gender, city, district, branch, occupation, income band, customer tenure."
+
+# -----------------------------------------------------------------------------
+# 4. Schema tabel — kolom-kolom yang tersedia
+# Dipakai oleh schema_context.py untuk memberi LLM deskripsi kolom yang akurat.
+# Tambah/hapus kolom sesuai skema data aktual kamu.
+# -----------------------------------------------------------------------------
+columns:
+  - name: customer_id
+    description: "synthetic analytics identifier (not real PII)"
+  - name: snapshot_date
+    description: "date of the scoring snapshot"
+  - name: age_band
+    description: "customer age group (e.g. 26-35, 36-45)"
+  - name: gender
+    description: "customer gender (M/F)"
+  - name: city
+    description: "customer city"
+  - name: district
+    description: "customer district"
+  - name: branch_code
+    description: "branch code"
+  - name: branch_name
+    description: "branch name"
+  - name: customer_tenure_months
+    description: "months since customer onboarding"
+  - name: occupation_category
+    description: "customer occupation category"
+  - name: income_band
+    description: "customer income band"
+  - name: customer_type
+    description: "Individual or SME"
+  - name: total_accounts
+    description: "total number of accounts held"
+  - name: has_savings
+    description: "boolean, customer has savings account"
+  - name: has_current_account
+    description: "boolean, customer has current account"
+  - name: has_deposit
+    description: "boolean, customer has deposit account"
+  - name: has_loan
+    description: "boolean, customer has active loan"
+  - name: has_mobile_banking
+    description: "boolean, customer enrolled in mobile banking"
+  - name: has_internet_banking
+    description: "boolean, customer enrolled in internet banking"
+  - name: product_holding_count
+    description: "total number of products held"
+  - name: avg_savings_balance_3m
+    description: "average savings balance over last 3 months"
+  - name: avg_deposit_balance_3m
+    description: "average deposit balance over last 3 months"
+  - name: total_deposit_balance
+    description: "total current deposit balance"
+  - name: outstanding_loan_balance
+    description: "total outstanding loan balance"
+  - name: monthly_avg_transaction_amount
+    description: "average monthly transaction amount"
+  - name: monthly_transaction_count
+    description: "average monthly transaction count"
+  - name: days_since_last_transaction
+    description: "days since the last recorded transaction"
+  - name: active_months_last_6m
+    description: "number of active months in the last 6 months"
+  - name: debit_transaction_count_3m
+    description: "debit transaction count in last 3 months"
+  - name: credit_transaction_count_3m
+    description: "credit transaction count in last 3 months"
+  - name: digital_login_count_3m
+    description: "digital channel login count in last 3 months"
+  - name: atm_transaction_count_3m
+    description: "ATM transaction count in last 3 months"
+  - name: branch_transaction_count_3m
+    description: "branch transaction count in last 3 months"
+  - name: customer_segment
+    description: "customer segment label (e.g. Affluent Depositor, Mass Retail, Digital Active)"
+  - name: segment_description
+    description: "segment description text"
+  - name: segment_score
+    description: "segment model confidence score (0-1)"
+  - name: dormant_flag
+    description: "boolean, true if customer is classified as dormant"
+  - name: dormant_risk_level
+    description: "dormant risk level: HIGH, MEDIUM, or LOW"
+  - name: dormant_probability
+    description: "dormant probability score (0-1)"
+  - name: dormant_reason_code
+    description: "reason code for dormant classification"
+  - name: recommended_campaign
+    description: "recommended campaign for the customer"
+  - name: recommended_channel
+    description: "recommended contact channel"
+  - name: next_best_action
+    description: "recommended next action text"
+  - name: segmentation_model_version
+    description: "version of the segmentation model used"
+  - name: dormant_model_version
+    description: "version of the dormant risk model used"
+  - name: scoring_timestamp
+    description: "timestamp when scoring was last run"
+
+# -----------------------------------------------------------------------------
+# 5. Business term mappings — istilah bisnis ke nama kolom
+# Dipakai di query guidance agar LLM tahu terjemahan istilah lokal ke kolom SQL
+# -----------------------------------------------------------------------------
+term_mappings:
+  - term: "risiko dormant tinggi"
+    column: "dormant_risk_level = 'HIGH'"
+  - term: "dormant high risk"
+    column: "dormant_risk_level = 'HIGH'"
+  - term: "nasabah dormant"
+    column: "dormant_flag = true"
+  - term: "segmentasi"
+    column: "customer_segment"
+  - term: "customer segment"
+    column: "customer_segment"
+  - term: "rekomendasi campaign"
+    column: "recommended_campaign"
+  - term: "channel rekomendasi"
+    column: "recommended_channel"
+  - term: "cabang"
+    column: "branch_name"
+  - term: "kota"
+    column: "city"
+  - term: "saldo deposito"
+    column: "total_deposit_balance"
+  - term: "saldo pinjaman"
+    column: "outstanding_loan_balance"
+  - term: "probability dormant"
+    column: "dormant_probability"
+
+# -----------------------------------------------------------------------------
+# 6. Contoh pertanyaan bisnis — ditampilkan ke LLM sebagai panduan
+# Sesuaikan dengan kolom dan istilah yang ada di dataset kamu
+# -----------------------------------------------------------------------------
+example_questions:
+  - "customer count by dormant_risk_level (low / medium / high)"
+  - "customer count by customer_segment"
+  - "average dormant_probability by customer_segment"
+  - "total deposit balance by dormant_risk_level"
+  - "average savings balance by city or district"
+  - "outstanding loan balance by income_band"
+  - "customers with dormant_flag = true grouped by age_band"
+  - "days_since_last_transaction distribution by segment"
+  - "count of customers with has_mobile_banking = true vs false"
+  - "recommended_campaign distribution for high-risk dormant customers"
+  - "recommended_channel breakdown by customer_segment"
+  - "next_best_action frequency by dormant_reason_code"
+  - "product_holding_count distribution across segments"
+  - "active_months_last_6m average by dormant_risk_level"
+  - "digital_login_count_3m average by customer_type"
+
+# -----------------------------------------------------------------------------
+# 7. SQL behavior rules tambahan — opsional
+# Baris-baris ini ditambahkan ke SQL generation rules di system prompt.
+# Gunakan untuk GROUP BY pattern atau filter yang spesifik ke domain kamu.
+# -----------------------------------------------------------------------------
+sql_extra_rules:
+  - "For dormancy distribution: GROUP BY dormant_risk_level or dormant_flag."
+  - "For segment analysis: GROUP BY customer_segment."
+
+# -----------------------------------------------------------------------------
+# 8. Pesan guardrail out-of-scope
+# Dipakai ketika user bertanya di luar domain yang didukung
+# -----------------------------------------------------------------------------
+guardrail_out_of_scope_en: >
+  This assistant is focused on dormant customer segmentation and risk analytics.
+  Try asking about customer segments, dormancy risk levels, campaign recommendations,
+  or balance distribution.
+
+guardrail_out_of_scope_id: >
+  Asisten ini difokuskan pada analitik segmentasi nasabah dormant dan risiko.
+  Coba tanyakan tentang segmen nasabah, tingkat risiko dormant, rekomendasi kampanye,
+  atau distribusi saldo.
+
+# -----------------------------------------------------------------------------
+# 9. Ambiguity guidance — panduan interpretasi pertanyaan ambigu
+# -----------------------------------------------------------------------------
+ambiguity_guidance:
+  - "All data is in the main table — no joins are needed."
+  - "If a question asks for 'dormant customers', filter on dormant_flag = true or dormant_risk_level = 'HIGH'."
+  - "If a question asks for segment distribution, GROUP BY customer_segment."
+  - "If a question asks about balance, use avg_deposit_balance_3m, total_deposit_balance, or avg_savings_balance_3m as appropriate."
+  - "If a question asks about campaign or reactivation, use recommended_campaign, recommended_channel, or next_best_action."
+  - "If a question is broad, return a practical preview query with LIMIT applied."

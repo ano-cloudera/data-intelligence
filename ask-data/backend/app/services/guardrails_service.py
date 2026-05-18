@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings, get_settings
+from app.core.domain_config import get_domain_config
 from app.services.chat_router import is_indonesian_text
 
 PROMPT_INJECTION_PATTERNS = (
@@ -80,10 +81,7 @@ BLOCK_REASON_MESSAGES = {
         "I can summarize portfolio data, but I can't expose raw personal or sensitive customer information. Try asking for aggregated results instead.",
         "Saya bisa membantu ringkasan data portofolio, tetapi saya tidak bisa menampilkan data pribadi atau sensitif nasabah secara mentah. Coba minta hasil agregat sebagai gantinya.",
     ),
-    "out_of_scope": (
-        "This assistant is focused on dormant customer segmentation and risk analytics. Try asking about customer segments, dormancy risk levels, campaign recommendations, or balance distribution.",
-        "Asisten ini difokuskan pada analitik segmentasi nasabah dormant dan risiko. Coba tanyakan tentang segmen nasabah, tingkat risiko dormant, rekomendasi kampanye, atau distribusi saldo.",
-    ),
+    "out_of_scope": None,  # loaded dynamically from domain_config
     "toxic_language": (
         "Please rephrase the request in a professional way and I will continue to help.",
         "Silakan tuliskan ulang permintaannya dengan bahasa yang profesional, lalu saya akan bantu lanjut.",
@@ -235,7 +233,13 @@ class GuardrailsService:
         )
 
     def _blocked(self, reason: str, question: str) -> GuardrailsDecision:
-        english_message, indonesian_message = BLOCK_REASON_MESSAGES[reason]
+        messages = BLOCK_REASON_MESSAGES[reason]
+        if messages is None:
+            dc = get_domain_config()
+            english_message = dc.guardrail_out_of_scope_en
+            indonesian_message = dc.guardrail_out_of_scope_id
+        else:
+            english_message, indonesian_message = messages
         return GuardrailsDecision(
             action="block",
             reason=reason,

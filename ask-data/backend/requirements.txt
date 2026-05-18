@@ -1,4 +1,6 @@
 fastapi==0.127.0
+pyyaml>=6.0
+sentence-transformers>=2.7.0
 chromadb>=0.5.0
 pysqlite3-binary>=0.5.0
 pypdf>=4.0.0

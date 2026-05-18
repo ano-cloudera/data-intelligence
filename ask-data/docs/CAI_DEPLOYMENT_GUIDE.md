@@ -7,6 +7,8 @@
 Deploy urutan wajib:
 **Step 0 Credential → Persiapan (A–C) → APP 1 Qwen LLM → APP 2 Backend → APP 3 MCP Server → APP 4 Frontend**
 
+> **Deploy dengan dataset berbeda?** Baca [Ganti Domain/Dataset](#ganti-domaindataset) sebelum mulai.
+
 ---
 
 ## Prerequisite
@@ -822,3 +824,121 @@ pip show pysqlite3-binary
 - [ ] Pertanyaan dokumen → jawaban RAG + "Relevant Documents" muncul ✓ _(tanpa perlu aktifkan manual)_
 - [ ] Settings panel → badge "Knowledge Base: Auto" terlihat ✓
 - [ ] Guardrails → PII query diblok ✓
+
+---
+
+## Ganti Domain/Dataset
+
+Gunakan bagian ini jika kamu deploy Ask Data untuk use case atau dataset yang **berbeda** dari Bank Jawa Timur dormant customer analytics — misalnya fraud detection, credit scoring, atau data nasabah bank lain.
+
+### Yang perlu diubah
+
+Ada dua lapisan konfigurasi:
+
+| Lapisan | File | Isi |
+|---|---|---|
+| **Runtime credentials** | Env vars CAI (APP 2, APP 3) | Host Impala, database, tabel, credential CDP |
+| **Domain & schema** | `ask-data/backend/domain_config.yaml` | Nama bisnis, kolom, contoh pertanyaan, guardrail message |
+
+### Step 1 — Update env vars (runtime)
+
+Di APP 2 dan APP 3, sesuaikan env vars berikut:
+
+| Key | Keterangan |
+|---|---|
+| `DB_NAME` | Nama database Impala yang berisi tabel baru |
+| `SQL_ALLOWED_TABLES` | Nama tabel baru (satu atau beberapa, pisah koma) |
+| `CHROMA_COLLECTION` | Nama collection ChromaDB untuk dataset baru (jika pakai RAG) |
+| `IMPALA_HOST`, `CDP_USER`, `CDP_PASS` | Sesuaikan jika environment CDW berbeda |
+
+### Step 2 — Edit `domain_config.yaml`
+
+File ini ada di: `ask-data/backend/domain_config.yaml`
+
+Edit bagian-bagian berikut sesuai dataset baru:
+
+```yaml
+# 1. Identitas bisnis
+business_name: "Nama Bank / Perusahaan Kamu"
+business_domain: "deskripsi singkat use case — dipakai di system prompt dan intro chatbot"
+
+# 2. Nama database & tabel — harus konsisten dengan env vars DB_NAME dan SQL_ALLOWED_TABLES
+database_name: "nama_database_impala"
+table_name: "nama_tabel_utama"
+table_description: "Deskripsi singkat tabel untuk LLM"
+table_grain: "one row per ..."
+
+# 3. Scope bisnis — bullet points yang muncul di system prompt
+business_scope:
+  - "Area analitik 1"
+  - "Area analitik 2"
+
+# 4. Kolom — daftar kolom yang tersedia di tabel
+columns:
+  - name: kolom_1
+    description: "Deskripsi kolom 1"
+  - name: kolom_2
+    description: "Deskripsi kolom 2"
+
+# 5. Business term mappings — istilah lokal ke kolom SQL
+term_mappings:
+  - term: "istilah bahasa indonesia"
+    column: "nama_kolom = 'nilai'"
+
+# 6. Contoh pertanyaan bisnis
+example_questions:
+  - "Contoh pertanyaan 1?"
+  - "Contoh pertanyaan 2?"
+
+# 7. SQL rules tambahan (opsional)
+sql_extra_rules:
+  - "Untuk distribusi X: GROUP BY kolom_x."
+
+# 8. Pesan guardrail out-of-scope
+guardrail_out_of_scope_en: >
+  This assistant is focused on [your domain]. Try asking about ...
+guardrail_out_of_scope_id: >
+  Asisten ini difokuskan pada [domain kamu]. Coba tanyakan tentang ...
+
+# 9. Panduan interpretasi ambiguitas
+ambiguity_guidance:
+  - "All data is in the main table — no joins are needed."
+  - "Jika pertanyaan ambigu, ..."
+```
+
+### Step 3 — Upload PDF dokumen baru (jika pakai RAG)
+
+Letakkan PDF kebijakan/SOP baru di: `ask-data/data/documents/`
+
+Hapus folder `chroma_db` lama jika ada (agar auto-ingest berjalan ulang dengan koleksi baru):
+
+```bash
+rm -rf /home/cdsw/data-intelligence/ask-data/backend/chroma_db
+```
+
+Restart APP 2 — auto-ingest akan berjalan otomatis saat startup.
+
+### Step 4 — Restart APP 2
+
+Setelah `domain_config.yaml` diedit dan di-push ke repo:
+
+```bash
+cd /home/cdsw/data-intelligence
+git pull origin main
+```
+
+Lalu restart APP 2 dari CAI dashboard. Tidak perlu restart APP lain.
+
+### Verifikasi
+
+```bash
+BACKEND_URL="https://<subdomain-app2>.<domain-cai-kamu>"
+
+# Cek system prompt sudah pakai domain baru
+curl $BACKEND_URL/health
+# Cek schema context
+curl -X POST $BACKEND_URL/chat/answer \
+  -H "Content-Type: application/json" \
+  -d '{"question": "halo, kamu bisa bantu apa?", "session_id": "test-domain"}'
+# Expected: intro menyebut business_name dan business_domain yang baru
+```
