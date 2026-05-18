@@ -681,8 +681,21 @@ export default function HomePage() {
   async function loadSavedTableLock(sessionId: string) {
     try {
       const saved = await apiClient.getTableLock(sessionId);
-      setTableLockConfig({ session_id: sessionId, locked_table: saved.locked_table });
-      setTableLockDirty(false);
+      if (saved.locked_table) {
+        setTableLockConfig({ session_id: sessionId, locked_table: saved.locked_table });
+        setTableLockDirty(false);
+      } else {
+        // Tidak ada lock tersimpan — auto-lock ke tabel pertama jika tersedia
+        const tables = await apiClient.listTables().then((r) => r.tables).catch(() => [] as string[]);
+        const defaultTable = tables.length > 0 ? tables[0] : null;
+        if (defaultTable) {
+          await apiClient.saveTableLock({ session_id: sessionId, locked_table: defaultTable });
+          setTableLockConfig({ session_id: sessionId, locked_table: defaultTable });
+        } else {
+          setTableLockConfig({ session_id: sessionId, locked_table: null });
+        }
+        setTableLockDirty(false);
+      }
     } catch {
       setTableLockConfig({ session_id: sessionId, locked_table: null });
       setTableLockDirty(false);
