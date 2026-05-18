@@ -97,10 +97,10 @@ and deposit performance — no SQL required.
 **Key capabilities:**
 
 - NL-to-SQL via Qwen2.5-14B-Instruct-AWQ (vLLM) → Impala CDW execution
-- RAG document Q&A via ChromaDB (5 Bank Jatim PDFs, 17 chunks, `nomic-embed-text` embedding)
+- RAG document Q&A via ChromaDB (5 Bank Jatim PDFs, auto-ingested on startup, `all-MiniLM-L6-v2` embedding)
 - MCP Server with 6 structured tools: `sql_query`, `dormant_risk_summary`, `dormant_reason_breakdown`, `campaign_recommendation`, `campaign_summary_by_reason`, `rag_search`
 - Visualization spec generation (bar, line, pie, table) rendered via Recharts
-- Local guardrails: PII blocking, SQL-only enforcement, Bahasa Indonesia output
+- Local guardrails: PII blocking, SQL-only enforcement, language-matched output (jawab sesuai bahasa pertanyaan)
 - Session management via SQLite
 - Next.js 15 frontend in Bahasa Indonesia — Cloudera-branded design system
 
@@ -110,7 +110,7 @@ and deposit performance — no SQL required.
 
 1. `python sync_project.py` — sync repo ke session
 2. `export HUGGING_FACE_HUB_TOKEN=hf_xxx` lalu `python data-intelligence/ask-data/qwen_inference/download_model.py` — download Qwen model ke HF cache (~8 GB)
-3. Upload atau ingest `chroma_db/` — pastikan `col.count()` = 17
+3. Taruh PDF dokumen ke `ask-data/backend/data/documents/` — ChromaDB akan auto-ingest saat backend pertama kali start
 
 See [`ask-data/docs/CAI_DEPLOYMENT_GUIDE.md`](ask-data/docs/CAI_DEPLOYMENT_GUIDE.md) for full step-by-step deployment instructions.
 See [`ask-data/docs/project-state.md`](ask-data/docs/project-state.md) for implementation details.
