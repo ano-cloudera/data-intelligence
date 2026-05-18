@@ -617,43 +617,41 @@ export function ModelSettingsPanel({
                         return s.length > max ? s.slice(0, max) + "…" : s;
                       };
                       return (
-                        <div>
-                          <div className="overflow-y-auto" style={{ maxHeight: 320 }}>
-                            <div className="overflow-x-auto">
-                              <table className="text-xs" style={{ minWidth: "max-content" }}>
-                                <thead className="sticky top-0 z-10">
-                                  <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]">
+                        <div className="overflow-hidden rounded-[12px]">
+                          <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: 320 }}>
+                            <table className="text-xs" style={{ minWidth: "max-content", borderCollapse: "collapse" }}>
+                              <thead>
+                                <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]">
+                                  {allCols.map((col) => (
+                                    <th key={col} className="whitespace-nowrap px-3 py-2 text-left font-mono font-semibold text-[#4953d3]" style={{ position: "sticky", top: 0, background: "var(--color-surface-muted)", zIndex: 10 }}>
+                                      {col}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {tablePreviewData.rows.map((row, rowIdx) => (
+                                  <tr
+                                    key={rowIdx}
+                                    className={rowIdx < tablePreviewData.rows.length - 1 ? "border-b border-[var(--color-border-soft)]" : ""}
+                                  >
                                     {allCols.map((col) => (
-                                      <th key={col} className="whitespace-nowrap px-3 py-2 text-left font-mono font-semibold text-[#4953d3]">
-                                        {col}
-                                      </th>
+                                      <td key={col} className="whitespace-nowrap px-3 py-2 text-[var(--color-ink-muted)]">
+                                        {row[col] === null || row[col] === undefined ? (
+                                          <span className="italic text-[var(--color-ink-subtle)]">—</span>
+                                        ) : (
+                                          <span title={String(row[col])}>
+                                            {truncate(row[col])}
+                                          </span>
+                                        )}
+                                      </td>
                                     ))}
                                   </tr>
-                                </thead>
-                                <tbody>
-                                  {tablePreviewData.rows.map((row, rowIdx) => (
-                                    <tr
-                                      key={rowIdx}
-                                      className={rowIdx < tablePreviewData.rows.length - 1 ? "border-b border-[var(--color-border-soft)]" : ""}
-                                    >
-                                      {allCols.map((col) => (
-                                        <td key={col} className="whitespace-nowrap px-3 py-2 text-[var(--color-ink-muted)]">
-                                          {row[col] === null || row[col] === undefined ? (
-                                            <span className="italic text-[var(--color-ink-subtle)]">—</span>
-                                          ) : (
-                                            <span title={String(row[col])}>
-                                              {truncate(row[col])}
-                                            </span>
-                                          )}
-                                        </td>
-                                      ))}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
-                          <div className="border-t border-[var(--color-border-soft)] px-3 py-1.5 flex items-center justify-between">
+                          <div className="border-t border-[var(--color-border-soft)] px-3 py-1.5">
                             <span className="text-[10px] text-[var(--color-ink-subtle)]">
                               {lang === "id"
                                 ? `${allCols.length} kolom · ${tablePreviewData.rows.length} baris · geser ke kanan untuk lihat semua kolom`
