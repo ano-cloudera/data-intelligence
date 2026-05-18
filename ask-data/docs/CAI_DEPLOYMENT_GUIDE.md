@@ -12,26 +12,26 @@ Ikuti urutan ini dari awal sampai selesai. Estimasi total waktu: **45–90 menit
 
 ### Jika dataset SAMA dengan Bank Jawa Timur (customer_dormant_segment)
 
-- [ ] **Step 0** — Kumpulkan semua credential: Impala host, CDP user/pass, Qwen API key, HuggingFace token
-- [ ] **Step A** — Clone repo ke Workbench session (`git clone ...`)
-- [ ] **Step B** — Download model Qwen ke cache (`python3 download_model.py`) — ~15–30 menit
-- [ ] **Step C** — Pre-install vLLM dependencies (`pip install --target ...`) — ~10–20 menit
-- [ ] **APP 1** — Deploy Qwen LLM, tunggu `Running`, catat URL
-- [ ] **APP 2** — Deploy Backend, set env vars (termasuk `CHROMA_PERSIST_DIR`, `CHROMA_COLLECTION`), tunggu `Running` + auto-ingest selesai
-- [ ] **APP 3** — Deploy MCP Server, set env vars Impala
-- [ ] **APP 4** — Deploy Frontend, set `BACKEND_API_BASE_URL`, tunggu `Running`
-- [ ] **Verifikasi** — buka UI, coba SQL query, coba pertanyaan dokumen, cek guardrails
+- [ ] **Step 0**: Kumpulkan semua credential: Impala host, CDP user/pass, Qwen API key, HuggingFace token
+- [ ] **Step A**: Clone repo ke Workbench session (`git clone ...`)
+- [ ] **Step B**: Download model Qwen ke cache (`python3 download_model.py`): ~15–30 menit
+- [ ] **Step C**: Pre-install vLLM dependencies (`pip install --target ...`): ~10–20 menit
+- [ ] **APP 1**: Deploy Qwen LLM, tunggu `Running`, catat URL
+- [ ] **APP 2**: Deploy Backend, set env vars (termasuk `CHROMA_PERSIST_DIR`, `CHROMA_COLLECTION`), tunggu `Running` + auto-ingest selesai
+- [ ] **APP 3**: Deploy MCP Server, set env vars Impala
+- [ ] **APP 4**: Deploy Frontend, set `BACKEND_API_BASE_URL`, tunggu `Running`
+- [ ] **Verifikasi**: buka UI, coba SQL query, coba pertanyaan dokumen, cek guardrails
 
 ### Jika dataset BERBEDA (use case baru / bank lain)
 
 Lakukan semua langkah di atas, **ditambah** sebelum deploy APP 2:
 
-- [ ] **D1** — Jalankan `DESCRIBE <tabel>` di Impala untuk dapat daftar kolom
-- [ ] **D2** — Update env vars: `DB_NAME`, `SQL_ALLOWED_TABLES`, `CHROMA_COLLECTION`
-- [ ] **D3** — Edit `ask-data/backend/domain_config.yaml` — ganti nama bisnis, kolom, contoh pertanyaan, guardrail message
-- [ ] **D4** — Push ke repo, pull di CAI session
-- [ ] **D5** — Upload PDF baru ke `data/documents/`, hapus `chroma_db` lama
-- [ ] **D6** — Restart APP 2, pantau log auto-ingest
+- [ ] **D1**: Jalankan `DESCRIBE <tabel>` di Impala untuk dapat daftar kolom
+- [ ] **D2**: Update env vars: `DB_NAME`, `SQL_ALLOWED_TABLES`, `CHROMA_COLLECTION`
+- [ ] **D3**: Edit `ask-data/backend/domain_config.yaml`: ganti nama bisnis, kolom, contoh pertanyaan, guardrail message
+- [ ] **D4**: Push ke repo, pull di CAI session
+- [ ] **D5**: Upload PDF baru ke `data/documents/`, hapus `chroma_db` lama
+- [ ] **D6**: Restart APP 2, pantau log auto-ingest
 
 > Detail setiap langkah ada di section masing-masing di bawah.
 > Untuk ganti domain/dataset: [Ganti Domain/Dataset](#ganti-domaindataset)
@@ -126,10 +126,10 @@ APP 2 menentukan jenis pertanyaan dan menjalankan salah satu dari tiga path:
 
 | File | Lokasi | Fungsi | Developer perlu? |
 |---|---|---|---|
-| `domain_config.yaml` | `ask-data/backend/` | Business name, kolom, contoh pertanyaan, guardrail message | **Ya — wajib edit** saat ganti domain/dataset (lihat [Ganti Domain/Dataset](#ganti-domaindataset)) |
-| `backend_entry.py` | `ask-data/backend/` | Entry point APP 2: install deps, auto-ingest ChromaDB, start uvicorn | Tidak — jalan otomatis |
-| `app/core/config.py` | `ask-data/backend/` | Runtime settings yang dibaca dari env vars (host, credential, flags) | Tidak — dikontrol via env vars CAI |
-| `.env` | `ask-data/backend/` | Env vars untuk development lokal | Hanya jika dev lokal — tidak dipakai di CAI |
+| `domain_config.yaml` | `ask-data/backend/` | Business name, kolom, contoh pertanyaan, guardrail message | **Ya: wajib edit** saat ganti domain/dataset (lihat [Ganti Domain/Dataset](#ganti-domaindataset)) |
+| `backend_entry.py` | `ask-data/backend/` | Entry point APP 2: install deps, auto-ingest ChromaDB, start uvicorn | Tidak: jalan otomatis |
+| `app/core/config.py` | `ask-data/backend/` | Runtime settings yang dibaca dari env vars (host, credential, flags) | Tidak: dikontrol via env vars CAI |
+| `.env` | `ask-data/backend/` | Env vars untuk development lokal | Hanya jika dev lokal: tidak dipakai di CAI |
 
 ---
 
@@ -145,8 +145,8 @@ APP 2 menentukan jenis pertanyaan dan menjalankan salah satu dari tiga path:
 | **CML Runtime (GPU)** | `PBJ Workbench – Python 3.10 – Nvidia GPU` atau `Python 3.11 – Nvidia GPU` |
 | **Python** | 3.10 atau 3.11 *(3.12 didukung di ML Runtimes 2025.01.1+)* |
 | **Node.js** | 18.x atau 20.x (bundled di CAI runtime, dipakai APP 4) |
-| **GPU (APP 1)** | NVIDIA L4 (22 GB VRAM) — minimum 1 unit |
-| **CUDA** | 12.x (bundled di CML GPU runtime — tidak perlu install terpisah) |
+| **GPU (APP 1)** | NVIDIA L4 (22 GB VRAM): minimum 1 unit |
+| **CUDA** | 12.x (bundled di CML GPU runtime: tidak perlu install terpisah) |
 | **vLLM** | 0.8.4+ *(on-premises 1.5.5 SP1)* / 0.8.5+ *(1.5.5 SP2)* |
 
 > **Cara cek versi CAI di environment kamu:** *Admin → About* di Cloudera AI Workbench.
@@ -225,43 +225,43 @@ Tidak perlu install manual di dalam Application.
 
 ---
 
-## Step 0 — Kumpulkan Semua Credential
+## Step 0: Kumpulkan Semua Credential
 
-Isi semua nilai berikut **sebelum mulai deploy**. Simpan di password manager atau catatan lokal — akan dipakai berulang kali.
+Isi semua nilai berikut **sebelum mulai deploy**. Simpan di password manager atau catatan lokal: akan dipakai berulang kali.
 
-### 0.1 — HuggingFace Token
+### 0.1: HuggingFace Token
 
 Dipakai untuk download model Qwen (~8–9 GB) ke cache Workbench session.
 
 1. Buka [huggingface.co](https://huggingface.co) → login → **Settings** → **Access Tokens**
 2. Klik **New token** → Type: **Read** → Generate
-3. Salin token — tampil sekali saja
+3. Salin token: tampil sekali saja
 
 ```
 HUGGING_FACE_HUB_TOKEN = hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-> Model Qwen2.5-x-Instruct-AWQ adalah model publik — token Read sudah cukup.
+> Model Qwen2.5-x-Instruct-AWQ adalah model publik: token Read sudah cukup.
 > Setelah model ter-cache di session, token **tidak perlu** diset di Application env vars.
 
 ---
 
-### 0.2 — Impala / CDP Credentials
+### 0.2: Impala / CDP Credentials
 
 Dipakai oleh APP 2 (Backend) dan APP 3 (MCP Server) untuk query ke Cloudera Data Warehouse.
 
 Cari nilai-nilai ini di Cloudera Data Platform console:
 
-- **IMPALA_HOST** — dari JDBC URL Virtual Warehouse:
+- **IMPALA_HOST**: dari JDBC URL Virtual Warehouse:
   `Data Warehouse → Virtual Warehouses → ⋮ → Copy JDBC URL`
   Format: `jdbc:impala://<host>:443/;transportMode=http;httpPath=cliservice;ssl=1`
   → Ambil bagian `<host>`
 
-- **IMPALA_PORT** — biasanya `443`
-- **IMPALA_HTTP_PATH** — biasanya `cliservice`
-- **DB_NAME** — nama database Impala yang berisi tabel `customer_dormant_segment`
-- **CDP_USER** — username CDP kamu
-- **CDP_PASS** — password CDP kamu
+- **IMPALA_PORT**: biasanya `443`
+- **IMPALA_HTTP_PATH**: biasanya `cliservice`
+- **DB_NAME**: nama database Impala yang berisi tabel `customer_dormant_segment`
+- **CDP_USER**: username CDP kamu
+- **CDP_PASS**: password CDP kamu
 
 ```
 IMPALA_HOST      = <hostname-impala-virtual-warehouse>
@@ -274,9 +274,9 @@ CDP_PASS         = <cdp-password>
 
 ---
 
-### 0.3 — Qwen API Key (Internal Token)
+### 0.3: Qwen API Key (Internal Token)
 
-Token internal antar Application — bukan token publik. Bebas diisi string apapun, asalkan **sama persis** di APP 1, APP 2, dan APP 3.
+Token internal antar Application: bukan token publik. Bebas diisi string apapun, asalkan **sama persis** di APP 1, APP 2, dan APP 3.
 
 ```
 QWEN_API_KEY = <pilih-string-rahasia-kamu>
@@ -284,11 +284,11 @@ QWEN_API_KEY = <pilih-string-rahasia-kamu>
 
 ---
 
-### 0.4 — Model yang Digunakan
+### 0.4: Model yang Digunakan
 
 | Parameter | Default | Keterangan |
 |---|---|---|
-| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | HuggingFace model ID — bisa diganti ke versi lain |
+| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | HuggingFace model ID: bisa diganti ke versi lain |
 
 **Opsi model alternatif** (jika VRAM terbatas):
 
@@ -302,7 +302,7 @@ Nilai `QWEN_MODEL` yang sama **wajib identik** di APP 1 dan APP 2.
 
 ---
 
-### 0.5 — Ringkasan Credential
+### 0.5: Ringkasan Credential
 
 Isi tabel ini sebelum deploy:
 
@@ -322,9 +322,9 @@ Isi tabel ini sebelum deploy:
 
 ---
 
-## Persiapan — Lakukan Sekali Sebelum Deploy
+## Persiapan: Lakukan Sekali Sebelum Deploy
 
-### Step A — Clone Repo ke Workbench Session
+### Step A: Clone Repo ke Workbench Session
 
 Buka terminal di CAI Workbench session:
 
@@ -351,7 +351,7 @@ ls /home/cdsw/data-intelligence/ask-data/
 
 ---
 
-### Step B — Download Model ke Cache Session
+### Step B: Download Model ke Cache Session
 
 Download model **sebelum** deploy APP 1 supaya Application start tanpa menunggu download ulang.
 Jalankan di **Workbench session** (bukan di dalam Application).
@@ -392,9 +392,9 @@ du -sh ~/.cache/huggingface/hub/models--Qwen--Qwen2.5-14B-Instruct-AWQ/
 
 ---
 
-### Step C — Pre-install vLLM Dependencies (Wajib Sebelum APP 1)
+### Step C: Pre-install vLLM Dependencies (Wajib Sebelum APP 1)
 
-Jalankan di terminal **Workbench session** — bukan dari dalam Application.
+Jalankan di terminal **Workbench session**: bukan dari dalam Application.
 Install di dalam Application OOM (exit 137) karena RAM runtime terbatas.
 
 ```bash
@@ -428,23 +428,23 @@ print('transformers:', transformers.__version__)
 ## APP 1 — Qwen LLM Application
 
 **Tujuan:** Serve model Qwen via vLLM sebagai OpenAI-compatible inference server.
-**Deploy ini PERTAMA** — Backend dan MCP Server memerlukan URL-nya.
+**Deploy ini PERTAMA**: Backend dan MCP Server memerlukan URL-nya.
 
 ---
 
-### Step 1.1 — Buat Application Baru
+### Step 1.1: Buat Application Baru
 
 Login ke CAI Workbench → pilih project → menu kiri **Applications** → **New Application**
 
 ---
 
-### Step 1.2 — Isi Form Application
+### Step 1.2: Isi Form Application
 
 | Field | Nilai |
 |---|---|
 | **Name** | `<prefix>-ask-data-qwen` _(ganti `<prefix>` dengan identitas project)_ |
 | **Subdomain** | _(auto-fill dari Name)_ |
-| **Description** | `Qwen LLM inference server via vLLM — OpenAI-compatible API` |
+| **Description** | `Qwen LLM inference server via vLLM: OpenAI-compatible API` |
 | **Script** | `data-intelligence/ask-data/qwen_inference/qwen_entry.py` |
 | **Engine Kernel** | `Python 3.10` |
 | **Edition** | `Standard` |
@@ -455,32 +455,32 @@ Login ke CAI Workbench → pilih project → menu kiri **Applications** → **Ne
 Centang: **☑ Allow Unauthenticated Access**
 
 > Jika GPU yang tersedia berbeda (A10, A100, V100), sesuaikan `QWEN_GPU_MEMORY_UTILIZATION` berdasarkan total VRAM GPU tersebut.
-> 2x GPU (tensor_parallel=2) tidak disarankan — CAI membatasi `/dev/shm` sehingga NCCL gagal.
+> 2x GPU (tensor_parallel=2) tidak disarankan: CAI membatasi `/dev/shm` sehingga NCCL gagal.
 
 ---
 
-### Step 1.3 — Set Environment Variables APP 1
+### Step 1.3: Set Environment Variables APP 1
 
 | Key | Nilai | Keterangan |
 |---|---|---|
 | `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | **Sesuaikan** dengan model yang didownload di Step B |
-| `QWEN_API_KEY` | `<secret-token>` | **Sesuaikan** — harus sama dengan APP 2 & 3 |
-| `QWEN_MAX_MODEL_LEN` | `4096` | Max context window — turunkan jika VRAM kurang |
-| `QWEN_GPU_MEMORY_UTILIZATION` | `0.90` | 90% VRAM — turunkan ke `0.80` jika OOM |
-| `QWEN_TENSOR_PARALLEL_SIZE` | `1` | Jumlah GPU — jangan ubah ke 2 di CAI |
-| `VLLM_USE_FLASHINFER_SAMPLER` | `0` | Disable JIT compile flashinfer — nvcc tidak tersedia di CAI |
+| `QWEN_API_KEY` | `<secret-token>` | **Sesuaikan**: harus sama dengan APP 2 & 3 |
+| `QWEN_MAX_MODEL_LEN` | `4096` | Max context window: turunkan jika VRAM kurang |
+| `QWEN_GPU_MEMORY_UTILIZATION` | `0.90` | 90% VRAM: turunkan ke `0.80` jika OOM |
+| `QWEN_TENSOR_PARALLEL_SIZE` | `1` | Jumlah GPU: jangan ubah ke 2 di CAI |
+| `VLLM_USE_FLASHINFER_SAMPLER` | `0` | Disable JIT compile flashinfer: nvcc tidak tersedia di CAI |
 
 ---
 
-### Step 1.4 — Deploy dan Verifikasi
+### Step 1.4: Deploy dan Verifikasi
 
 Klik **Create Application**. Tunggu status `Running` (3–5 menit jika model sudah ter-cache).
 
-Pantau di tab **Logs** — startup sukses:
+Pantau di tab **Logs**: startup sukses:
 
 ```text
-INFO vLLM in deps: 0.7.3 — OK
-INFO transformers in deps: 4.51.3 — OK
+INFO vLLM in deps: 0.7.3: OK
+INFO transformers in deps: 4.51.3: OK
 INFO Application startup complete.
 ```
 
@@ -499,30 +499,30 @@ curl -X POST $QWEN_URL/v1/chat/completions \
 # Expected: response JSON dengan content dari Qwen
 ```
 
-> **Simpan URL ini** — akan dipakai sebagai `QWEN_BASE_URL` di APP 2 & 3.
+> **Simpan URL ini**: akan dipakai sebagai `QWEN_BASE_URL` di APP 2 & 3.
 
 ---
 
 ## APP 2 — Backend Application
 
-**Tujuan:** FastAPI server — NL-to-SQL, Impala query, ChromaDB RAG, session management, table lock.
+**Tujuan:** FastAPI server: NL-to-SQL, Impala query, ChromaDB RAG, session management, table lock.
 **Deploy setelah APP 1 Running.**
 
 ---
 
-### Step 2.1 — Buat Application Baru
+### Step 2.1: Buat Application Baru
 
 Menu kiri → **Applications** → **New Application**
 
 ---
 
-### Step 2.2 — Isi Form Application
+### Step 2.2: Isi Form Application
 
 | Field | Nilai |
 |---|---|
 | **Name** | `<prefix>-ask-data-backend` |
 | **Subdomain** | _(auto-fill)_ |
-| **Description** | `FastAPI backend — NL-to-SQL, Impala CDW, ChromaDB RAG` |
+| **Description** | `FastAPI backend: NL-to-SQL, Impala CDW, ChromaDB RAG` |
 | **Script** | `data-intelligence/ask-data/backend/backend_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
 | **vCPU / Memory** | `4 vCPU / 8 GiB RAM` |
@@ -533,7 +533,7 @@ Centang: **☑ Enable Unauthenticated Access**
 
 ---
 
-### Step 2.3 — Set Environment Variables APP 2
+### Step 2.3: Set Environment Variables APP 2
 
 **Wajib diisi (tidak ada default yang benar):**
 
@@ -548,40 +548,40 @@ Centang: **☑ Enable Unauthenticated Access**
 | `CDP_USER` | `<cdp-username>` | |
 | `CDP_PASS` | `<cdp-password>` | |
 | `DB_NAME` | `<nama-database>` | Database yang berisi tabel target |
-| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` | **Absolute path** — sesuaikan jika repo di-clone ke lokasi lain. Wajib menyertakan `backend/` di akhir path. |
-| `CHROMA_COLLECTION` | `bank_jatim_knowledge` | Nama collection ChromaDB — harus konsisten dengan ingest |
+| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` | **Absolute path**: sesuaikan jika repo di-clone ke lokasi lain. Wajib menyertakan `backend/` di akhir path. |
+| `CHROMA_COLLECTION` | `bank_jatim_knowledge` | Nama collection ChromaDB: harus konsisten dengan ingest |
 
-**Opsional (ada default — ubah jika perlu):**
+**Opsional (ada default: ubah jika perlu):**
 
 | Key | Default | Keterangan |
 |---|---|---|
-| `LLM_PROVIDER` | `local_qwen` | Provider aktif — jangan ubah kecuali punya Bedrock/Azure |
+| `LLM_PROVIDER` | `local_qwen` | Provider aktif: jangan ubah kecuali punya Bedrock/Azure |
 | `SESSION_BACKEND` | `sqlite` | `sqlite` atau `memory` |
 | `SESSION_SQLITE_PATH` | `data/ask_data_sessions.db` | Path file SQLite relatif dari backend dir |
 | `SESSION_TTL_MINUTES` | `30` | Durasi sesi sebelum expired |
 | `MEMORY_MAX_HISTORY` | `10` | Max pesan history per sesi |
 | `SQL_DEFAULT_LIMIT` | `100` | Default LIMIT pada query tanpa LIMIT eksplisit |
-| `SQL_ALLOWED_TABLES` | `customer_dormant_segment` | Whitelist tabel — pisahkan koma jika lebih dari satu |
-| `CHROMA_ENABLED` | `false` | RAG diaktifkan otomatis jika `chromadb` terinstall — env var ini tidak wajib diset `true` |
+| `SQL_ALLOWED_TABLES` | `customer_dormant_segment` | Whitelist tabel: pisahkan koma jika lebih dari satu |
+| `CHROMA_ENABLED` | `false` | RAG diaktifkan otomatis jika `chromadb` terinstall: env var ini tidak wajib diset `true` |
 | `GUARDRAILS_ENABLED` | `false` | Set `true` untuk aktifkan PII blocking heuristic |
 | `CORS_ALLOW_ORIGINS` | `*` | Batasi ke domain Frontend jika perlu |
 
 > **Penting:**
 > - `QWEN_BASE_URL` wajib ada `/v1` di akhir
-> - `CHROMA_PERSIST_DIR` harus **absolute path** dan wajib menyertakan `backend/` — contoh: `/home/cdsw/data-intelligence/ask-data/backend/chroma_db`
-> - **Tidak perlu set `OLLAMA_BASE_URL`** — embedding kini menggunakan `sentence-transformers` (lokal, tidak butuh Ollama)
+> - `CHROMA_PERSIST_DIR` harus **absolute path** dan wajib menyertakan `backend/`: contoh: `/home/cdsw/data-intelligence/ask-data/backend/chroma_db`
+> - **Tidak perlu set `OLLAMA_BASE_URL`**: embedding kini menggunakan `sentence-transformers` (lokal, tidak butuh Ollama)
 > - ChromaDB akan **di-ingest otomatis** saat APP 2 pertama kali start, selama PDF ada di `ask-data/data/documents/`
 
 ---
 
-### Step 2.4 — Deploy dan Verifikasi
+### Step 2.4: Deploy dan Verifikasi
 
 Klik **Create Application**. Tunggu status `Running` (1–3 menit).
 
 Saat pertama kali start di environment baru, APP 2 akan otomatis mengingest dokumen PDF ke ChromaDB. Pantau di tab **Logs**:
 
 ```text
-INFO RAG: collection 'bank_jatim_knowledge' not found — starting auto-ingest
+INFO RAG: collection 'bank_jatim_knowledge' not found: starting auto-ingest
 INFO RAG: running auto-ingest from .../data/documents
 INFO RAG: auto-ingest complete
 ```
@@ -604,30 +604,30 @@ curl $BACKEND_URL/tables
 # Expected: {"status":"ok","tables":["customer_dormant_segment"],...}
 ```
 
-> **Simpan URL ini** — akan dipakai sebagai `BACKEND_API_BASE_URL` di APP 4.
+> **Simpan URL ini**: akan dipakai sebagai `BACKEND_API_BASE_URL` di APP 4.
 
 ---
 
 ## APP 3 — MCP Server Application
 
-**Tujuan:** Analytics tools terstruktur via HTTP — sql_query, dormant risk summary, campaign recommendation, RAG search.
+**Tujuan:** Analytics tools terstruktur via HTTP: sql_query, dormant risk summary, campaign recommendation, RAG search.
 **Deploy setelah APP 1 Running.**
 
 ---
 
-### Step 3.1 — Buat Application Baru
+### Step 3.1: Buat Application Baru
 
 Menu kiri → **Applications** → **New Application**
 
 ---
 
-### Step 3.2 — Isi Form Application
+### Step 3.2: Isi Form Application
 
 | Field | Nilai |
 |---|---|
 | **Name** | `<prefix>-ask-data-mcp` |
 | **Subdomain** | _(auto-fill)_ |
-| **Description** | `MCP Server — structured analytics tools for dormant customer data` |
+| **Description** | `MCP Server: structured analytics tools for dormant customer data` |
 | **Script** | `data-intelligence/ask-data/mcp_server/mcp_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
 | **vCPU / Memory** | `2 vCPU / 4 GiB RAM` |
@@ -638,7 +638,7 @@ Centang: **☑ Enable Unauthenticated Access**
 
 ---
 
-### Step 3.3 — Set Environment Variables APP 3
+### Step 3.3: Set Environment Variables APP 3
 
 **Wajib diisi:**
 
@@ -650,7 +650,7 @@ Centang: **☑ Enable Unauthenticated Access**
 | `CDP_USER` | `<cdp-username>` | |
 | `CDP_PASS` | `<cdp-password>` | |
 | `DB_NAME` | `<nama-database>` | Sama dengan APP 2 |
-| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` | **Harus sama absolute path** dengan APP 2 — wajib ada `backend/` |
+| `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` | **Harus sama absolute path** dengan APP 2: wajib ada `backend/` |
 
 **Opsional:**
 
@@ -660,7 +660,7 @@ Centang: **☑ Enable Unauthenticated Access**
 
 ---
 
-### Step 3.4 — Deploy dan Verifikasi
+### Step 3.4: Deploy dan Verifikasi
 
 Klik **Create Application**. Tunggu status `Running` (1–2 menit).
 
@@ -671,7 +671,7 @@ curl $MCP_URL/health
 # Expected: {"status":"ok","service":"mcp-server"}
 
 curl $MCP_URL/tools | python3 -m json.tool
-# Expected: 6 tools — sql_query, dormant_risk_summary, dormant_reason_breakdown,
+# Expected: 6 tools: sql_query, dormant_risk_summary, dormant_reason_breakdown,
 #           campaign_recommendation, campaign_summary_by_reason, rag_search
 
 curl -X POST $MCP_URL/tools/sql_query \
@@ -684,24 +684,24 @@ curl -X POST $MCP_URL/tools/sql_query \
 
 ## APP 4 — Frontend Application
 
-**Tujuan:** Next.js UI — chat interface, visualisasi chart, Settings panel (model, RAG, table lock).
+**Tujuan:** Next.js UI: chat interface, visualisasi chart, Settings panel (model, RAG, table lock).
 **Deploy ini TERAKHIR** setelah URL APP 2 diketahui.
 
 ---
 
-### Step 4.1 — Buat Application Baru
+### Step 4.1: Buat Application Baru
 
 Menu kiri → **Applications** → **New Application**
 
 ---
 
-### Step 4.2 — Isi Form Application
+### Step 4.2: Isi Form Application
 
 | Field | Nilai |
 |---|---|
 | **Name** | `<prefix>-ask-data-frontend` |
 | **Subdomain** | _(auto-fill)_ |
-| **Description** | `Next.js frontend — Ask Data UI` |
+| **Description** | `Next.js frontend: Ask Data UI` |
 | **Script** | `data-intelligence/ask-data/frontend/frontend_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
 | **vCPU / Memory** | `2 vCPU / 4 GiB RAM` |
@@ -712,18 +712,18 @@ Centang: **☑ Enable Unauthenticated Access**
 
 ---
 
-### Step 4.3 — Set Environment Variables APP 4
+### Step 4.3: Set Environment Variables APP 4
 
 | Key | Nilai | Keterangan |
 |---|---|---|
-| `BACKEND_API_BASE_URL` | `https://<subdomain-app2>.<domain-cai-kamu>` | URL APP 2 — **tanpa** trailing slash |
+| `BACKEND_API_BASE_URL` | `https://<subdomain-app2>.<domain-cai-kamu>` | URL APP 2: **tanpa** trailing slash |
 
 > Ini satu-satunya env var yang dibutuhkan di APP 4.
 > Semua config LLM, Impala, dan RAG dikonfigurasi di APP 2 (Backend).
 
 ---
 
-### Step 4.4 — Deploy dan Verifikasi
+### Step 4.4: Deploy dan Verifikasi
 
 Klik **Create Application**. Tunggu status `Running`.
 
@@ -736,19 +736,19 @@ info  - Ready in Xs
 
 Buka URL Frontend di browser:
 
-**Test 1 — UI terbuka:** Welcome screen muncul, toggle EN/ID berfungsi.
+**Test 1: UI terbuka:** Welcome screen muncul, toggle EN/ID berfungsi.
 
-**Test 2 — SQL query:** Ketik *"Tampilkan jumlah nasabah per segmen"* → tunggu 5–15 detik → jawaban + bar chart muncul.
+**Test 2: SQL query:** Ketik *"Tampilkan jumlah nasabah per segmen"* → tunggu 5–15 detik → jawaban + bar chart muncul.
 
-**Test 3 — RAG (Knowledge Base):** Ketik *"Apa kebijakan rekening dormant?"* → jawaban dari dokumen PDF + "Relevant Documents" muncul di bawah jawaban. Tidak perlu mengaktifkan RAG manual di Settings — routing otomatis.
+**Test 3: RAG (Knowledge Base):** Ketik *"Apa kebijakan rekening dormant?"* → jawaban dari dokumen PDF + "Relevant Documents" muncul di bawah jawaban. Tidak perlu mengaktifkan RAG manual di Settings: routing otomatis.
 
-**Test 4 — Settings panel:** Klik ikon Settings → dropdown table lock bisa dipilih → RAG section tampil badge "Knowledge Base: Auto".
+**Test 4: Settings panel:** Klik ikon Settings → dropdown table lock bisa dipilih → RAG section tampil badge "Knowledge Base: Auto".
 
-**Test 5 — Guardrails:** Ketik *"tampilkan nomor hp semua nasabah"* → respons diblok dengan pesan PII protection.
+**Test 5: Guardrails:** Ketik *"tampilkan nomor hp semua nasabah"* → respons diblok dengan pesan PII protection.
 
 ---
 
-## Environment Variable Reference — Lengkap
+## Environment Variable Reference: Lengkap
 
 Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat deploy di environment berbeda.
 
@@ -756,11 +756,11 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 
 | Key | Default | Wajib | Keterangan |
 |---|---|---|---|
-| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | Ya | HuggingFace model ID — sesuaikan dengan model yang didownload |
-| `QWEN_API_KEY` | `local-dev-token` | Ya | Token autentikasi internal — harus sama di APP 1, 2, 3 |
-| `QWEN_MAX_MODEL_LEN` | `4096` | Tidak | Max context tokens — turunkan jika VRAM kurang |
-| `QWEN_GPU_MEMORY_UTILIZATION` | `0.90` | Tidak | Fraksi VRAM yang dipakai — turunkan ke `0.80` jika OOM |
-| `QWEN_TENSOR_PARALLEL_SIZE` | `1` | Tidak | Jumlah GPU — jangan ubah ke 2 di CAI |
+| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` | Ya | HuggingFace model ID: sesuaikan dengan model yang didownload |
+| `QWEN_API_KEY` | `local-dev-token` | Ya | Token autentikasi internal: harus sama di APP 1, 2, 3 |
+| `QWEN_MAX_MODEL_LEN` | `4096` | Tidak | Max context tokens: turunkan jika VRAM kurang |
+| `QWEN_GPU_MEMORY_UTILIZATION` | `0.90` | Tidak | Fraksi VRAM yang dipakai: turunkan ke `0.80` jika OOM |
+| `QWEN_TENSOR_PARALLEL_SIZE` | `1` | Tidak | Jumlah GPU: jangan ubah ke 2 di CAI |
 | `VLLM_USE_FLASHINFER_SAMPLER` | `0` | Tidak | Disable JIT compile flashinfer |
 | `HUGGING_FACE_HUB_TOKEN` | _(kosong)_ | Tidak* | *Tidak dibutuhkan jika model sudah ter-cache |
 
@@ -776,8 +776,8 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 | `IMPALA_HTTP_PATH` | _(kosong)_ | **Ya** | |
 | `CDP_USER` | _(kosong)_ | **Ya** | |
 | `CDP_PASS` | _(kosong)_ | **Ya** | |
-| `DB_NAME` | `cai_sdx_se_indonesia` | **Ya** | Nama database — **sesuaikan** |
-| `CHROMA_PERSIST_DIR` | `./chroma_db` | **Ya** | Absolute path ke ChromaDB — wajib ada `backend/` di path: `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` |
+| `DB_NAME` | `cai_sdx_se_indonesia` | **Ya** | Nama database: **sesuaikan** |
+| `CHROMA_PERSIST_DIR` | `./chroma_db` | **Ya** | Absolute path ke ChromaDB: wajib ada `backend/` di path: `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` |
 | `CHROMA_COLLECTION` | `bank_jatim_knowledge` | **Ya** | Nama collection ChromaDB |
 | `LLM_PROVIDER` | `local_qwen` | Tidak | Provider aktif |
 | `SESSION_BACKEND` | `sqlite` | Tidak | `sqlite` atau `memory` |
@@ -786,11 +786,11 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 | `MEMORY_MAX_HISTORY` | `10` | Tidak | Max history pesan per sesi |
 | `SQL_DEFAULT_LIMIT` | `100` | Tidak | Default LIMIT query |
 | `SQL_ALLOWED_TABLES` | `customer_dormant_segment` | Tidak | Whitelist tabel, pisah koma |
-| `CHROMA_ENABLED` | `false` | Tidak | RAG aktif otomatis jika chromadb terinstall — tidak wajib diset `true` |
+| `CHROMA_ENABLED` | `false` | Tidak | RAG aktif otomatis jika chromadb terinstall: tidak wajib diset `true` |
 | `GUARDRAILS_ENABLED` | `false` | Tidak | `true` untuk aktifkan PII blocking |
 | `CORS_ALLOW_ORIGINS` | `*` | Tidak | Domain yang diizinkan |
 
-> **Tidak perlu set:** `OLLAMA_BASE_URL`, `EMBED_MODEL` — embedding kini menggunakan `sentence-transformers` secara lokal, bukan Ollama.
+> **Tidak perlu set:** `OLLAMA_BASE_URL`, `EMBED_MODEL`: embedding kini menggunakan `sentence-transformers` secara lokal, bukan Ollama.
 
 ### APP 3 — MCP Server
 
@@ -802,7 +802,7 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 | `CDP_USER` | _(kosong)_ | **Ya** | |
 | `CDP_PASS` | _(kosong)_ | **Ya** | |
 | `DB_NAME` | `cai_sdx_se_indonesia` | **Ya** | **Sesuaikan** |
-| `CHROMA_PERSIST_DIR` | `./chroma_db` | **Ya** | Absolute path, sama dengan APP 2 — wajib ada `backend/` |
+| `CHROMA_PERSIST_DIR` | `./chroma_db` | **Ya** | Absolute path, sama dengan APP 2: wajib ada `backend/` |
 | `CHROMA_COLLECTION` | `bank_jatim_knowledge` | Tidak | Sama dengan APP 2 |
 
 ### APP 4 — Frontend
@@ -815,31 +815,31 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 
 ## Troubleshooting
 
-### APP 1 — Error `DEPS NOT READY`
+### APP 1: Error `DEPS NOT READY`
 
 Step C belum dijalankan, atau deps tidak valid. Jalankan ulang Step C dari terminal Workbench session, lalu restart Application.
 
-### APP 1 — Error `CUDA out of memory`
+### APP 1: Error `CUDA out of memory`
 
 Turunkan `QWEN_GPU_MEMORY_UTILIZATION` ke `0.80` atau `0.75`, atau ganti ke model yang lebih kecil (lihat Step 0.4).
 
-### APP 1 — Error `undefined symbol: ncclCommWindowDeregister`
+### APP 1: Error `undefined symbol: ncclCommWindowDeregister`
 
 Versi torch tidak kompatibel dengan NCCL di CAI. Pastikan Step C menginstall `torch==2.5.1` (bukan versi lebih baru). Jalankan ulang Step C jika perlu.
 
-### APP 1 — Error `Could not find nvcc` / flashinfer gagal
+### APP 1: Error `Could not find nvcc` / flashinfer gagal
 
 Pastikan `VLLM_USE_FLASHINFER_SAMPLER=0` sudah diset di env vars Application.
 
-### APP 1 — Model tidak ditemukan saat startup
+### APP 1: Model tidak ditemukan saat startup
 
 Model belum ter-cache. Jalankan ulang Step B, atau set `HUGGING_FACE_HUB_TOKEN` di env var Application agar download saat startup (akan lambat ~15–30 menit).
 
-### APP 1 — Error `Qwen2Tokenizer has no attribute all_special_tokens_extended`
+### APP 1: Error `Qwen2Tokenizer has no attribute all_special_tokens_extended`
 
 Versi transformers tidak kompatibel (5.x terinstall, butuh 4.51.x). Jalankan ulang Step C dengan versi yang benar, lalu restart Application.
 
-### APP 2 — `/health/db` return error
+### APP 2: `/health/db` return error
 
 - `TSocket read 0 bytes` → `CDP_USER` / `CDP_PASS` salah, atau network CAI tidak bisa reach Impala host
 - `Table not found` → `DB_NAME` salah, atau tabel belum ada di database target
@@ -859,14 +859,14 @@ print('Impala OK:', cur.fetchone())
 "
 ```
 
-### APP 2 — `/rag/options` return `{"enabled":false}` atau `document_count: 0`
+### APP 2: `/rag/options` return `{"enabled":false}` atau `document_count: 0`
 
-- Pastikan `CHROMA_PERSIST_DIR` menunjuk ke path yang benar — **wajib ada `backend/`** di path:
+- Pastikan `CHROMA_PERSIST_DIR` menunjuk ke path yang benar: **wajib ada `backend/`** di path:
   `/home/cdsw/data-intelligence/ask-data/backend/chroma_db`
-- Cek Logs APP 2 — jika auto-ingest belum berjalan, pastikan PDF ada di `ask-data/data/documents/`
+- Cek Logs APP 2: jika auto-ingest belum berjalan, pastikan PDF ada di `ask-data/data/documents/`
 - Auto-ingest hanya berjalan sekali saat startup. Jika gagal, restart APP 2 untuk trigger ulang
 
-### APP 2 — Auto-ingest gagal: `Your system has an unsupported version of sqlite3`
+### APP 2: Auto-ingest gagal: `Your system has an unsupported version of sqlite3`
 
 ChromaDB membutuhkan sqlite3 ≥ 3.35. Backend otomatis patch ini via `pysqlite3-binary`. Pastikan `pysqlite3-binary` ada di `requirements.txt` dan terinstall:
 
@@ -875,24 +875,24 @@ ChromaDB membutuhkan sqlite3 ≥ 3.35. Backend otomatis patch ini via `pysqlite3
 pip show pysqlite3-binary
 ```
 
-### APP 2 — `/chat/query` timeout atau error 502
+### APP 2: `/chat/query` timeout atau error 502
 
 - Pastikan APP 1 sudah `Running`
 - Pastikan `QWEN_BASE_URL` ada `/v1` di akhir
 
-### APP 2 — Pertanyaan dokumen tidak dijawab oleh RAG (jawaban umum/fallback)
+### APP 2: Pertanyaan dokumen tidak dijawab oleh RAG (jawaban umum/fallback)
 
 - Pastikan `CHROMA_COLLECTION=bank_jatim_knowledge` sudah diset di env vars APP 2
 - Pastikan `CHROMA_PERSIST_DIR` path benar (lihat di atas)
-- Cek `/rag/options` — `document_count` harus > 0
+- Cek `/rag/options`: `document_count` harus > 0
 
-### APP 4 — Blank page / CORS error
+### APP 4: Blank page / CORS error
 
 - Pastikan `BACKEND_API_BASE_URL` tidak ada trailing slash
 - Pastikan semua Application sudah centang **Enable Unauthenticated Access**
 - Buka browser DevTools → Network → lihat request yang gagal
 
-### APP 4 — Build gagal / lama
+### APP 4: Build gagal / lama
 
 - Logs menampilkan `npm ERR!` → restart Application (npm install ulang otomatis)
 - Build pertama kali bisa memakan 5–10 menit
@@ -913,7 +913,7 @@ pip show pysqlite3-binary
 - [ ] Resource: GPU aktif, ≥16 GiB RAM
 - [ ] Env: `QWEN_MODEL`, `QWEN_API_KEY`, `QWEN_MAX_MODEL_LEN`, `QWEN_GPU_MEMORY_UTILIZATION`, `VLLM_USE_FLASHINFER_SAMPLER=0`
 - [ ] Unauthenticated Access: ☑
-- [ ] Status: **Running** — `curl <url>/v1/models` OK
+- [ ] Status: **Running**: `curl <url>/v1/models` OK
 - [ ] **URL dicatat**
 
 ### APP 2 — Backend
@@ -923,7 +923,7 @@ pip show pysqlite3-binary
 - [ ] Env wajib: `QWEN_BASE_URL` (+`/v1`), `QWEN_API_KEY`, `QWEN_MODEL`, semua `IMPALA_*` & `CDP_*`, `DB_NAME`
 - [ ] Env RAG: `CHROMA_PERSIST_DIR` (absolute, dengan `backend/`), `CHROMA_COLLECTION=bank_jatim_knowledge`
 - [ ] Unauthenticated Access: ☑
-- [ ] Status: **Running** — logs menampilkan "RAG: auto-ingest complete" atau "already has N chunks"
+- [ ] Status: **Running**: logs menampilkan "RAG: auto-ingest complete" atau "already has N chunks"
 - [ ] `/health`, `/health/db`, `/rag/options` (document_count=17) semua OK
 - [ ] **URL dicatat**
 
@@ -933,7 +933,7 @@ pip show pysqlite3-binary
 - [ ] Resource: 2 vCPU / 4 GiB, no GPU
 - [ ] Env wajib: semua `IMPALA_*` & `CDP_*`, `DB_NAME`, `CHROMA_PERSIST_DIR` (sama dengan APP 2)
 - [ ] Unauthenticated Access: ☑
-- [ ] Status: **Running** — `/health` OK, `/tools` return 6 tools
+- [ ] Status: **Running**: `/health` OK, `/tools` return 6 tools
 
 ### APP 4 — Frontend
 
@@ -941,7 +941,7 @@ pip show pysqlite3-binary
 - [ ] Resource: 2 vCPU / 4 GiB, no GPU
 - [ ] Env: `BACKEND_API_BASE_URL` (tanpa trailing slash)
 - [ ] Unauthenticated Access: ☑
-- [ ] Status: **Running** — UI terbuka di browser
+- [ ] Status: **Running**: UI terbuka di browser
 - [ ] SQL query → jawaban + chart ✓
 - [ ] Pertanyaan dokumen → jawaban RAG + "Relevant Documents" muncul ✓ _(tanpa perlu aktifkan manual)_
 - [ ] Settings panel → badge "Knowledge Base: Auto" terlihat ✓
@@ -951,7 +951,7 @@ pip show pysqlite3-binary
 
 ## Ganti Domain/Dataset
 
-Gunakan bagian ini jika kamu deploy Ask Data untuk use case atau dataset yang **berbeda** dari Bank Jawa Timur dormant customer analytics — misalnya fraud detection, credit scoring, atau data nasabah bank lain.
+Gunakan bagian ini jika kamu deploy Ask Data untuk use case atau dataset yang **berbeda** dari Bank Jawa Timur dormant customer analytics: misalnya fraud detection, credit scoring, atau data nasabah bank lain.
 
 **Tidak perlu mengubah kode Python.** Semua customization domain dilakukan di dua tempat:
 
@@ -962,7 +962,7 @@ Gunakan bagian ini jika kamu deploy Ask Data untuk use case atau dataset yang **
 
 ---
 
-### Step D1 — Cek skema tabel di Impala
+### Step D1: Cek skema tabel di Impala
 
 Sebelum edit config, ambil daftar kolom dari tabel target. Jalankan di terminal **Workbench session**:
 
@@ -989,11 +989,11 @@ for name, dtype, comment in rows:
 EOF
 ```
 
-Salin output — akan langsung dipakai di bagian `columns:` pada `domain_config.yaml`.
+Salin output: akan langsung dipakai di bagian `columns:` pada `domain_config.yaml`.
 
 ---
 
-### Step D2 — Update env vars APP 2 & APP 3
+### Step D2: Update env vars APP 2 & APP 3
 
 Di CAI dashboard, buka **APP 2 (Backend)** dan **APP 3 (MCP Server)** → **Edit** → **Environment Variables**. Sesuaikan:
 
@@ -1001,16 +1001,16 @@ Di CAI dashboard, buka **APP 2 (Backend)** dan **APP 3 (MCP Server)** → **Edit
 |---|---|---|
 | `DB_NAME` | `<nama-database-baru>` | Database Impala yang berisi tabel target |
 | `SQL_ALLOWED_TABLES` | `<nama-tabel-baru>` | Tabel yang boleh di-query (pisah koma jika lebih dari satu) |
-| `CHROMA_COLLECTION` | `<nama-collection-baru>` | Nama collection ChromaDB (jika pakai RAG) — bebas diisi, misal `bank_xyz_knowledge` |
+| `CHROMA_COLLECTION` | `<nama-collection-baru>` | Nama collection ChromaDB (jika pakai RAG): bebas diisi, misal `bank_xyz_knowledge` |
 | `IMPALA_HOST` | `<impala-host-baru>` | Sesuaikan jika CDW environment berbeda |
 | `CDP_USER` / `CDP_PASS` | `<credential-baru>` | Sesuaikan jika credential berbeda |
 | `CHROMA_PERSIST_DIR` | `/home/cdsw/data-intelligence/ask-data/backend/chroma_db` | Path tetap sama, collection-nya yang diganti |
 
-> Simpan perubahan env vars — jangan restart dulu, lakukan setelah Step D3.
+> Simpan perubahan env vars: jangan restart dulu, lakukan setelah Step D3.
 
 ---
 
-### Step D3 — Edit `domain_config.yaml`
+### Step D3: Edit `domain_config.yaml`
 
 File ini ada di repo: `ask-data/backend/domain_config.yaml`
 
@@ -1022,7 +1022,7 @@ nano /home/cdsw/data-intelligence/ask-data/backend/domain_config.yaml
 
 Atau edit di lokal lalu push ke repo (direkomendasikan agar tersimpan di git).
 
-Berikut **template lengkap** — ganti semua nilai yang relevan:
+Berikut **template lengkap**: ganti semua nilai yang relevan:
 
 ```yaml
 # =============================================================================
@@ -1032,7 +1032,7 @@ business_name: "Nama Bank / Perusahaan"          # muncul di intro chatbot & sys
 business_domain: "deskripsi singkat use case"    # contoh: "credit risk analytics and loan portfolio analysis"
 
 # =============================================================================
-# Database & tabel — harus konsisten dengan env vars DB_NAME & SQL_ALLOWED_TABLES
+# Database & tabel: harus konsisten dengan env vars DB_NAME & SQL_ALLOWED_TABLES
 # =============================================================================
 database_name: "nama_database_impala"
 table_name: "nama_tabel_utama"
@@ -1040,7 +1040,7 @@ table_description: "Deskripsi singkat tabel untuk LLM"
 table_grain: "one row per ..."                   # contoh: "one row per customer per snapshot date"
 
 # =============================================================================
-# Scope bisnis — muncul sebagai bullet di system prompt LLM
+# Scope bisnis: muncul sebagai bullet di system prompt LLM
 # =============================================================================
 business_scope:
   - "Area analitik 1: contoh isi dan kolom yang relevan."
@@ -1048,7 +1048,7 @@ business_scope:
   - "Area analitik 3: ..."
 
 # =============================================================================
-# Kolom tabel — salin output dari Step D1
+# Kolom tabel: salin output dari Step D1
 # =============================================================================
 columns:
   - name: kolom_1
@@ -1058,7 +1058,7 @@ columns:
   # tambahkan semua kolom dari hasil DESCRIBE ...
 
 # =============================================================================
-# Business term mappings — terjemahan istilah lokal ke filter SQL
+# Business term mappings: terjemahan istilah lokal ke filter SQL
 # Dipakai LLM saat menerjemahkan pertanyaan bisnis ke query
 # =============================================================================
 term_mappings:
@@ -1068,7 +1068,7 @@ term_mappings:
     column: "column_name"
 
 # =============================================================================
-# Contoh pertanyaan bisnis — panduan LLM memahami jenis pertanyaan yang valid
+# Contoh pertanyaan bisnis: panduan LLM memahami jenis pertanyaan yang valid
 # =============================================================================
 example_questions:
   - "Berapa total X per kategori Y?"
@@ -1076,14 +1076,14 @@ example_questions:
   - "Apa rata-rata A untuk segmen B?"
 
 # =============================================================================
-# SQL rules tambahan — opsional, untuk hint GROUP BY atau filter spesifik
+# SQL rules tambahan: opsional, untuk hint GROUP BY atau filter spesifik
 # =============================================================================
 sql_extra_rules:
   - "Untuk distribusi X: GROUP BY kolom_x."
   - "Untuk filter risiko tinggi: WHERE kolom_risk = 'HIGH'."
 
 # =============================================================================
-# Pesan guardrail — ditampilkan ketika user tanya di luar domain
+# Pesan guardrail: ditampilkan ketika user tanya di luar domain
 # =============================================================================
 guardrail_out_of_scope_en: >
   This assistant is focused on [your domain]. Try asking about [topic 1],
@@ -1097,14 +1097,14 @@ guardrail_out_of_scope_id: >
 # Panduan interpretasi pertanyaan ambigu
 # =============================================================================
 ambiguity_guidance:
-  - "All data is in the main table — no joins are needed."
+  - "All data is in the main table: no joins are needed."
   - "Jika pertanyaan tidak spesifik, gunakan agregasi dengan LIMIT."
   - "Tambahkan hint spesifik domain kamu di sini."
 ```
 
 ---
 
-### Step D4 — Push perubahan ke repo & pull di CAI
+### Step D4: Push perubahan ke repo & pull di CAI
 
 Jika edit dilakukan di lokal:
 
@@ -1122,11 +1122,11 @@ cd /home/cdsw/data-intelligence
 git pull origin main
 ```
 
-Jika edit langsung di Workbench session (via `nano`), perubahan sudah ada di filesystem — tidak perlu pull.
+Jika edit langsung di Workbench session (via `nano`), perubahan sudah ada di filesystem: tidak perlu pull.
 
 ---
 
-### Step D5 — Reset ChromaDB & upload PDF baru (jika pakai RAG)
+### Step D5: Reset ChromaDB & upload PDF baru (jika pakai RAG)
 
 Hapus collection lama agar auto-ingest berjalan ulang dengan collection baru:
 
@@ -1146,14 +1146,14 @@ Auto-ingest berjalan otomatis saat APP 2 restart di Step D6.
 
 ---
 
-### Step D6 — Restart APP 2
+### Step D6: Restart APP 2
 
 Di CAI dashboard → **APP 2 (Backend)** → **Restart**.
 
-Pantau tab **Logs** — startup sukses:
+Pantau tab **Logs**: startup sukses:
 
 ```text
-INFO RAG: collection '<nama-collection-baru>' not found — starting auto-ingest
+INFO RAG: collection '<nama-collection-baru>' not found: starting auto-ingest
 INFO RAG: auto-ingest complete
 INFO Application startup complete.
 ```
