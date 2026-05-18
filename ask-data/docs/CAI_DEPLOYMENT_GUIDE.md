@@ -4,10 +4,37 @@
 > Semua nilai seperti hostname Impala, nama database, subdomain, URL, dan credential
 > wajib disesuaikan dengan environment target sebelum deploy.
 
-Deploy urutan wajib:
-**Step 0 Credential → Persiapan (A–C) → APP 1 Qwen LLM → APP 2 Backend → APP 3 MCP Server → APP 4 Frontend**
+---
 
-> **Deploy dengan dataset berbeda?** Baca [Ganti Domain/Dataset](#ganti-domaindataset) sebelum mulai.
+## Quick Start — Deploy di Environment Baru
+
+Ikuti urutan ini dari awal sampai selesai. Estimasi total waktu: **45–90 menit** (tergantung kecepatan download model).
+
+### Jika dataset SAMA dengan Bank Jawa Timur (customer_dormant_segment)
+
+- [ ] **Step 0** — Kumpulkan semua credential: Impala host, CDP user/pass, Qwen API key, HuggingFace token
+- [ ] **Step A** — Clone repo ke Workbench session (`git clone ...`)
+- [ ] **Step B** — Download model Qwen ke cache (`python3 download_model.py`) — ~15–30 menit
+- [ ] **Step C** — Pre-install vLLM dependencies (`pip install --target ...`) — ~10–20 menit
+- [ ] **APP 1** — Deploy Qwen LLM, tunggu `Running`, catat URL
+- [ ] **APP 2** — Deploy Backend, set env vars (termasuk `CHROMA_PERSIST_DIR`, `CHROMA_COLLECTION`), tunggu `Running` + auto-ingest selesai
+- [ ] **APP 3** — Deploy MCP Server, set env vars Impala
+- [ ] **APP 4** — Deploy Frontend, set `BACKEND_API_BASE_URL`, tunggu `Running`
+- [ ] **Verifikasi** — buka UI, coba SQL query, coba pertanyaan dokumen, cek guardrails
+
+### Jika dataset BERBEDA (use case baru / bank lain)
+
+Lakukan semua langkah di atas, **ditambah** sebelum deploy APP 2:
+
+- [ ] **D1** — Jalankan `DESCRIBE <tabel>` di Impala untuk dapat daftar kolom
+- [ ] **D2** — Update env vars: `DB_NAME`, `SQL_ALLOWED_TABLES`, `CHROMA_COLLECTION`
+- [ ] **D3** — Edit `ask-data/backend/domain_config.yaml` — ganti nama bisnis, kolom, contoh pertanyaan, guardrail message
+- [ ] **D4** — Push ke repo, pull di CAI session
+- [ ] **D5** — Upload PDF baru ke `data/documents/`, hapus `chroma_db` lama
+- [ ] **D6** — Restart APP 2, pantau log auto-ingest
+
+> Detail setiap langkah ada di section masing-masing di bawah.
+> Untuk ganti domain/dataset: [Ganti Domain/Dataset](#ganti-domaindataset)
 
 ---
 
