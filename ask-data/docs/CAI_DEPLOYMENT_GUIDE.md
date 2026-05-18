@@ -11,6 +11,92 @@ Deploy urutan wajib:
 
 ---
 
+## Arsitektur
+
+Ask Data terdiri dari **4 Application** yang berjalan di Cloudera AI dan berkomunikasi via HTTPS.
+
+```text
+  Browser / User
+       │
+       ▼
+┌─────────────────────┐
+│  APP 4 — Frontend   │  Next.js UI — chat, chart, settings panel
+│  (Next.js / Python) │
+└──────────┬──────────┘
+           │  HTTPS (BACKEND_API_BASE_URL)
+           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  APP 2 — Backend (FastAPI)                                      │
+│                                                                 │
+│  • Routing: SQL question  ──────────────────────┐              │
+│  • Routing: Document question ──► ChromaDB RAG  │              │
+│  • Routing: Conversation ──► LLM direct         │              │
+│  • Session management (SQLite)                  │              │
+│  • Guardrails (PII blocking, out-of-scope)       │              │
+│  • domain_config.yaml ──► system prompt, schema │              │
+└───────┬──────────────────────┬──────────────────┘              │
+        │                      │                                  │
+        │ OpenAI-compat API    │ ChromaDB                        │
+        ▼                      ▼                                  │
+┌──────────────┐    ┌──────────────────┐                         │
+│  APP 1       │    │  ChromaDB        │   SQL query             │
+│  Qwen LLM    │    │  (local vector   │         │               │
+│  (vLLM)      │    │   store, RAG)    │         ▼               │
+│              │    │  all-MiniLM-L6   │  ┌──────────────┐      │
+│  SQL gen     │    │  embeddings      │  │  Impala CDW  │      │
+│  RAG answer  │    └──────────────────┘  │  (Cloudera   │      │
+│  Conversation│                          │   Data       │      │
+└──────────────┘                          │   Warehouse) │      │
+                                          └──────────────┘      │
+                                                                  │
+┌─────────────────────────────────────────────────────────────────┘
+│  APP 3 — MCP Server (FastAPI)
+│  • Structured analytics tools: sql_query, dormant_risk_summary,
+│    campaign_recommendation, rag_search
+│  • Dipanggil oleh MCP client (opsional, bukan oleh APP 4 langsung)
+└─────────────────────────────────────────────────────────────────
+```
+
+### Alur request end-to-end
+
+```text
+User ketik pertanyaan
+        │
+        ▼
+APP 4 kirim POST /chat/answer ke APP 2
+        │
+        ▼
+APP 2 — chat router memutuskan:
+        │
+        ├─► Pertanyaan SQL (analitik data)
+        │       │
+        │       ├─ Generate SQL via APP 1 (Qwen LLM)
+        │       ├─ Validasi & jalankan query ke Impala CDW
+        │       └─ Format hasil → jawaban + data tabel/chart ke APP 4
+        │
+        ├─► Pertanyaan dokumen (kebijakan, SOP)
+        │       │
+        │       ├─ Query ChromaDB (embedding all-MiniLM-L6-v2)
+        │       ├─ Ambil top-2 chunks paling relevan
+        │       ├─ Generate jawaban via APP 1 (Qwen LLM) + konteks chunks
+        │       └─ Jawaban + link PDF sumber ke APP 4
+        │
+        └─► Percakapan biasa (greeting, clarification)
+                │
+                └─ LLM reply langsung via APP 1 → APP 4
+```
+
+### File konfigurasi kunci
+
+| File | Lokasi | Fungsi |
+|---|---|---|
+| `domain_config.yaml` | `ask-data/backend/` | Business name, kolom, contoh pertanyaan, guardrail message — **edit ini untuk ganti domain** |
+| `backend_entry.py` | `ask-data/backend/` | Entry point APP 2 — install deps, auto-ingest ChromaDB, start uvicorn |
+| `app/core/config.py` | `ask-data/backend/` | Runtime settings dari env vars (host, port, credential, flags) |
+| `.env` | `ask-data/backend/` | Env vars lokal untuk development — tidak di-commit, digantikan env vars CAI saat deploy |
+
+---
+
 ## Prerequisite
 
 ### Runtime & Infrastruktur
