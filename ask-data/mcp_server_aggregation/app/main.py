@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from fastapi import FastAPI
@@ -9,7 +8,6 @@ from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 from mcp.types import TextContent, Tool
 from starlette.requests import Request
-from starlette.routing import Mount
 
 from app.schemas import (
     RekeningRequest,
@@ -18,128 +16,175 @@ from app.schemas import (
     StatusRekeningRequest,
     ToolResponse,
 )
+from app.tools.cabang_performance import run_cabang_performance
 from app.tools.rekening_summary import run_rekening_summary
 from app.tools.saldo_analysis import run_saldo_analysis
+from app.tools.schema import run_get_schema
 from app.tools.sql_query import run_sql_query
 from app.tools.status_rekening import run_status_rekening_distribution
+from app.tools.transaksi_trend import run_transaksi_trend
 
 # ---------------------------------------------------------------------------
-# MCP Server (SSE transport — untuk Agent Studio via mcp-proxy)
+# MCP Server
 # ---------------------------------------------------------------------------
 
 mcp = Server("bjt-customer-aggregation")
 
-
-@mcp.list_tools()
-async def list_mcp_tools() -> list[Tool]:
-    return [
-        Tool(
-            name="sql_query",
-            description="Run a generic SELECT query against the customer_aggregation table.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "sql": {
-                        "type": "string",
-                        "description": "SELECT SQL query against customer_aggregation table",
-                    }
-                },
-                "required": ["sql"],
-            },
+MCP_TOOLS = [
+    Tool(
+        name="get_schema",
+        description=(
+            "Dapatkan nama tabel, daftar kolom, tipe data, dan aturan CAST. "
+            "Panggil tool ini PERTAMA sebelum membuat sql_query agar tidak salah nama tabel atau kolom."
         ),
-        Tool(
-            name="rekening_summary",
-            description="Summary rekening per CIF nasabah: total rekening, jenis, saldo, dan status.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "cif": {"type": "string", "description": "Filter by CIF nasabah"},
-                    "jenis_rekening": {
-                        "type": "string",
-                        "description": "Filter by jenis rekening: Tabungan/Giro/Deposito",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Max rows returned (1-100)",
-                        "default": 20,
-                    },
-                },
-            },
+        inputSchema={"type": "object", "properties": {}},
+    ),
+    Tool(
+        name="cabang_performance",
+        description=(
+            "Performa semua cabang: total rekening, jumlah aktif/dormant/tutup, "
+            "persentase dormant, rata-rata saldo, rata-rata transaksi, dan rekening tidak aktif 6 bulan. "
+            "Tidak perlu parameter — return semua cabang sekaligus."
         ),
-        Tool(
-            name="saldo_analysis",
-            description="Analisis distribusi saldo dan pola transaksi kredit/debit per jenis dan status rekening.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "jenis_rekening": {
-                        "type": "string",
-                        "description": "Filter by jenis rekening: Tabungan/Giro/Deposito",
-                    },
-                    "status_rekening": {
-                        "type": "integer",
-                        "description": "Filter by status: 0=Aktif, 1=Dormant, 2=Tutup",
-                    },
-                },
-            },
+        inputSchema={"type": "object", "properties": {}},
+    ),
+    Tool(
+        name="transaksi_trend",
+        description=(
+            "Tren aktivitas transaksi per jenis rekening: jumlah aktif/tidak aktif 6 bulan terakhir, "
+            "rekening baru dormant, dormant lama, dan persentase tidak aktif."
         ),
-        Tool(
-            name="status_rekening_distribution",
-            description="Distribusi status rekening (Aktif/Dormant/Tutup) per jenis rekening dan cabang.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "jenis_rekening": {
-                        "type": "string",
-                        "description": "Filter by jenis rekening: Tabungan/Giro/Deposito",
-                    },
-                    "cabang": {
-                        "type": "string",
-                        "description": "Filter by kode cabang",
-                    },
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "jenis_rekening": {
+                    "type": "string",
+                    "description": "Filter by jenis rekening: Tabungan/Giro/Deposito. Kosongkan untuk semua.",
+                }
+            },
+        },
+    ),
+    Tool(
+        name="status_rekening_distribution",
+        description=(
+            "Distribusi status rekening (Aktif/Dormant/Tutup) per jenis rekening dan cabang. "
+            "Parameter opsional: jenis_rekening, cabang. Panggil {} untuk semua data."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "jenis_rekening": {"type": "string", "description": "Tabungan/Giro/Deposito"},
+                "cabang": {"type": "string", "description": "Kode cabang, contoh: BC001"},
+            },
+        },
+    ),
+    Tool(
+        name="saldo_analysis",
+        description=(
+            "Analisis distribusi saldo dan pola transaksi kredit/debit "
+            "per jenis dan status rekening."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "jenis_rekening": {"type": "string", "description": "Tabungan/Giro/Deposito"},
+                "status_rekening": {
+                    "type": "integer",
+                    "description": "0=Aktif, 1=Dormant, 2=Tutup",
                 },
             },
+        },
+    ),
+    Tool(
+        name="rekening_summary",
+        description=(
+            "Ringkasan rekening per CIF nasabah: total rekening, saldo, transaksi terakhir, status. "
+            "Gunakan untuk pertanyaan tentang nasabah spesifik atau jenis rekening tertentu."
         ),
-    ]
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "cif": {"type": "string", "description": "Filter by CIF nasabah"},
+                "jenis_rekening": {"type": "string", "description": "Tabungan/Giro/Deposito"},
+                "limit": {"type": "integer", "description": "Max rows (1-100), default 20"},
+            },
+        },
+    ),
+    Tool(
+        name="sql_query",
+        description=(
+            "Jalankan SELECT query bebas ke tabel customer_aggregation_staging. "
+            "Gunakan HANYA jika tool lain tidak cukup. "
+            "Wajib panggil get_schema dulu jika belum tahu nama kolom."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "sql": {
+                    "type": "string",
+                    "description": "SELECT SQL — gunakan nama tabel: customer_aggregation_staging",
+                }
+            },
+            "required": ["sql"],
+        },
+    ),
+]
 
 
 def _format_result(result: dict[str, Any]) -> str:
+    """Format tool result as compact plain text — keeps agent context window small."""
     if "error" in result:
         return f"ERROR: {result['error']}"
+
+    # get_schema returns schema_info directly
+    if "schema_info" in result:
+        return result["schema_info"]
+
     rows = result.get("rows", [])
     row_count = result.get("row_count", len(rows))
+
     if not rows:
         return "Tidak ada data ditemukan."
-    # Format sebagai tabel teks ringkas agar tidak membebani context window agent
+
     cols = list(rows[0].keys())
-    lines = [" | ".join(cols)]
-    lines.append("-" * len(lines[0]))
+    lines = [" | ".join(cols), "-" * min(120, len(" | ".join(cols)))]
     for row in rows:
         lines.append(" | ".join(str(row.get(c, "")) for c in cols))
-    lines.append(f"\nTotal: {row_count} baris")
+    lines.append(f"\n({row_count} baris)")
     return "\n".join(lines)
+
+
+@mcp.list_tools()
+async def list_mcp_tools() -> list[Tool]:
+    return MCP_TOOLS
 
 
 @mcp.call_tool()
 async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    if name == "sql_query":
-        result = run_sql_query(arguments.get("sql", ""))
-    elif name == "rekening_summary":
-        result = run_rekening_summary(
-            cif=arguments.get("cif"),
+    if name == "get_schema":
+        result = run_get_schema()
+    elif name == "cabang_performance":
+        result = run_cabang_performance()
+    elif name == "transaksi_trend":
+        result = run_transaksi_trend(jenis_rekening=arguments.get("jenis_rekening"))
+    elif name == "status_rekening_distribution":
+        result = run_status_rekening_distribution(
             jenis_rekening=arguments.get("jenis_rekening"),
-            limit=arguments.get("limit", 20),
+            cabang=arguments.get("cabang"),
         )
     elif name == "saldo_analysis":
         result = run_saldo_analysis(
             jenis_rekening=arguments.get("jenis_rekening"),
             status_rekening=arguments.get("status_rekening"),
         )
-    elif name == "status_rekening_distribution":
-        result = run_status_rekening_distribution(
+    elif name == "rekening_summary":
+        result = run_rekening_summary(
+            cif=arguments.get("cif"),
             jenis_rekening=arguments.get("jenis_rekening"),
-            cabang=arguments.get("cabang"),
+            limit=arguments.get("limit", 20),
         )
+    elif name == "sql_query":
+        result = run_sql_query(arguments.get("sql", ""))
     else:
         result = {"error": f"Unknown tool: {name}"}
 
@@ -147,7 +192,7 @@ async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextConten
 
 
 # ---------------------------------------------------------------------------
-# SSE transport — mount di /sse
+# SSE transport
 # ---------------------------------------------------------------------------
 
 sse = SseServerTransport("/messages/")
@@ -161,13 +206,13 @@ async def handle_sse(request: Request):
 
 
 # ---------------------------------------------------------------------------
-# FastAPI app (HTTP REST — tetap ada untuk test manual & health check)
+# FastAPI app
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
     title="MCP Server — Customer Aggregation",
     description="MCP tools for customer_aggregation table at Bank Jawa Timur",
-    version="2.0.0",
+    version="3.0.0",
 )
 
 app.add_middleware(
@@ -177,33 +222,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount SSE message handler
 app.mount("/messages/", app=sse.handle_post_message)
-
-# SSE connect endpoint
 app.add_route("/sse", handle_sse, methods=["GET"])
 
 
-# --- REST endpoints (tetap bisa dipakai untuk test manual) ---
-
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    return {"status": "ok", "version": "3.0.0", "tools": len(MCP_TOOLS)}
 
 
 @app.get("/tools")
 def list_tools() -> dict:
     return {
         "tools": [
-            {"name": t.name, "description": t.description, "inputSchema": t.inputSchema}
-            for t in [
-                Tool(name="sql_query", description="Run a generic SELECT query against the customer_aggregation table.", inputSchema={}),
-                Tool(name="rekening_summary", description="Summary rekening per CIF nasabah.", inputSchema={}),
-                Tool(name="saldo_analysis", description="Analisis distribusi saldo dan pola transaksi.", inputSchema={}),
-                Tool(name="status_rekening_distribution", description="Distribusi status rekening per jenis dan cabang.", inputSchema={}),
-            ]
+            {"name": t.name, "description": t.description}
+            for t in MCP_TOOLS
         ]
     }
+
+
+# REST endpoints for manual testing
+@app.get("/tools/get_schema")
+def tool_get_schema():
+    return run_get_schema()
+
+
+@app.get("/tools/cabang_performance")
+def tool_cabang_performance():
+    return ToolResponse(tool="cabang_performance", result=run_cabang_performance())
+
+
+@app.post("/tools/transaksi_trend")
+def tool_transaksi_trend(payload: dict = {}):
+    return ToolResponse(
+        tool="transaksi_trend",
+        result=run_transaksi_trend(jenis_rekening=payload.get("jenis_rekening")),
+    )
 
 
 @app.post("/tools/sql_query", response_model=ToolResponse)
