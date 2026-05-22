@@ -48,7 +48,7 @@ ROW FORMAT DELIMITED
 FIELDS TERMINATED BY ','
 LINES TERMINATED BY '\n'
 STORED AS TEXTFILE
-LOCATION 's3a://<YOUR_BUCKET>/customer_aggregation/'
+LOCATION 's3a://go01-demo/user/cai-demo-se-indonesia/data/customer%20segmentation%20aggregation'
 TBLPROPERTIES ('skip.header.line.count'='1');
 
 
