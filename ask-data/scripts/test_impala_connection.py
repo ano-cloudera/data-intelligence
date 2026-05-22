@@ -11,24 +11,23 @@ Untuk on-premises dengan port berbeda:
     IMPALA_HOST=impala.internal IMPALA_PORT=28000 CDP_USER=user CDP_PASS=pass python test_impala_connection.py
 """
 
-import os
 import sys
 import time
 
 # ---------------------------------------------------------------------------
 # Konfigurasi — edit di sini atau override via env vars
 # ---------------------------------------------------------------------------
-IMPALA_HOST      = os.getenv("IMPALA_HOST",      "coordinator-default-impala-aws.dw-xxx.cloudera.site")
-IMPALA_PORT      = int(os.getenv("IMPALA_PORT",  "443"))
-IMPALA_HTTP_PATH = os.getenv("IMPALA_HTTP_PATH", "cliservice")
-CDP_USER         = os.getenv("CDP_USER",         "<cdp-username>")
-CDP_PASS         = os.getenv("CDP_PASS",         "<cdp-password>")
-DB_NAME          = os.getenv("DB_NAME",          "cai_sdx_se_indonesia")
-AGGREGATION_TABLE = os.getenv("AGGREGATION_TABLE", "customer_aggregation")
+IMPALA_HOST      = "coordinator-default-impala-aws.dw-xxx.cloudera.site"
+IMPALA_PORT      = 443
+IMPALA_HTTP_PATH = "cliservice"
+CDP_USER         = "<cdp-username>"
+CDP_PASS         = "<cdp-password>"
+DB_NAME          = "cai_sdx_se_indonesia"
+AGGREGATION_TABLE = "customer_aggregation"
 
 # SSL & auth — ubah ke False / GSSAPI untuk on-prem Kerberos
-USE_SSL          = os.getenv("IMPALA_USE_SSL",   "true").lower() == "true"
-AUTH_MECHANISM   = os.getenv("IMPALA_AUTH",      "PLAIN")  # PLAIN (LDAP/Knox) atau GSSAPI (Kerberos)
+USE_SSL          = True
+AUTH_MECHANISM   = "PLAIN"  # PLAIN (LDAP/Knox) atau GSSAPI (Kerberos)
 # ---------------------------------------------------------------------------
 
 
