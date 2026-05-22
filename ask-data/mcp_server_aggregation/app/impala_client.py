@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime
 from contextlib import closing
 from decimal import Decimal
@@ -19,7 +20,8 @@ def _safe(value: Any) -> Any:
     return value
 
 
-def execute_query(sql: str) -> dict[str, Any]:
+def _run_query(sql: str) -> dict[str, Any]:
+    """Blocking Impala query — run via asyncio.to_thread to avoid blocking event loop."""
     conn = connect(
         host=settings.impala_host,
         port=settings.impala_port,
@@ -40,6 +42,16 @@ def execute_query(sql: str) -> dict[str, Any]:
                 for row in cursor.fetchall()
             ]
             return {"columns": columns, "rows": rows, "row_count": len(rows)}
+
+
+def execute_query(sql: str) -> dict[str, Any]:
+    """Sync wrapper — dipanggil dari tool functions (non-async context)."""
+    return _run_query(sql)
+
+
+async def execute_query_async(sql: str) -> dict[str, Any]:
+    """Async wrapper — jalankan query di thread pool agar event loop tidak terblok."""
+    return await asyncio.to_thread(_run_query, sql)
 
 
 def qualified_table() -> str:

@@ -16,6 +16,9 @@ from app.schemas import (
     StatusRekeningRequest,
     ToolResponse,
 )
+import asyncio
+
+from app.impala_client import execute_query_async
 from app.tools.cabang_performance import run_cabang_performance
 from app.tools.rekening_summary import run_rekening_summary
 from app.tools.saldo_analysis import run_saldo_analysis
@@ -161,32 +164,44 @@ async def list_mcp_tools() -> list[Tool]:
 
 @mcp.call_tool()
 async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    # get_schema tidak hit Impala — langsung return
     if name == "get_schema":
         result = run_get_schema()
-    elif name == "cabang_performance":
-        result = run_cabang_performance()
-    elif name == "transaksi_trend":
-        result = run_transaksi_trend(jenis_rekening=arguments.get("jenis_rekening"))
-    elif name == "status_rekening_distribution":
-        result = run_status_rekening_distribution(
-            jenis_rekening=arguments.get("jenis_rekening"),
-            cabang=arguments.get("cabang"),
-        )
-    elif name == "saldo_analysis":
-        result = run_saldo_analysis(
-            jenis_rekening=arguments.get("jenis_rekening"),
-            status_rekening=arguments.get("status_rekening"),
-        )
-    elif name == "rekening_summary":
-        result = run_rekening_summary(
-            cif=arguments.get("cif"),
-            jenis_rekening=arguments.get("jenis_rekening"),
-            limit=arguments.get("limit", 20),
-        )
-    elif name == "sql_query":
-        result = run_sql_query(arguments.get("sql", ""))
-    else:
-        result = {"error": f"Unknown tool: {name}"}
+        return [TextContent(type="text", text=_format_result(result))]
+
+    # Semua tool yang hit Impala dijalankan async via thread pool
+    try:
+        if name == "cabang_performance":
+            result = await asyncio.to_thread(run_cabang_performance)
+        elif name == "transaksi_trend":
+            result = await asyncio.to_thread(
+                run_transaksi_trend, arguments.get("jenis_rekening")
+            )
+        elif name == "status_rekening_distribution":
+            result = await asyncio.to_thread(
+                run_status_rekening_distribution,
+                arguments.get("jenis_rekening"),
+                arguments.get("cabang"),
+            )
+        elif name == "saldo_analysis":
+            result = await asyncio.to_thread(
+                run_saldo_analysis,
+                arguments.get("jenis_rekening"),
+                arguments.get("status_rekening"),
+            )
+        elif name == "rekening_summary":
+            result = await asyncio.to_thread(
+                run_rekening_summary,
+                arguments.get("cif"),
+                arguments.get("jenis_rekening"),
+                arguments.get("limit", 20),
+            )
+        elif name == "sql_query":
+            result = await asyncio.to_thread(run_sql_query, arguments.get("sql", ""))
+        else:
+            result = {"error": f"Unknown tool: {name}"}
+    except Exception as exc:
+        result = {"error": str(exc)}
 
     return [TextContent(type="text", text=_format_result(result))]
 
