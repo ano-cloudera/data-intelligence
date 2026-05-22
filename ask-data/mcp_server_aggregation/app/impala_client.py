@@ -1,11 +1,22 @@
 from __future__ import annotations
 
+import datetime
 from contextlib import closing
+from decimal import Decimal
 from typing import Any
 
 from impala.dbapi import connect
 
 from app.config import settings
+
+
+def _safe(value: Any) -> Any:
+    """Convert non-JSON-serializable Impala types to plain Python types."""
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime.date, datetime.datetime)):
+        return value.isoformat()
+    return value
 
 
 def execute_query(sql: str) -> dict[str, Any]:
@@ -24,7 +35,10 @@ def execute_query(sql: str) -> dict[str, Any]:
         with closing(conn.cursor()) as cursor:
             cursor.execute(sql)
             columns = [desc[0] for desc in cursor.description] if cursor.description else []
-            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            rows = [
+                {col: _safe(val) for col, val in zip(columns, row)}
+                for row in cursor.fetchall()
+            ]
             return {"columns": columns, "rows": rows, "row_count": len(rows)}
 
 
