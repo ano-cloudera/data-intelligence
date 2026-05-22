@@ -24,7 +24,7 @@ def run_status_rekening_distribution(
     sql = f"""
 SELECT
     status_rekening,
-    CASE status_rekening
+    CASE CAST(status_rekening AS INT)
         WHEN 0 THEN 'Aktif'
         WHEN 1 THEN 'Dormant'
         WHEN 2 THEN 'Tutup'
@@ -34,9 +34,9 @@ SELECT
     cabang,
     name_cabang,
     COUNT(*) AS jumlah_rekening,
-    ROUND(AVG(saldo_t0), 2) AS avg_saldo,
-    SUM(CASE WHEN has_tx_last_6m = true THEN 1 ELSE 0 END) AS aktif_6m,
-    SUM(CASE WHEN has_tx_first_6m = true THEN 1 ELSE 0 END) AS aktif_awal_6m
+    ROUND(AVG(CAST(saldo_t0 AS DECIMAL(20,2))), 2) AS avg_saldo,
+    SUM(CASE WHEN UPPER(has_tx_last_6m) = 'TRUE' THEN 1 ELSE 0 END) AS aktif_6m,
+    SUM(CASE WHEN UPPER(has_tx_first_6m) = 'TRUE' THEN 1 ELSE 0 END) AS aktif_awal_6m
 FROM {table}
 {where}
 GROUP BY status_rekening, jenis_rekening, cabang, name_cabang

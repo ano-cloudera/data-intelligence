@@ -31,9 +31,9 @@ SELECT
     name_cabang,
     COUNT(no_rekening) AS total_rekening,
     jenis_rekening,
-    SUM(saldo_t0) AS total_saldo_t0,
-    SUM(saldo_end_target) AS total_saldo_end_target,
-    SUM(total_tx) AS total_transaksi,
+    ROUND(SUM(CAST(saldo_t0 AS DECIMAL(20,2))), 2) AS total_saldo_t0,
+    ROUND(SUM(CAST(saldo_end_target AS DECIMAL(20,2))), 2) AS total_saldo_end_target,
+    SUM(CAST(total_tx AS INT)) AS total_transaksi,
     MAX(tgl_trx_terakhir) AS tgl_trx_terakhir,
     status_rekening
 FROM {table}
