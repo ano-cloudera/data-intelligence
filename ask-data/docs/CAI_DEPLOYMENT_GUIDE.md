@@ -682,6 +682,100 @@ curl -X POST $MCP_URL/tools/sql_query \
 
 ---
 
+## APP 5 — MCP Server Aggregation
+
+**Tujuan:** MCP tools khusus tabel `customer_aggregation` (28 kolom segmentasi rekening): sql_query, rekening_summary, saldo_analysis, status_rekening_distribution.
+**Deploy setelah tabel `customer_aggregation` sudah ada di Impala.**
+
+---
+
+### Step 5.1: Buat Application Baru
+
+Menu kiri → **Applications** → **New Application**
+
+---
+
+### Step 5.2: Isi Form Application
+
+| Field | Nilai |
+|---|---|
+| **Name** | `<prefix>-ask-data-mcp-aggregation` |
+| **Subdomain** | _(auto-fill)_ |
+| **Description** | `MCP Server: customer aggregation analytics tools` |
+| **Script** | `data-intelligence/ask-data/mcp_server_aggregation/mcp_entry.py` |
+| **Engine Kernel** | `Python 3.11` |
+| **vCPU / Memory** | `2 vCPU / 4 GiB RAM` |
+| **GPU** | Tidak diperlukan |
+| **Replicas** | `1` |
+
+Centang: **☑ Enable Unauthenticated Access**
+
+---
+
+### Step 5.3: Set Environment Variables APP 5
+
+**Wajib diisi — credentials Impala:**
+
+| Key | Contoh Nilai | Keterangan |
+|---|---|---|
+| `IMPALA_HOST` | `coordinator-default-impala-aws.dw-xxx.cloudera.site` | Sama dengan APP 2 & APP 3 |
+| `IMPALA_PORT` | `443` | Default HTTPS |
+| `IMPALA_HTTP_PATH` | `cliservice` | |
+| `CDP_USER` | `<cdp-username>` | Username CDP/Workbench kamu |
+| `CDP_PASS` | `<cdp-password>` | Password CDP/Workbench kamu |
+| `DB_NAME` | `cai_sdx_se_indonesia` | **Sesuaikan** dengan nama database di env kamu |
+
+**Opsional — override nama tabel jika berbeda:**
+
+| Key | Default | Keterangan |
+|---|---|---|
+| `AGGREGATION_TABLE` | `customer_aggregation` | Ganti jika nama tabel di env kamu berbeda |
+
+> **Tidak perlu** set ChromaDB, Ollama, LLM, atau CHROMA_* — APP 5 hanya connect ke Impala.
+
+---
+
+### Step 5.4: Deploy dan Verifikasi
+
+Klik **Create Application**. Tunggu status `Running` (1–2 menit).
+
+```bash
+MCP_AGG_URL="https://<subdomain-app5>.<domain-cai-kamu>"
+
+curl $MCP_AGG_URL/health
+# Expected: {"status":"ok"}
+
+curl $MCP_AGG_URL/tools | python3 -m json.tool
+# Expected: 4 tools: sql_query, rekening_summary, saldo_analysis, status_rekening_distribution
+
+curl -X POST $MCP_AGG_URL/tools/sql_query \
+  -H "Content-Type: application/json" \
+  -d '{"sql":"SELECT COUNT(*) AS total FROM customer_aggregation"}'
+# Expected: {"tool":"sql_query","result":{"sql":"...","columns":["total"],"rows":[{"total":100}],"row_count":1}}
+```
+
+---
+
+### Step 5.5: Register ke Agent Studio
+
+Setelah APP 5 Running, daftarkan ke Cloudera Agent Studio dengan JSON berikut:
+
+```json
+{
+  "mcpServers": {
+    "BJT Customer Aggregation": {
+      "command": "uvx",
+      "args": ["mcp-proxy", "https://<subdomain-app5>.<domain-cai-kamu>/"],
+      "env": {}
+    }
+  }
+}
+```
+
+> `mcp-proxy` dibutuhkan karena Agent Studio hanya support `uvx`/`npx` runtime, bukan HTTP langsung.
+
+---
+
 ## APP 4 — Frontend Application
 
 **Tujuan:** Next.js UI: chat interface, visualisasi chart, Settings panel (model, RAG, table lock).
@@ -810,6 +904,18 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 | Key | Default | Wajib | Keterangan |
 |---|---|---|---|
 | `BACKEND_API_BASE_URL` | _(kosong)_ | **Ya** | URL APP 2 tanpa trailing slash |
+
+### APP 5 — MCP Server Aggregation
+
+| Key | Default | Wajib | Keterangan |
+|---|---|---|---|
+| `IMPALA_HOST` | _(kosong)_ | **Ya** | Sama dengan APP 2 & APP 3 |
+| `IMPALA_PORT` | `443` | **Ya** | |
+| `IMPALA_HTTP_PATH` | `cliservice` | **Ya** | |
+| `CDP_USER` | _(kosong)_ | **Ya** | |
+| `CDP_PASS` | _(kosong)_ | **Ya** | |
+| `DB_NAME` | `cai_sdx_se_indonesia` | **Ya** | **Sesuaikan** dengan database di env kamu |
+| `AGGREGATION_TABLE` | `customer_aggregation` | Tidak | Override jika nama tabel berbeda di env lain |
 
 ---
 
@@ -946,6 +1052,18 @@ pip show pysqlite3-binary
 - [ ] Pertanyaan dokumen → jawaban RAG + "Relevant Documents" muncul ✓ _(tanpa perlu aktifkan manual)_
 - [ ] Settings panel → badge "Knowledge Base: Auto" terlihat ✓
 - [ ] Guardrails → PII query diblok ✓
+
+### APP 5 — MCP Server Aggregation
+
+- [ ] Tabel `customer_aggregation` sudah ada di Impala (jalankan DDL di `ask-data/sql/impala_customer_aggregation_ddl.sql` dulu)
+- [ ] Script: `data-intelligence/ask-data/mcp_server_aggregation/mcp_entry.py`
+- [ ] Resource: 2 vCPU / 4 GiB, no GPU
+- [ ] Env wajib: `IMPALA_HOST`, `IMPALA_PORT`, `IMPALA_HTTP_PATH`, `CDP_USER`, `CDP_PASS`, `DB_NAME`
+- [ ] Env opsional: `AGGREGATION_TABLE` (default: `customer_aggregation`) — set jika nama tabel berbeda
+- [ ] Unauthenticated Access: ☑
+- [ ] Status: **Running**: `/health` → `{"status":"ok"}`, `/tools` → 4 tools
+- [ ] Test: `POST /tools/sql_query` dengan `{"sql":"SELECT COUNT(*) AS total FROM customer_aggregation"}` → row_count: 1 ✓
+- [ ] Register ke Agent Studio via `mcp-proxy` ✓
 
 ---
 
