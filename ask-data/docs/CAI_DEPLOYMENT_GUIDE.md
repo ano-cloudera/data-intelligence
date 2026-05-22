@@ -729,7 +729,7 @@ Centang: **☑ Enable Unauthenticated Access**
 
 | Key | Default | Keterangan |
 |---|---|---|
-| `AGGREGATION_TABLE` | `customer_aggregation` | Ganti jika nama tabel di env kamu berbeda |
+| `TABLE_NAME` | `customer_aggregation` | Ganti jika nama tabel di env kamu berbeda |
 
 > **Tidak perlu** set ChromaDB, Ollama, LLM, atau CHROMA_* — APP 5 hanya connect ke Impala.
 
@@ -915,7 +915,7 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 | `CDP_USER` | _(kosong)_ | **Ya** | |
 | `CDP_PASS` | _(kosong)_ | **Ya** | |
 | `DB_NAME` | `cai_sdx_se_indonesia` | **Ya** | **Sesuaikan** dengan database di env kamu |
-| `AGGREGATION_TABLE` | `customer_aggregation` | Tidak | Override jika nama tabel berbeda di env lain |
+| `TABLE_NAME` | `customer_aggregation` | Tidak | Override jika nama tabel berbeda di env lain |
 
 ---
 
@@ -1059,7 +1059,7 @@ pip show pysqlite3-binary
 - [ ] Script: `data-intelligence/ask-data/mcp_server_aggregation/mcp_entry.py`
 - [ ] Resource: 2 vCPU / 4 GiB, no GPU
 - [ ] Env wajib: `IMPALA_HOST`, `IMPALA_PORT`, `IMPALA_HTTP_PATH`, `CDP_USER`, `CDP_PASS`, `DB_NAME`
-- [ ] Env opsional: `AGGREGATION_TABLE` (default: `customer_aggregation`) — set jika nama tabel berbeda
+- [ ] Env opsional: `TABLE_NAME` (default: `customer_aggregation`) — set jika nama tabel berbeda
 - [ ] Unauthenticated Access: ☑
 - [ ] Status: **Running**: `/health` → `{"status":"ok"}`, `/tools` → 4 tools
 - [ ] Test: `POST /tools/sql_query` dengan `{"sql":"SELECT COUNT(*) AS total FROM customer_aggregation"}` → row_count: 1 ✓

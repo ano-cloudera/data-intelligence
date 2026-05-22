@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     cdp_user: str = Field(alias="CDP_USER")
     cdp_pass: str = Field(alias="CDP_PASS")
     db_name: str = Field(default="cai_sdx_se_indonesia", alias="DB_NAME")
-    aggregation_table: str = Field(default="customer_aggregation", alias="AGGREGATION_TABLE")
+    aggregation_table: str = Field(default="customer_aggregation", alias="TABLE_NAME")
 
 
 settings = Settings()  # type: ignore[call-arg]
