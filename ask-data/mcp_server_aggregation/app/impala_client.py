@@ -7,8 +7,6 @@ from impala.dbapi import connect
 
 from app.config import settings
 
-TABLE = "customer_aggregation"
-
 
 def execute_query(sql: str) -> dict[str, Any]:
     conn = connect(
@@ -31,4 +29,8 @@ def execute_query(sql: str) -> dict[str, Any]:
 
 
 def qualified_table() -> str:
-    return f"{settings.db_name}.{TABLE}"
+    return f"{settings.db_name}.{settings.aggregation_table}"
+
+
+def table_name() -> str:
+    return settings.aggregation_table
