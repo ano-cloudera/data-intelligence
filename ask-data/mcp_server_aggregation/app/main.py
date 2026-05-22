@@ -103,6 +103,23 @@ async def list_mcp_tools() -> list[Tool]:
     ]
 
 
+def _format_result(result: dict[str, Any]) -> str:
+    if "error" in result:
+        return f"ERROR: {result['error']}"
+    rows = result.get("rows", [])
+    row_count = result.get("row_count", len(rows))
+    if not rows:
+        return "Tidak ada data ditemukan."
+    # Format sebagai tabel teks ringkas agar tidak membebani context window agent
+    cols = list(rows[0].keys())
+    lines = [" | ".join(cols)]
+    lines.append("-" * len(lines[0]))
+    for row in rows:
+        lines.append(" | ".join(str(row.get(c, "")) for c in cols))
+    lines.append(f"\nTotal: {row_count} baris")
+    return "\n".join(lines)
+
+
 @mcp.call_tool()
 async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     if name == "sql_query":
@@ -126,7 +143,7 @@ async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextConten
     else:
         result = {"error": f"Unknown tool: {name}"}
 
-    return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
+    return [TextContent(type="text", text=_format_result(result))]
 
 
 # ---------------------------------------------------------------------------
