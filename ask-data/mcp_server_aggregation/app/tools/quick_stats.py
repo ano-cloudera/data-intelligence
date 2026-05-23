@@ -55,23 +55,31 @@ def run_quick_stats() -> dict[str, Any]:
         """,
     }
 
-    lines = ["=== QUICK STATS — Customer Aggregation ===\n"]
+    section_labels = {
+        "status_summary": "📊 Status Rekening (Aktif/Dormant/Tutup)",
+        "jenis_summary": "🏦 Jenis Rekening (Tabungan/Giro/Deposito)",
+        "tidak_aktif_6m": "⏳ Rekening Tidak Aktif 6 Bulan",
+        "top3_cabang_saldo": "🏆 Top 3 Cabang — Rata-rata Saldo Tertinggi",
+    }
+
+    lines = ["## Quick Stats — Customer Aggregation\n"]
 
     for label, sql in queries.items():
         try:
             result = execute_query(sql.strip())
             rows = result.get("rows", [])
+            section_title = section_labels.get(label, label)
+            lines.append(f"### {section_title}")
             if not rows:
-                lines.append(f"[{label}]: tidak ada data\n")
+                lines.append("_Tidak ada data._\n")
                 continue
             cols = list(rows[0].keys())
-            lines.append(f"[{label}]")
-            lines.append(" | ".join(cols))
-            lines.append("-" * 60)
+            lines.append("| " + " | ".join(cols) + " |")
+            lines.append("| " + " | ".join("---" for _ in cols) + " |")
             for row in rows:
-                lines.append(" | ".join(str(row.get(c, "")) for c in cols))
+                lines.append("| " + " | ".join(str(row.get(c, "")) for c in cols) + " |")
             lines.append("")
         except Exception as exc:
-            lines.append(f"[{label}] ERROR: {exc}\n")
+            lines.append(f"_Error: {exc}_\n")
 
     return {"summary": "\n".join(lines)}
