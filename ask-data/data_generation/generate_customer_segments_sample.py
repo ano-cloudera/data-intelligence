@@ -16,6 +16,8 @@ from __future__ import annotations
 import random
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from pathlib import Path
 
 RANDOM_SEED = 42
@@ -86,13 +88,13 @@ def main():
     df = pd.read_parquet(INPUT)
     print(f"Source: {len(df):,} rows, {len(df.columns)} columns")
 
-    # Stratified sample by cluster_label
-    sample = (
+    # Stratified sample by cluster_label — use index to avoid group-key drop in newer pandas
+    idx = (
         df.groupby("cluster_label", group_keys=False)
         .apply(lambda x: x.sample(frac=SAMPLE_SIZE / len(df), random_state=RANDOM_SEED))
+        .index
     )
-    # Trim/pad to exact SAMPLE_SIZE
-    sample = sample.sample(n=min(SAMPLE_SIZE, len(sample)), random_state=RANDOM_SEED).reset_index(drop=True)
+    sample = df.loc[idx].sample(n=min(SAMPLE_SIZE, len(idx)), random_state=RANDOM_SEED).reset_index(drop=True)
     print(f"Sampled: {len(sample):,} rows")
 
     # Assign new status_rekening
@@ -107,24 +109,76 @@ def main():
     sample["rfm_segment"] = sample["rfm_score"].apply(rfm_segment_for_score)
 
     # Cast numeric types to match Impala DDL exactly
-    sample["status_rekening"] = sample["status_rekening"].astype("int8")    # TINYINT
-    sample["total_tx"]        = sample["total_tx"].astype("int64")           # BIGINT
-    sample["hari_sejak_trx"]  = sample["hari_sejak_trx"].astype("int64")    # BIGINT
-    sample["cluster_kmeans"]  = sample["cluster_kmeans"].astype("int64")    # BIGINT
-    sample["cluster_gmm"]     = sample["cluster_gmm"].astype("int64")       # BIGINT
-    sample["rfm_r"]           = sample["rfm_r"].astype("int64")             # BIGINT
-    sample["rfm_f"]           = sample["rfm_f"].astype("int64")             # BIGINT
-    sample["rfm_m"]           = sample["rfm_m"].astype("int64")             # BIGINT
-    sample["rfm_score"]       = sample["rfm_score"].astype("int64")         # BIGINT
-    sample["umur"]            = sample["umur"].astype("int32")              # INT
-    sample["saldo_t0"]        = sample["saldo_t0"].astype("float64")        # DOUBLE
+    sample["status_rekening"] = sample["status_rekening"].astype("int8")
+    sample["total_tx"]        = sample["total_tx"].astype("int64")
+    sample["hari_sejak_trx"]  = sample["hari_sejak_trx"].astype("int64")
+    sample["cluster_kmeans"]  = sample["cluster_kmeans"].astype("int64")
+    sample["cluster_gmm"]     = sample["cluster_gmm"].astype("int64")
+    sample["rfm_r"]           = sample["rfm_r"].astype("int64")
+    sample["rfm_f"]           = sample["rfm_f"].astype("int64")
+    sample["rfm_m"]           = sample["rfm_m"].astype("int64")
+    sample["rfm_score"]       = sample["rfm_score"].astype("int64")
+    sample["umur"]            = sample["umur"].astype("int32")
+    sample["saldo_t0"]        = sample["saldo_t0"].astype("float64")
+    sample["rasio_kredit"]    = sample["rasio_kredit"].astype("float64")
+    sample["gmm_max_prob"]    = sample["gmm_max_prob"].astype("float64")
+    sample["gmm_entropy"]     = sample["gmm_entropy"].astype("float64")
+    for col in ["gmm_p0","gmm_p1","gmm_p2","gmm_p3","gmm_p4","gmm_p5","gmm_p6","gmm_p7"]:
+        sample[col] = sample[col].astype("float64")
 
-    # Convert t0 to string for Impala compatibility
+    # Convert t0 to string YYYY-MM-DD
     sample["t0"] = pd.to_datetime(sample["t0"]).dt.strftime("%Y-%m-%d")
 
-    # Save
+    # Cast all string cols to plain Python str (avoid ArrowStringArray / large_string)
+    str_cols = sample.select_dtypes(include=["object", "string"]).columns.tolist()
+    for col in str_cols:
+        sample[col] = sample[col].astype(str)
+
+    # Build explicit pyarrow schema — forces pa.string() not pa.large_string()
+    pa_schema = pa.schema([
+        pa.field("cif",                pa.string()),
+        pa.field("no_rekening",        pa.string()),
+        pa.field("jenis",              pa.string()),
+        pa.field("jenis_rekening",     pa.string()),
+        pa.field("cabang",             pa.string()),
+        pa.field("saldo_t0",           pa.float64()),
+        pa.field("total_tx",           pa.int64()),
+        pa.field("status_rekening",    pa.int8()),
+        pa.field("status_label",       pa.string()),
+        pa.field("t0",                 pa.string()),
+        pa.field("umur",               pa.int32()),
+        pa.field("jenis_kelamin",      pa.string()),
+        pa.field("hari_sejak_trx",     pa.int64()),
+        pa.field("rasio_kredit",       pa.float64()),
+        pa.field("cluster_kmeans",     pa.int64()),
+        pa.field("cluster_gmm",        pa.int64()),
+        pa.field("gmm_max_prob",       pa.float64()),
+        pa.field("gmm_entropy",        pa.float64()),
+        pa.field("gmm_p0",             pa.float64()),
+        pa.field("gmm_p1",             pa.float64()),
+        pa.field("gmm_p2",             pa.float64()),
+        pa.field("gmm_p3",             pa.float64()),
+        pa.field("gmm_p4",             pa.float64()),
+        pa.field("gmm_p5",             pa.float64()),
+        pa.field("gmm_p6",             pa.float64()),
+        pa.field("gmm_p7",             pa.float64()),
+        pa.field("cluster_label",      pa.string()),
+        pa.field("cluster_color",      pa.string()),
+        pa.field("age_group",          pa.string()),
+        pa.field("jenis_kelamin_label",pa.string()),
+        pa.field("saldo_segment",      pa.string()),
+        pa.field("activity_level",     pa.string()),
+        pa.field("rfm_r",              pa.int64()),
+        pa.field("rfm_f",              pa.int64()),
+        pa.field("rfm_m",              pa.int64()),
+        pa.field("rfm_score",          pa.int64()),
+        pa.field("rfm_segment",        pa.string()),
+    ])
+
+    # Write via pyarrow with explicit schema
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    sample.to_parquet(OUTPUT, index=False)
+    table = pa.Table.from_pandas(sample, schema=pa_schema, preserve_index=False)
+    pq.write_table(table, OUTPUT)
     size_mb = OUTPUT.stat().st_size / 1024 / 1024
     print(f"\nOutput: {OUTPUT}")
     print(f"Size  : {size_mb:.1f} MB")
