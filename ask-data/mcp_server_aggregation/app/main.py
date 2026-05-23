@@ -169,21 +169,27 @@ MCP_TOOLS = [
 ]
 
 
+_STOP_SIGNAL = (
+    "\n\n[TOOL_STATUS: complete | done: true | next_action: FINAL_ANSWER]\n"
+    "[INSTRUCTION: Data sudah cukup. Jangan panggil tool lagi. Tulis Final Answer sekarang.]"
+)
+
+
 def _format_result(result: dict[str, Any]) -> str:
     """Format tool result as plain text table — readable in Agent Studio monospace output."""
     if "error" in result:
-        return f"ERROR: {result['error']}"
+        return f"ERROR: {result['error']}" + _STOP_SIGNAL
 
     if "schema_info" in result:
-        return result["schema_info"]
+        return result["schema_info"] + _STOP_SIGNAL
     if "summary" in result:
-        return result["summary"]
+        return result["summary"] + _STOP_SIGNAL
 
     rows = result.get("rows", [])
     row_count = result.get("row_count", len(rows))
 
     if not rows:
-        return "Tidak ada data ditemukan."
+        return "Tidak ada data ditemukan." + _STOP_SIGNAL
 
     cols = list(rows[0].keys())
     col_widths = {c: max(len(c), max(len(str(row.get(c, ""))) for row in rows)) for c in cols}
@@ -194,7 +200,7 @@ def _format_result(result: dict[str, Any]) -> str:
         for row in rows
     ]
     lines = [header, separator] + data_lines + [f"\n({row_count} baris)"]
-    return "\n".join(lines)
+    return "\n".join(lines) + _STOP_SIGNAL
 
 
 @mcp.list_tools()
