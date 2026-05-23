@@ -106,6 +106,19 @@ def main():
     sample["rfm_score"] = sample["rfm_r"] + sample["rfm_f"] + sample["rfm_m"]
     sample["rfm_segment"] = sample["rfm_score"].apply(rfm_segment_for_score)
 
+    # Cast numeric types to match Impala DDL exactly
+    sample["status_rekening"] = sample["status_rekening"].astype("int8")    # TINYINT
+    sample["total_tx"]        = sample["total_tx"].astype("int64")           # BIGINT
+    sample["hari_sejak_trx"]  = sample["hari_sejak_trx"].astype("int64")    # BIGINT
+    sample["cluster_kmeans"]  = sample["cluster_kmeans"].astype("int64")    # BIGINT
+    sample["cluster_gmm"]     = sample["cluster_gmm"].astype("int64")       # BIGINT
+    sample["rfm_r"]           = sample["rfm_r"].astype("int64")             # BIGINT
+    sample["rfm_f"]           = sample["rfm_f"].astype("int64")             # BIGINT
+    sample["rfm_m"]           = sample["rfm_m"].astype("int64")             # BIGINT
+    sample["rfm_score"]       = sample["rfm_score"].astype("int64")         # BIGINT
+    sample["umur"]            = sample["umur"].astype("int32")              # INT
+    sample["saldo_t0"]        = sample["saldo_t0"].astype("float64")        # DOUBLE
+
     # Convert t0 to string for Impala compatibility
     sample["t0"] = pd.to_datetime(sample["t0"]).dt.strftime("%Y-%m-%d")
 
