@@ -1,15 +1,13 @@
 from __future__ import annotations
 
+import concurrent.futures
 from typing import Any
 
 from app.impala_client import execute_query, qualified_table
 
 
-def run_quick_stats() -> dict[str, Any]:
-    """Single call — return semua overview penting sekaligus."""
-    table = qualified_table()
-
-    queries = {
+def _build_queries(table: str) -> dict[str, str]:
+    return {
         "status_summary": f"""
             SELECT
                 CASE status_rekening
@@ -55,32 +53,52 @@ def run_quick_stats() -> dict[str, Any]:
         """,
     }
 
-    section_labels = {
-        "status_summary": "[ Status Rekening (Aktif/Dormant/Tutup) ]",
-        "jenis_summary": "[ Jenis Rekening (Tabungan/Giro/Deposito) ]",
-        "tidak_aktif_6m": "[ Rekening Tidak Aktif 6 Bulan ]",
-        "top3_cabang_saldo": "[ Top 3 Cabang - Rata-rata Saldo Tertinggi ]",
-    }
+
+SECTION_LABELS = {
+    "status_summary":   "[ Status Rekening (Aktif/Dormant/Tutup) ]",
+    "jenis_summary":    "[ Jenis Rekening (Tabungan/Giro/Deposito) ]",
+    "tidak_aktif_6m":   "[ Rekening Tidak Aktif 6 Bulan ]",
+    "top3_cabang_saldo":"[ Top 3 Cabang - Rata-rata Saldo Tertinggi ]",
+}
+
+
+def _format_section(label: str, result: dict[str, Any] | Exception) -> str:
+    title = SECTION_LABELS.get(label, label)
+    lines = [title]
+    if isinstance(result, Exception):
+        lines.append(f"ERROR: {result}\n")
+        return "\n".join(lines)
+    rows = result.get("rows", [])
+    if not rows:
+        lines.append("Tidak ada data.\n")
+        return "\n".join(lines)
+    cols = list(rows[0].keys())
+    col_widths = {c: max(len(c), max(len(str(row.get(c, ""))) for row in rows)) for c in cols}
+    lines.append("  ".join(c.upper().ljust(col_widths[c]) for c in cols))
+    lines.append("  ".join("-" * col_widths[c] for c in cols))
+    for row in rows:
+        lines.append("  ".join(str(row.get(c, "")).ljust(col_widths[c]) for c in cols))
+    lines.append("")
+    return "\n".join(lines)
+
+
+def run_quick_stats() -> dict[str, Any]:
+    """Run all 4 overview queries in parallel, return combined summary."""
+    table = qualified_table()
+    queries = _build_queries(table)
+
+    results: dict[str, Any] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(execute_query, sql.strip()): label for label, sql in queries.items()}
+        for future in concurrent.futures.as_completed(futures):
+            label = futures[future]
+            try:
+                results[label] = future.result()
+            except Exception as exc:
+                results[label] = exc
 
     lines = ["=== QUICK STATS - Customer Aggregation ===\n"]
-
-    for label, sql in queries.items():
-        try:
-            result = execute_query(sql.strip())
-            rows = result.get("rows", [])
-            section_title = section_labels.get(label, label)
-            lines.append(section_title)
-            if not rows:
-                lines.append("Tidak ada data.\n")
-                continue
-            cols = list(rows[0].keys())
-            col_widths = {c: max(len(c), max(len(str(row.get(c, ""))) for row in rows)) for c in cols}
-            lines.append("  ".join(c.upper().ljust(col_widths[c]) for c in cols))
-            lines.append("  ".join("-" * col_widths[c] for c in cols))
-            for row in rows:
-                lines.append("  ".join(str(row.get(c, "")).ljust(col_widths[c]) for c in cols))
-            lines.append("")
-        except Exception as exc:
-            lines.append(f"ERROR: {exc}\n")
+    for label in queries:  # preserve order
+        lines.append(_format_section(label, results.get(label, Exception("No result"))))
 
     return {"summary": "\n".join(lines)}
