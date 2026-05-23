@@ -21,7 +21,6 @@ def run_sql_query(sql: str) -> dict[str, Any]:
     full_table = qualified_table()
     short_table = table_name()
 
-    # Qualify unqualified table reference so the correct db/table is always used
     sql_lower = sql.lower()
     if short_table not in sql_lower and full_table not in sql_lower:
         return {"error": f"Query must reference table: {short_table}"}

@@ -10,17 +10,17 @@ def run_cabang_performance() -> dict[str, Any]:
     sql = f"""
 SELECT
     cabang,
-    name_cabang,
     COUNT(*) AS total_rekening,
-    SUM(CASE WHEN status_rekening = '0' THEN 1 ELSE 0 END) AS aktif,
-    SUM(CASE WHEN status_rekening = '1' THEN 1 ELSE 0 END) AS dormant,
-    SUM(CASE WHEN status_rekening = '2' THEN 1 ELSE 0 END) AS tutup,
-    ROUND(SUM(CASE WHEN status_rekening = '1' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS pct_dormant,
-    ROUND(AVG(CAST(saldo_t0 AS DECIMAL(20,2))), 0) AS avg_saldo,
-    ROUND(AVG(CAST(total_tx AS INT)), 1) AS avg_transaksi,
-    SUM(CASE WHEN UPPER(has_tx_last_6m) = 'FALSE' THEN 1 ELSE 0 END) AS tidak_aktif_6m
+    SUM(CASE WHEN status_rekening = 0 THEN 1 ELSE 0 END) AS aktif,
+    SUM(CASE WHEN status_rekening = 1 THEN 1 ELSE 0 END) AS dormant,
+    SUM(CASE WHEN status_rekening = 2 THEN 1 ELSE 0 END) AS tutup,
+    ROUND(SUM(CASE WHEN status_rekening = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS pct_dormant,
+    ROUND(AVG(saldo_t0), 0) AS avg_saldo,
+    ROUND(AVG(total_tx), 1) AS avg_transaksi,
+    ROUND(AVG(hari_sejak_trx), 0) AS avg_hari_sejak_trx,
+    SUM(CASE WHEN hari_sejak_trx > 180 THEN 1 ELSE 0 END) AS tidak_aktif_180hr
 FROM {table}
-GROUP BY cabang, name_cabang
+GROUP BY cabang
 ORDER BY dormant DESC, total_rekening DESC
 """.strip()
 

@@ -21,30 +21,33 @@ def run_rekening_summary(
         safe_jr = jenis_rekening.replace("'", "''")
         conditions.append(f"jenis_rekening = '{safe_jr}'")
     if status_rekening is not None:
-        conditions.append(f"CAST(status_rekening AS INT) = {int(status_rekening)}")
+        conditions.append(f"status_rekening = {int(status_rekening)}")
 
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     limit = max(1, min(int(limit), 100))
 
     sql = f"""
 SELECT
-    cif,
-    name,
-    jenis_rekening,
     cabang,
-    name_cabang,
-    status_rekening,
-    COUNT(no_rekening) AS total_rekening,
-    ROUND(SUM(CAST(saldo_t0 AS DECIMAL(20,2))), 2) AS total_saldo,
-    SUM(CAST(total_tx AS INT)) AS total_transaksi,
-    SUM(CAST(count_tx_kredit AS INT)) AS total_tx_kredit,
-    ROUND(AVG(CAST(avg_nominal_kredit AS DECIMAL(20,2))), 2) AS avg_nominal_kredit,
-    SUM(CAST(count_tx_debit AS INT)) AS total_tx_debit,
-    ROUND(AVG(CAST(avg_nominal_debit AS DECIMAL(20,2))), 2) AS avg_nominal_debit,
-    MAX(tgl_trx_terakhir) AS tgl_trx_terakhir
+    jenis,
+    jenis_rekening,
+    status_label,
+    cluster_label,
+    rfm_segment,
+    saldo_segment,
+    activity_level,
+    age_group,
+    jenis_kelamin_label,
+    COUNT(*) AS total_rekening,
+    ROUND(SUM(saldo_t0), 2) AS total_saldo,
+    ROUND(AVG(saldo_t0), 2) AS avg_saldo,
+    ROUND(AVG(total_tx), 1) AS avg_transaksi,
+    ROUND(AVG(hari_sejak_trx), 0) AS avg_hari_sejak_trx,
+    ROUND(AVG(rfm_score), 1) AS avg_rfm_score
 FROM {table}
 {where}
-GROUP BY cif, name, jenis_rekening, cabang, name_cabang, status_rekening
+GROUP BY cabang, jenis, jenis_rekening, status_label, cluster_label,
+         rfm_segment, saldo_segment, activity_level, age_group, jenis_kelamin_label
 ORDER BY total_saldo DESC
 LIMIT {limit}
 """.strip()

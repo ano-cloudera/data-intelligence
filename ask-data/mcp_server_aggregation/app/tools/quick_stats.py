@@ -10,44 +10,43 @@ def _build_queries(table: str) -> dict[str, str]:
     return {
         "status_summary": f"""
             SELECT
-                CASE status_rekening
-                    WHEN '0' THEN 'Aktif'
-                    WHEN '1' THEN 'Dormant'
-                    WHEN '2' THEN 'Tutup'
-                    ELSE 'Lainnya'
-                END AS status,
+                status_label AS status,
                 COUNT(*) AS jumlah,
-                ROUND(AVG(CAST(saldo_t0 AS DECIMAL(20,2))), 0) AS avg_saldo
+                ROUND(AVG(saldo_t0), 0) AS avg_saldo
             FROM {table}
-            GROUP BY status_rekening
+            GROUP BY status_rekening, status_label
             ORDER BY status_rekening
         """,
-        "jenis_summary": f"""
+        "cluster_summary": f"""
             SELECT
-                jenis_rekening,
+                cluster_label,
                 COUNT(*) AS total,
-                SUM(CASE WHEN status_rekening = '0' THEN 1 ELSE 0 END) AS aktif,
-                SUM(CASE WHEN status_rekening = '1' THEN 1 ELSE 0 END) AS dormant,
-                ROUND(AVG(CAST(saldo_t0 AS DECIMAL(20,2))), 0) AS avg_saldo
+                SUM(CASE WHEN status_rekening = 0 THEN 1 ELSE 0 END) AS aktif,
+                SUM(CASE WHEN status_rekening = 1 THEN 1 ELSE 0 END) AS dormant,
+                ROUND(AVG(saldo_t0), 0) AS avg_saldo,
+                ROUND(AVG(hari_sejak_trx), 0) AS avg_hari_sejak_trx
             FROM {table}
-            GROUP BY jenis_rekening
-            ORDER BY jenis_rekening
+            GROUP BY cluster_label
+            ORDER BY cluster_label
         """,
-        "tidak_aktif_6m": f"""
+        "rfm_summary": f"""
             SELECT
-                jenis_rekening,
-                SUM(CASE WHEN UPPER(has_tx_last_6m) = 'FALSE' THEN 1 ELSE 0 END) AS tidak_aktif_6m,
-                COUNT(*) AS total,
-                ROUND(SUM(CASE WHEN UPPER(has_tx_last_6m) = 'FALSE' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS pct
+                rfm_segment,
+                COUNT(*) AS jumlah,
+                ROUND(AVG(saldo_t0), 0) AS avg_saldo,
+                ROUND(AVG(rfm_score), 1) AS avg_rfm_score
             FROM {table}
-            GROUP BY jenis_rekening
+            GROUP BY rfm_segment
+            ORDER BY avg_rfm_score DESC
         """,
         "top3_cabang_saldo": f"""
-            SELECT cabang, name_cabang,
+            SELECT
+                cabang,
                 COUNT(*) AS total_rekening,
-                ROUND(AVG(CAST(saldo_t0 AS DECIMAL(20,2))), 0) AS avg_saldo
+                ROUND(AVG(saldo_t0), 0) AS avg_saldo,
+                ROUND(AVG(hari_sejak_trx), 0) AS avg_hari_sejak_trx
             FROM {table}
-            GROUP BY cabang, name_cabang
+            GROUP BY cabang
             ORDER BY avg_saldo DESC
             LIMIT 3
         """,
@@ -56,8 +55,8 @@ def _build_queries(table: str) -> dict[str, str]:
 
 SECTION_LABELS = {
     "status_summary":   "[ Status Rekening (Aktif/Dormant/Tutup) ]",
-    "jenis_summary":    "[ Jenis Rekening (Tabungan/Giro/Deposito) ]",
-    "tidak_aktif_6m":   "[ Rekening Tidak Aktif 6 Bulan ]",
+    "cluster_summary":  "[ Segmen Nasabah (Cluster K-Means) ]",
+    "rfm_summary":      "[ RFM Segment (Champions/Loyal/Potential/At Risk/Lost) ]",
     "top3_cabang_saldo":"[ Top 3 Cabang - Rata-rata Saldo Tertinggi ]",
 }
 
@@ -97,8 +96,8 @@ def run_quick_stats() -> dict[str, Any]:
             except Exception as exc:
                 results[label] = exc
 
-    lines = ["=== QUICK STATS - Customer Aggregation ===\n"]
-    for label in queries:  # preserve order
+    lines = ["=== QUICK STATS - Customer Segments ===\n"]
+    for label in queries:
         lines.append(_format_section(label, results.get(label, Exception("No result"))))
 
     return {"summary": "\n".join(lines)}

@@ -41,18 +41,18 @@ MCP_TOOLS = [
             "GUNAKAN INI PERTAMA untuk semua pertanyaan overview, ringkasan, atau statistik umum. "
             "Return 4 ringkasan sekaligus: "
             "(1) jumlah & avg saldo per status rekening (Aktif/Dormant/Tutup), "
-            "(2) jumlah aktif/dormant & avg saldo per jenis rekening (Tabungan/Giro/Deposito), "
-            "(3) persentase & jumlah rekening tidak aktif 6 bulan per jenis rekening, "
+            "(2) distribusi cluster segmen nasabah (Silent Mature/Young Syariah Digital/Konvensional Produktif), "
+            "(3) distribusi RFM segment (Champions/Loyal/Potential/At Risk/Lost) + avg saldo, "
             "(4) top 3 cabang avg saldo tertinggi. "
-            "Gunakan untuk: 'overview', 'ringkasan', 'statistik rekening', 'berapa rekening dormant', "
-            "'persentase tidak aktif', 'rekening aktif vs dormant'. Tidak perlu parameter."
+            "Gunakan untuk: 'overview', 'ringkasan', 'statistik rekening', 'segmen nasabah', "
+            "'berapa rekening dormant', 'rfm segment', 'cluster nasabah'. Tidak perlu parameter."
         ),
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
         name="get_schema",
         description=(
-            "Dapatkan nama tabel, daftar kolom, tipe data, dan aturan CAST. "
+            "Dapatkan nama tabel, daftar kolom, tipe data, dan aturan query. "
             "Panggil HANYA sebelum sql_query jika belum tahu nama kolom. "
             "Jangan panggil tool ini untuk pertanyaan analitik — gunakan tool lain."
         ),
@@ -62,10 +62,9 @@ MCP_TOOLS = [
         name="cabang_performance",
         description=(
             "Performa semua cabang: total rekening, jumlah aktif/dormant/tutup, persentase dormant, "
-            "rata-rata saldo, rata-rata transaksi, jumlah rekening tidak aktif 6 bulan. "
+            "rata-rata saldo, rata-rata transaksi, rata-rata hari sejak transaksi, rekening tidak aktif >180 hari. "
             "Gunakan untuk: 'performa cabang', 'cabang mana paling banyak dormant', "
-            "'top cabang tidak aktif 6 bulan', 'persentase tidak aktif per cabang', "
-            "'cabang dengan rekening tidak aktif tertinggi', 'ranking cabang'. "
+            "'top cabang tidak aktif', 'persentase tidak aktif per cabang', 'ranking cabang'. "
             "Tidak perlu parameter — return semua cabang, sort/filter di sisi agent."
         ),
         inputSchema={"type": "object", "properties": {}},
@@ -73,11 +72,11 @@ MCP_TOOLS = [
     Tool(
         name="transaksi_trend",
         description=(
-            "Tren aktivitas transaksi per jenis rekening (Tabungan/Giro/Deposito): "
-            "jumlah aktif 6 bulan terakhir, jumlah tidak aktif 6 bulan, "
-            "rekening baru dormant, dormant lama, persentase tidak aktif. "
-            "Gunakan untuk: 'tren aktivitas', 'rekening baru dormant', 'dormant lama vs baru', "
-            "'detail aktivitas per jenis rekening'. "
+            "Tren aktivitas transaksi per jenis rekening: "
+            "jumlah aktif <=30 hari, kurang aktif 31-180 hari, tidak aktif >180 hari, "
+            "rata-rata hari sejak transaksi, persentase tidak aktif. "
+            "Gunakan untuk: 'tren aktivitas per jenis rekening', 'rekening tidak aktif per produk', "
+            "'aktivitas Tabungan vs Giro', 'berapa persen tidak aktif per jenis rekening'. "
             "Kosongkan jenis_rekening untuk semua jenis sekaligus."
         ),
         inputSchema={
@@ -85,7 +84,7 @@ MCP_TOOLS = [
             "properties": {
                 "jenis_rekening": {
                     "type": "string",
-                    "description": "Filter by jenis rekening: Tabungan/Giro/Deposito. Kosongkan untuk semua.",
+                    "description": "Filter by jenis rekening. Kosongkan untuk semua.",
                 }
             },
         },
@@ -93,35 +92,34 @@ MCP_TOOLS = [
     Tool(
         name="status_rekening_distribution",
         description=(
-            "Distribusi jumlah rekening per status (Aktif/Dormant/Tutup), dikelompokkan per jenis rekening dan cabang. "
-            "Gunakan untuk: 'distribusi status rekening', 'berapa rekening aktif/dormant/tutup per cabang', "
+            "Distribusi jumlah rekening per status (Aktif/Dormant/Tutup), per jenis rekening dan cabang. "
+            "Return: avg saldo dan avg hari sejak transaksi per grup. "
+            "Gunakan untuk: 'distribusi status rekening', 'berapa rekening aktif/dormant per cabang', "
             "'breakdown status per jenis rekening'. "
-            "Parameter opsional: jenis_rekening (Tabungan/Giro/Deposito), cabang (kode cabang)."
+            "Parameter opsional: jenis_rekening, cabang (kode cabang)."
         ),
         inputSchema={
             "type": "object",
             "properties": {
-                "jenis_rekening": {"type": "string", "description": "Tabungan/Giro/Deposito"},
-                "cabang": {"type": "string", "description": "Kode cabang, contoh: BC001"},
+                "jenis_rekening": {"type": "string", "description": "Filter jenis rekening"},
+                "cabang": {"type": "string", "description": "Kode cabang, contoh: 611"},
             },
         },
     ),
     Tool(
         name="saldo_analysis",
         description=(
-            "Analisis saldo dan transaksi per jenis dan/atau status rekening. "
-            "Return: jumlah rekening, avg/min/max saldo, avg transaksi kredit, avg nominal kredit, "
-            "avg transaksi debit, avg nominal debit, rekening aktif 6 bulan. "
+            "Analisis saldo dan aktivitas per jenis dan/atau status rekening. "
+            "Return: jumlah rekening, avg/min/max saldo, avg transaksi, avg hari sejak transaksi, "
+            "avg rasio kredit, rekening aktif vs tidak aktif >180 hari. "
             "Gunakan untuk: 'rata-rata saldo Tabungan aktif', 'jumlah rekening Deposito dormant', "
-            "'perbandingan saldo aktif vs dormant vs tutup', 'distribusi transaksi kredit debit', "
-            "'berapa rekening Giro dormant', 'avg saldo per status rekening'. "
-            "Parameter opsional: jenis_rekening (Tabungan/Giro/Deposito), status_rekening (0=Aktif, 1=Dormant, 2=Tutup). "
-            "Kosongkan keduanya untuk semua data."
+            "'perbandingan saldo aktif vs dormant vs tutup', 'avg saldo per status rekening'. "
+            "Parameter opsional: jenis_rekening, status_rekening (0=Aktif, 1=Dormant, 2=Tutup)."
         ),
         inputSchema={
             "type": "object",
             "properties": {
-                "jenis_rekening": {"type": "string", "description": "Tabungan/Giro/Deposito"},
+                "jenis_rekening": {"type": "string", "description": "Filter jenis rekening"},
                 "status_rekening": {
                     "type": "integer",
                     "description": "0=Aktif, 1=Dormant, 2=Tutup",
@@ -132,18 +130,18 @@ MCP_TOOLS = [
     Tool(
         name="rekening_summary",
         description=(
-            "Daftar rekening per nasabah (CIF): total rekening, saldo, transaksi kredit/debit, status. "
-            "Gunakan untuk: 'top 5 rekening Tabungan aktif', 'daftar rekening nasabah', "
-            "'rekening CIF tertentu', 'distribusi transaksi kredit debit per nasabah', "
-            "'rekening dengan saldo tertinggi', 'tampilkan rekening dormant'. "
-            "Parameter opsional: cif, jenis_rekening (Tabungan/Giro/Deposito), "
-            "status_rekening (0=Aktif, 1=Dormant, 2=Tutup), limit (default 20, max 100)."
+            "Ringkasan rekening dikelompokkan per cabang, jenis rekening, cluster, RFM segment, "
+            "saldo segment, activity level, age group, dan gender. "
+            "Return: total rekening, total saldo, avg saldo, avg transaksi, avg hari sejak transaksi, avg RFM score. "
+            "Gunakan untuk: 'top rekening per cluster', 'rekening Champions per cabang', "
+            "'rekening Tabungan aktif', 'distribusi rekening per segmen', 'rekening dengan saldo tertinggi'. "
+            "Parameter opsional: cif, jenis_rekening, status_rekening (0/1/2), limit (default 20, max 100)."
         ),
         inputSchema={
             "type": "object",
             "properties": {
                 "cif": {"type": "string", "description": "Filter by CIF nasabah"},
-                "jenis_rekening": {"type": "string", "description": "Tabungan/Giro/Deposito"},
+                "jenis_rekening": {"type": "string", "description": "Filter jenis rekening"},
                 "status_rekening": {"type": "integer", "description": "0=Aktif, 1=Dormant, 2=Tutup"},
                 "limit": {"type": "integer", "description": "Max rows (1-100), default 20"},
             },
@@ -152,8 +150,9 @@ MCP_TOOLS = [
     Tool(
         name="sql_query",
         description=(
-            "Jalankan SELECT query bebas ke tabel customer_aggregation_staging. "
-            "Gunakan HANYA jika tool lain tidak cukup untuk menjawab pertanyaan. "
+            "Jalankan SELECT query bebas ke tabel customer_segments_staging. "
+            "Gunakan HANYA jika tool lain tidak cukup. "
+            "Kolom numerik sudah native type (DOUBLE/BIGINT/INT) — tidak perlu CAST. "
             "Wajib panggil get_schema dulu jika belum tahu nama kolom."
         ),
         inputSchema={
@@ -161,7 +160,7 @@ MCP_TOOLS = [
             "properties": {
                 "sql": {
                     "type": "string",
-                    "description": "SELECT SQL — gunakan nama tabel: customer_aggregation_staging",
+                    "description": "SELECT SQL — gunakan nama tabel: customer_segments_staging",
                 }
             },
             "required": ["sql"],

@@ -23,21 +23,15 @@ def run_status_rekening_distribution(
 
     sql = f"""
 SELECT
-    CASE CAST(status_rekening AS INT)
-        WHEN 0 THEN 'Aktif'
-        WHEN 1 THEN 'Dormant'
-        WHEN 2 THEN 'Tutup'
-        ELSE 'Tidak Diketahui'
-    END AS status_label,
+    status_label,
     jenis_rekening,
     cabang,
-    name_cabang,
     COUNT(*) AS jumlah_rekening,
-    ROUND(AVG(CAST(saldo_t0 AS DECIMAL(20,2))), 0) AS avg_saldo,
-    SUM(CASE WHEN UPPER(has_tx_last_6m) = 'TRUE' THEN 1 ELSE 0 END) AS aktif_6m
+    ROUND(AVG(saldo_t0), 0) AS avg_saldo,
+    ROUND(AVG(hari_sejak_trx), 0) AS avg_hari_sejak_trx
 FROM {table}
 {where}
-GROUP BY status_rekening, jenis_rekening, cabang, name_cabang
+GROUP BY status_rekening, status_label, jenis_rekening, cabang
 ORDER BY status_rekening, jenis_rekening, cabang
 LIMIT 30
 """.strip()
