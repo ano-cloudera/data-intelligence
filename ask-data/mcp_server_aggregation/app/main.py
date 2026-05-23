@@ -38,13 +38,14 @@ MCP_TOOLS = [
     Tool(
         name="quick_stats",
         description=(
-            "GUNAKAN INI PERTAMA untuk pertanyaan umum atau overview. "
+            "GUNAKAN INI PERTAMA untuk semua pertanyaan overview, ringkasan, atau statistik umum. "
             "Return 4 ringkasan sekaligus dalam 1 call: "
             "(1) jumlah & avg saldo per status rekening (Aktif/Dormant/Tutup), "
             "(2) jumlah aktif/dormant & avg saldo per jenis rekening (Tabungan/Giro/Deposito), "
-            "(3) rekening tidak aktif 6 bulan per jenis rekening, "
+            "(3) persentase & jumlah rekening tidak aktif 6 bulan per jenis rekening, "
             "(4) top 3 cabang avg saldo tertinggi. "
-            "Tidak perlu parameter."
+            "Gunakan untuk: 'berapa rekening dormant', 'overview nasabah', 'statistik rekening', "
+            "'persentase tidak aktif', 'ringkasan data'. Tidak perlu parameter."
         ),
         inputSchema={"type": "object", "properties": {}},
     ),
@@ -69,8 +70,13 @@ MCP_TOOLS = [
     Tool(
         name="transaksi_trend",
         description=(
-            "Tren aktivitas transaksi per jenis rekening: jumlah aktif/tidak aktif 6 bulan terakhir, "
-            "rekening baru dormant, dormant lama, dan persentase tidak aktif."
+            "Tren aktivitas transaksi per jenis rekening (Tabungan/Giro/Deposito): "
+            "jumlah aktif 6 bulan terakhir, jumlah tidak aktif 6 bulan terakhir, "
+            "rekening baru dormant, dormant lama, dan persentase tidak aktif. "
+            "Gunakan untuk: 'tren aktivitas', 'rekening baru dormant', 'rekening dormant lama', "
+            "'detail tidak aktif per jenis rekening'. "
+            "CATATAN: untuk pertanyaan 'persentase tidak aktif per jenis rekening' gunakan quick_stats — "
+            "sudah include data ini. Gunakan transaksi_trend hanya jika butuh detail baru_dormant/dormant_lama."
         ),
         inputSchema={
             "type": "object",
