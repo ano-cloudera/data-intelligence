@@ -12,6 +12,7 @@ class SqlQueryRequest(BaseModel):
 class RekeningRequest(BaseModel):
     cif: str | None = Field(None, description="Filter by CIF nasabah")
     jenis_rekening: str | None = Field(None, description="Filter by jenis rekening: Tabungan/Giro/Deposito")
+    status_rekening: int | None = Field(None, description="Filter by status: 0=Aktif, 1=Dormant, 2=Tutup")
     limit: int = Field(default=20, ge=1, le=100)
 
 

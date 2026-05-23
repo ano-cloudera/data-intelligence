@@ -68,31 +68,8 @@ def _safe(value: Any) -> Any:
 # Query execution
 # ---------------------------------------------------------------------------
 
-def _run_query(sql: str) -> dict[str, Any]:
-    """Blocking Impala query using pooled connection."""
-    conn = _get_connection()
-    try:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute(sql)
-            columns = [desc[0] for desc in cursor.description] if cursor.description else []
-            rows = [
-                {col: _safe(val) for col, val in zip(columns, row)}
-                for row in cursor.fetchall()
-            ]
-            return {"columns": columns, "rows": rows, "row_count": len(rows)}
-    except Exception:
-        # Connection may be stale — discard it and don't return to pool
-        try:
-            conn.close()
-        except Exception:
-            pass
-        raise
-    else:
-        _release_connection(conn)
-
-
 def _run_query_safe(sql: str) -> dict[str, Any]:
-    """Like _run_query but always returns connection to pool."""
+    """Execute query using pooled connection. Returns connection to pool on success, discards on error."""
     conn = _get_connection()
     ok = False
     try:

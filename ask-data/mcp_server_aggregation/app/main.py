@@ -332,6 +332,7 @@ def tool_rekening_summary(payload: RekeningRequest) -> ToolResponse:
             cif=payload.cif,
             jenis_rekening=payload.jenis_rekening,
             limit=payload.limit,
+            status_rekening=payload.status_rekening,
         ),
     )
 
