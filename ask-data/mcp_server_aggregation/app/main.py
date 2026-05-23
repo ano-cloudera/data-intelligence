@@ -153,9 +153,9 @@ MCP_TOOLS = [
 
 
 def _format_result(result: dict[str, Any]) -> str:
-    """Format tool result as markdown table — renders cleanly in Agent Studio."""
+    """Format tool result as plain text table — readable in Agent Studio monospace output."""
     if "error" in result:
-        return f"❌ **Error:** {result['error']}"
+        return f"ERROR: {result['error']}"
 
     if "schema_info" in result:
         return result["schema_info"]
@@ -169,13 +169,14 @@ def _format_result(result: dict[str, Any]) -> str:
         return "Tidak ada data ditemukan."
 
     cols = list(rows[0].keys())
-    header = "| " + " | ".join(cols) + " |"
-    separator = "| " + " | ".join("---" for _ in cols) + " |"
+    col_widths = {c: max(len(c), max(len(str(row.get(c, ""))) for row in rows)) for c in cols}
+    header = "  ".join(c.upper().ljust(col_widths[c]) for c in cols)
+    separator = "  ".join("-" * col_widths[c] for c in cols)
     data_lines = [
-        "| " + " | ".join(str(row.get(c, "")) for c in cols) + " |"
+        "  ".join(str(row.get(c, "")).ljust(col_widths[c]) for c in cols)
         for row in rows
     ]
-    lines = [f"**Total: {row_count} baris**\n", header, separator] + data_lines
+    lines = [header, separator] + data_lines + [f"\n({row_count} baris)"]
     return "\n".join(lines)
 
 

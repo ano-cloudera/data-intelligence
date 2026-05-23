@@ -56,30 +56,31 @@ def run_quick_stats() -> dict[str, Any]:
     }
 
     section_labels = {
-        "status_summary": "📊 Status Rekening (Aktif/Dormant/Tutup)",
-        "jenis_summary": "🏦 Jenis Rekening (Tabungan/Giro/Deposito)",
-        "tidak_aktif_6m": "⏳ Rekening Tidak Aktif 6 Bulan",
-        "top3_cabang_saldo": "🏆 Top 3 Cabang — Rata-rata Saldo Tertinggi",
+        "status_summary": "[ Status Rekening (Aktif/Dormant/Tutup) ]",
+        "jenis_summary": "[ Jenis Rekening (Tabungan/Giro/Deposito) ]",
+        "tidak_aktif_6m": "[ Rekening Tidak Aktif 6 Bulan ]",
+        "top3_cabang_saldo": "[ Top 3 Cabang - Rata-rata Saldo Tertinggi ]",
     }
 
-    lines = ["## Quick Stats — Customer Aggregation\n"]
+    lines = ["=== QUICK STATS - Customer Aggregation ===\n"]
 
     for label, sql in queries.items():
         try:
             result = execute_query(sql.strip())
             rows = result.get("rows", [])
             section_title = section_labels.get(label, label)
-            lines.append(f"### {section_title}")
+            lines.append(section_title)
             if not rows:
-                lines.append("_Tidak ada data._\n")
+                lines.append("Tidak ada data.\n")
                 continue
             cols = list(rows[0].keys())
-            lines.append("| " + " | ".join(cols) + " |")
-            lines.append("| " + " | ".join("---" for _ in cols) + " |")
+            col_widths = {c: max(len(c), max(len(str(row.get(c, ""))) for row in rows)) for c in cols}
+            lines.append("  ".join(c.upper().ljust(col_widths[c]) for c in cols))
+            lines.append("  ".join("-" * col_widths[c] for c in cols))
             for row in rows:
-                lines.append("| " + " | ".join(str(row.get(c, "")) for c in cols) + " |")
+                lines.append("  ".join(str(row.get(c, "")).ljust(col_widths[c]) for c in cols))
             lines.append("")
         except Exception as exc:
-            lines.append(f"_Error: {exc}_\n")
+            lines.append(f"ERROR: {exc}\n")
 
     return {"summary": "\n".join(lines)}
