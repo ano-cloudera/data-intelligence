@@ -22,6 +22,7 @@ SELECT
 FROM {table}
 GROUP BY cabang
 ORDER BY dormant DESC, total_rekening DESC
+LIMIT 50
 """.strip()
 
     try:

@@ -68,12 +68,16 @@ def _safe(value: Any) -> Any:
 # Query execution
 # ---------------------------------------------------------------------------
 
+_QUERY_TIMEOUT_SEC = 30
+
+
 def _run_query_safe(sql: str) -> dict[str, Any]:
-    """Execute query using pooled connection. Returns connection to pool on success, discards on error."""
+    """Execute query using pooled connection. Raises TimeoutError if > _QUERY_TIMEOUT_SEC seconds."""
     conn = _get_connection()
     ok = False
     try:
         with closing(conn.cursor()) as cursor:
+            cursor.execute(f"SET QUERY_TIMEOUT_S={_QUERY_TIMEOUT_SEC}")
             cursor.execute(sql)
             columns = [desc[0] for desc in cursor.description] if cursor.description else []
             rows = [
