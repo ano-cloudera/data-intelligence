@@ -20,6 +20,7 @@ import asyncio
 
 from app.impala_client import execute_query_async
 from app.tools.cabang_performance import run_cabang_performance
+from app.tools.quick_stats import run_quick_stats
 from app.tools.rekening_summary import run_rekening_summary
 from app.tools.saldo_analysis import run_saldo_analysis
 from app.tools.schema import run_get_schema
@@ -35,10 +36,24 @@ mcp = Server("bjt-customer-aggregation")
 
 MCP_TOOLS = [
     Tool(
+        name="quick_stats",
+        description=(
+            "GUNAKAN INI PERTAMA untuk pertanyaan umum atau overview. "
+            "Return 4 ringkasan sekaligus dalam 1 call: "
+            "(1) jumlah & avg saldo per status rekening (Aktif/Dormant/Tutup), "
+            "(2) jumlah aktif/dormant & avg saldo per jenis rekening (Tabungan/Giro/Deposito), "
+            "(3) rekening tidak aktif 6 bulan per jenis rekening, "
+            "(4) top 3 cabang avg saldo tertinggi. "
+            "Tidak perlu parameter."
+        ),
+        inputSchema={"type": "object", "properties": {}},
+    ),
+    Tool(
         name="get_schema",
         description=(
             "Dapatkan nama tabel, daftar kolom, tipe data, dan aturan CAST. "
-            "Panggil tool ini PERTAMA sebelum membuat sql_query agar tidak salah nama tabel atau kolom."
+            "Panggil HANYA sebelum sql_query jika belum tahu nama kolom. "
+            "Jangan panggil tool ini untuk pertanyaan analitik — gunakan tool lain."
         ),
         inputSchema={"type": "object", "properties": {}},
     ),
@@ -84,8 +99,11 @@ MCP_TOOLS = [
     Tool(
         name="saldo_analysis",
         description=(
-            "Analisis distribusi saldo dan pola transaksi kredit/debit "
-            "per jenis dan status rekening."
+            "Analisis saldo dan transaksi per jenis dan status rekening. "
+            "Return: jumlah rekening, avg/min/max saldo, avg transaksi kredit/debit, rekening aktif 6 bulan. "
+            "Gunakan untuk: 'berapa total rekening Giro aktif', 'rata-rata saldo Tabungan dormant', "
+            "'perbandingan saldo antar status rekening'. "
+            "Parameter opsional: jenis_rekening (Tabungan/Giro/Deposito), status_rekening (0=Aktif, 1=Dormant, 2=Tutup)."
         ),
         inputSchema={
             "type": "object",
@@ -139,9 +157,10 @@ def _format_result(result: dict[str, Any]) -> str:
     if "error" in result:
         return f"ERROR: {result['error']}"
 
-    # get_schema returns schema_info directly
     if "schema_info" in result:
         return result["schema_info"]
+    if "summary" in result:
+        return result["summary"]
 
     rows = result.get("rows", [])
     row_count = result.get("row_count", len(rows))
@@ -164,14 +183,16 @@ async def list_mcp_tools() -> list[Tool]:
 
 @mcp.call_tool()
 async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    # get_schema tidak hit Impala — langsung return
+    # Tool yang tidak hit Impala — langsung return
     if name == "get_schema":
         result = run_get_schema()
         return [TextContent(type="text", text=_format_result(result))]
 
     # Semua tool yang hit Impala dijalankan async via thread pool
     try:
-        if name == "cabang_performance":
+        if name == "quick_stats":
+            result = await asyncio.to_thread(run_quick_stats)
+        elif name == "cabang_performance":
             result = await asyncio.to_thread(run_cabang_performance)
         elif name == "transaksi_trend":
             result = await asyncio.to_thread(
