@@ -1,9 +1,7 @@
-# CAI Deployment Guide — MCP Server Aggregation (APP 5)
+# CAI Deployment Guide — MCP Server: Customer Segments (APP 5)
 
-> Panduan ini khusus untuk deploy **APP 5: MCP Server Aggregation** — server MCP baru
-> untuk tabel `customer_aggregation` (28 kolom segmentasi rekening nasabah).
->
-> Pastikan APP 1 (Qwen LLM) dan tabel `customer_aggregation` di Impala sudah siap sebelum mulai.
+> Panduan deploy **APP 5: MCP Server Customer Segments** — server MCP untuk tabel
+> `customer_segments_staging` (37 kolom, 219.262 baris data segmentasi nasabah Bank Jawa Timur).
 
 ---
 
@@ -13,24 +11,33 @@
 |---|---|
 | **Folder** | `ask-data/mcp_server_aggregation/` |
 | **Entry Script** | `data-intelligence/ask-data/mcp_server_aggregation/mcp_entry.py` |
-| **Tabel Target** | `customer_aggregation` (28 kolom) |
-| **Tools** | `sql_query`, `rekening_summary`, `saldo_analysis`, `status_rekening_distribution` |
+| **Tabel Target** | `customer_segments_staging` (37 kolom) |
+| **Tools** | 8 tools: `quick_stats`, `get_schema`, `cabang_performance`, `transaksi_trend`, `status_rekening_distribution`, `saldo_analysis`, `rekening_summary`, `sql_query` |
 | **Port** | Auto-detect dari `CDSW_APP_PORT` |
 | **Resource** | 2 vCPU / 4 GiB RAM / No GPU |
 
 ---
 
+## Konteks Bisnis
+
+Data `customer_segments_staging` adalah hasil enrichment ML segmentasi nasabah Bank Jawa Timur:
+
+- **219.262 rekening** dari seluruh cabang
+- **Cluster K-Means** (3 segmen): Silent Mature, Young Syariah Digital, Konvensional Produktif
+- **RFM Scoring**: Champions, Loyal, Potential, At Risk, Lost
+- **Demografis**: umur, jenis kelamin, age group
+- **Aktivitas**: hari sejak transaksi terakhir, activity level (Sangat Aktif / Aktif / Kurang Aktif / Tidak Aktif)
+- **Saldo Segment**: Rendah (<1jt) / Menengah (1-10jt) / Tinggi (10-100jt) / Premium (>100jt)
+
+---
+
 ## Prasyarat
 
-Sebelum deploy APP 5, pastikan:
-
 - [ ] Repo sudah di-clone ke `/home/cdsw/data-intelligence/`
-- [ ] Tabel `customer_aggregation` sudah ada di Impala
-  - Jalankan DDL di `ask-data/sql/impala_customer_aggregation_ddl.sql`
-  - Upload CSV `ask-data/output/customer_aggregation_100.csv` ke S3 terlebih dahulu:
-    `s3a://go01-demo/user/cai-demo-se-indonesia/data/customer%20segmentation%20aggregation`
-  - Verifikasi: `SELECT COUNT(*) FROM cai_sdx_se_indonesia.customer_aggregation` → 100 rows
-- [ ] Credential Impala tersedia (host, user, password)
+- [ ] File parquet sudah diupload ke S3:
+  `s3a://go01-demo/user/cai-demo-se-indonesia/data/customer_segments/customer_segments.parquet`
+- [ ] DDL sudah dijalankan di Hue: `ask-data/sql/impala_customer_segments_ddl.sql`
+- [ ] Verifikasi: `SELECT COUNT(*) FROM cai_sdx_se_indonesia.customer_segments_staging` → 219.262 rows
 
 ---
 
@@ -45,14 +52,12 @@ Menu kiri → **Applications** → **New Application**
 | Field | Nilai |
 |---|---|
 | **Name** | `<prefix>-ask-data-mcp-aggregation` |
-| **Subdomain** | _(auto-fill dari Name)_ |
-| **Description** | `MCP Server: customer aggregation analytics tools — Bank Jawa Timur` |
+| **Description** | `MCP Server: customer segments analytics — Bank Jawa Timur` |
 | **Script** | `data-intelligence/ask-data/mcp_server_aggregation/mcp_entry.py` |
 | **Engine Kernel** | `Python 3.11` |
 | **vCPU** | `2` |
 | **Memory** | `4 GiB` |
 | **GPU** | Tidak diperlukan |
-| **Replicas** | `1` |
 
 Centang: **☑ Enable Unauthenticated Access**
 
@@ -60,207 +65,185 @@ Centang: **☑ Enable Unauthenticated Access**
 
 ## Step 3: Set Environment Variables
 
-### Wajib diisi
-
-| Key | Contoh Nilai | Keterangan |
+| Key | Nilai | Keterangan |
 |---|---|---|
-| `IMPALA_HOST` | `coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site` | Impala coordinator hostname |
-| `IMPALA_PORT` | `443` | Port HTTPS (on-prem Knox: `28000`, direct: `21050`) |
+| `IMPALA_HOST` | `coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site` | Impala coordinator |
+| `IMPALA_PORT` | `443` | Port HTTPS |
 | `IMPALA_HTTP_PATH` | `cliservice` | |
-| `CDP_USER` | `<cdp-username>` | Username CDP |
-| `CDP_PASS` | `<cdp-password>` | Password CDP |
-| `DB_NAME` | `cai_sdx_se_indonesia` | Nama database Impala — **sesuaikan** |
-
-### Opsional
-
-| Key | Default | Keterangan |
-|---|---|---|
-| `TABLE_NAME` | `customer_aggregation` | Override nama tabel jika berbeda di env lain |
-
-> **Tidak perlu** set: `QWEN_BASE_URL`, `CHROMA_*`, `OLLAMA_*`, `EMBED_MODEL`
-> — APP 5 hanya butuh koneksi Impala.
+| `CDP_USER` | `<cdp-username>` | |
+| `CDP_PASS` | `<cdp-password>` | |
+| `DB_NAME` | `cai_sdx_se_indonesia` | |
+| `TABLE_NAME` | `customer_segments_staging` | **Wajib diisi** |
 
 ---
 
 ## Step 4: Deploy dan Verifikasi
 
-Klik **Create Application**. Tunggu status `Running` (1–2 menit).
-
-Setelah Running, ambil URL application dari dashboard lalu jalankan:
-
 ```bash
-MCP_AGG_URL="https://<subdomain-app5>.<domain-cai-kamu>"
+MCP_URL="https://<subdomain-app5>.<domain-cai>"
 
-# 1. Health check
-curl $MCP_AGG_URL/health
-# Expected: {"status":"ok"}
+# Health check
+curl $MCP_URL/health
+# Expected: {"status":"ok","version":"3.0.0","tools":8}
 
-# 2. List tools
-curl $MCP_AGG_URL/tools | python3 -m json.tool
-# Expected: 4 tools — sql_query, rekening_summary, saldo_analysis, status_rekening_distribution
+# List tools
+curl $MCP_URL/tools
 
-# 3. Test sql_query
-curl -X POST $MCP_AGG_URL/tools/sql_query \
+# Test quick_stats
+curl $MCP_URL/tools/get_schema
+
+# Test saldo_analysis
+curl -X POST $MCP_URL/tools/saldo_analysis \
   -H "Content-Type: application/json" \
-  -d '{"sql":"SELECT COUNT(*) AS total FROM customer_aggregation"}'
-# Expected: {"tool":"sql_query","result":{"columns":["total"],"rows":[{"total":100}],"row_count":1,...}}
+  -d '{"status_rekening": 0}'
 
-# 4. Test rekening_summary
-curl -X POST $MCP_AGG_URL/tools/rekening_summary \
+# Test rekening_summary
+curl -X POST $MCP_URL/tools/rekening_summary \
   -H "Content-Type: application/json" \
   -d '{"limit": 5}'
-# Expected: {"tool":"rekening_summary","result":{"columns":[...],"rows":[...],"row_count":5}}
-
-# 5. Test status_rekening_distribution
-curl -X POST $MCP_AGG_URL/tools/status_rekening_distribution \
-  -H "Content-Type: application/json" \
-  -d '{}'
-# Expected: distribusi Aktif/Dormant/Tutup per jenis rekening
 ```
 
 ---
 
-## Step 5: Register ke Cloudera Agent Studio
-
-Setelah APP 5 status `Running`, daftarkan ke Agent Studio:
-
-1. Buka **Agent Studio** di Cloudera AI
-2. Buka workflow atau buat workflow baru
-3. Di bagian **MCP Servers**, tambahkan konfigurasi berikut:
+## Step 5: Register ke Agent Studio
 
 ```json
 {
   "mcpServers": {
     "BJT Customer Aggregation": {
       "command": "uvx",
-      "args": ["mcp-proxy", "https://<subdomain-app5>.<domain-cai-kamu>/"],
+      "args": ["mcp-proxy", "https://<subdomain-app5>.<domain-cai>/"],
       "env": {}
     }
   }
 }
 ```
 
-> **Kenapa `mcp-proxy`?**
-> Agent Studio hanya support runtime `uvx` (Python) dan `npx` (Node.js).
-> `mcp-proxy` menjadi bridge antara Agent Studio dan HTTP FastAPI server kita.
+---
+
+## System Prompt — Data Retrieval Agent
+
+```
+Kamu adalah Data Retrieval Agent untuk workflow analitik segmentasi nasabah Bank Jawa Timur.
+
+Tugas kamu adalah memahami kebutuhan data, memilih MCP tool yang paling tepat, menjalankan pengambilan data, dan mengembalikan hasil secara faktual ke Master Agent.
+
+Data berasal dari tabel customer_segments_staging yang berisi 219.262 rekening nasabah hasil segmentasi ML dengan 37 kolom mencakup: identitas rekening, saldo, aktivitas transaksi, demografis nasabah, cluster segmentasi, dan RFM scoring.
+
+KONTEKS BISNIS:
+- Cluster 0 (Silent Mature): nasabah dengan transaksi sangat jarang, saldo rendah, berisiko churn
+- Cluster 1 (Young Syariah Digital): nasabah muda berbasis Syariah, aktivitas tinggi, orientasi digital
+- Cluster 2 (Konvensional Produktif): nasabah konvensional aktif, saldo tertinggi, transaksi terbanyak
+- RFM Champions/Loyal: nasabah bernilai tinggi, prioritas retensi
+- RFM At Risk/Lost: nasabah yang perlu reaktivasi segera
+- activity_level: Sangat Aktif (<=7hr), Aktif (8-30hr), Kurang Aktif (31-180hr), Tidak Aktif (>180hr)
+- status_rekening: 0=Aktif, 1=Dormant, 2=Tutup (integer, tidak perlu CAST)
+
+ATURAN WAJIB — JANGAN LOOPING:
+1. Maksimal 2 tool call per pertanyaan. Setelah 2 call, LANGSUNG kembalikan hasil.
+2. Setelah tool berhasil return data, JANGAN "Thinking" lagi. Kembalikan data apa adanya SEKARANG.
+3. Jika satu tool sudah cukup menjawab, jangan panggil tool kedua.
+4. Jangan format ulang, ringkas, atau analisis data — itu tugas Master Agent.
+
+PRIORITAS TOOL (pilih SATU yang paling sesuai):
+- quick_stats → overview umum, statistik rekening, cluster summary, RFM summary
+- cabang_performance → performa cabang, ranking cabang, tidak aktif per cabang
+- saldo_analysis → avg saldo, jumlah rekening per status/jenis, aktivitas
+- transaksi_trend → tren aktivitas per jenis rekening, hari sejak transaksi
+- status_rekening_distribution → distribusi Aktif/Dormant/Tutup per jenis dan cabang
+- rekening_summary → daftar rekening per cluster/RFM/segmen, top N rekening
+- get_schema → HANYA sebelum sql_query
+- sql_query → HANYA jika 7 tool di atas tidak cukup
+
+PENTING — kolom numerik sudah native type (DOUBLE/BIGINT/INT), tidak perlu CAST.
+
+Jangan tampilkan CIF atau nomor rekening. Semua hasil harus agregat.
+Jangan berikan rekomendasi bisnis. Fokus pada angka dan fakta.
+Jawab dalam Bahasa Indonesia.
+```
 
 ---
 
-## System Prompt Agent Studio
+## Contoh Pertanyaan untuk Demo
 
-Gunakan prompt berikut di field **System Prompt / Instructions** pada workflow Agent Studio:
+### Overview & Segmentasi
 
-```
-Kamu adalah Data Retrieval Agent untuk workflow analitik segmentasi rekening Bank Jawa Timur.
+- Berikan ringkasan data nasabah Bank Jawa Timur
+- Berapa jumlah nasabah per cluster segmentasi?
+- Tampilkan distribusi RFM segment nasabah kita
+- Nasabah dengan kategori Champions ada berapa dan berapa rata-rata saldonya?
+- Bandingkan rata-rata saldo antara cluster Silent Mature, Young Syariah Digital, dan Konvensional Produktif
 
-Tugas kamu adalah memahami kebutuhan data dari Master Agent, memilih MCP tool yang paling tepat, menjalankan pengambilan data melalui MCP, dan mengembalikan hasil secara faktual.
+### Aktivitas & Dormant
 
-Data yang dianalisis berasal dari tabel customer_aggregation_staging yang berisi informasi rekening, cabang, jenis rekening, saldo, aktivitas transaksi, status rekening, dan indikator transaksi 6 bulan.
+- Berapa persen rekening yang tidak aktif lebih dari 180 hari per jenis rekening?
+- Tampilkan rekening dengan activity level Tidak Aktif per cabang
+- Cabang mana yang memiliki persentase rekening dormant tertinggi? Tampilkan top 3
+- Berapa rekening yang sudah lebih dari 6 bulan tidak bertransaksi?
 
-Fokus analisis kamu meliputi:
-1. jumlah rekening berdasarkan cabang,
-2. jenis rekening,
-3. status rekening,
-4. aktivitas transaksi,
-5. rekening tanpa transaksi 6 bulan terakhir,
-6. saldo awal dan saldo akhir target,
-7. transaksi kredit dan debit,
-8. performa cabang berdasarkan aktivitas dan saldo.
+### Saldo & Segmen
 
-Gunakan tool agregasi yang tersedia terlebih dahulu sebelum memakai SQL bebas:
-- status_rekening_distribution → distribusi Aktif/Dormant/Tutup per jenis rekening dan cabang (parameter opsional: jenis_rekening, cabang)
-- rekening_summary → ringkasan saldo dan transaksi per nasabah (parameter opsional: cif, jenis_rekening, limit)
-- saldo_analysis → analisis rata-rata saldo dan pola kredit/debit (parameter opsional: jenis_rekening, status_rekening)
-- sql_query → gunakan HANYA jika 3 tool di atas tidak cukup
+- Apa rata-rata saldo nasabah Champions vs At Risk?
+- Tampilkan distribusi saldo segment (Rendah/Menengah/Tinggi/Premium) per status rekening
+- Berapa total rekening dengan saldo Premium yang masih aktif?
+- Bandingkan rata-rata saldo antara rekening Syariah dan Konvensional
 
-Jika menggunakan sql_query:
-- Nama tabel wajib: customer_aggregation_staging
-- Kolom yang tersedia: cif, no_rekening, jenis, name, cabang, jenis_rekening, name_cabang, min_saldo, saldo_t0, tgl_trx_terakhir, total_tx, tx_sistem, tx_nasabah, count_tx_kredit, avg_nominal_kredit, max_nominal_kredit, min_nominal_kredit, std_nominal_kredit, count_tx_debit, avg_nominal_debit, max_nominal_debit, min_nominal_debit, std_nominal_debit, has_tx_first_6m, has_tx_last_6m, saldo_end_target, status_rekening, t0
-- Semua kolom numerik tersimpan sebagai STRING — gunakan CAST(kolom AS DECIMAL(20,2)) atau CAST(kolom AS INT) saat agregasi
-- has_tx_first_6m dan has_tx_last_6m bertipe STRING 'TRUE'/'FALSE' — gunakan UPPER(kolom) = 'TRUE'
-- status_rekening bertipe STRING: '0'=Aktif, '1'=Dormant, '2'=Tutup
+### Demografis
 
-Jangan memberikan rekomendasi bisnis final. Jangan membuat interpretasi berlebihan. Fokus hanya pada angka, fakta, pola data, dan ringkasan hasil query.
+- Bagaimana distribusi nasabah berdasarkan kelompok usia (age group)?
+- Berapa rekening yang dimiliki nasabah muda (<30 tahun) dan berapa rata-rata saldonya?
+- Tampilkan perbandingan aktivitas antara nasabah pria dan wanita
 
-Jangan pernah menampilkan CIF, nomor rekening, atau nama nasabah. Semua hasil harus berbentuk agregat berdasarkan cabang, jenis rekening, status rekening, aktivitas transaksi, atau saldo.
+### Cabang & Produk
 
-Jika user meminta data row-level yang mengandung CIF, nomor rekening, atau nama nasabah, tolak permintaan tersebut dan berikan alternatif agregasi yang aman.
-```
+- Tampilkan performa top 5 cabang berdasarkan rata-rata saldo
+- Cabang mana yang paling banyak memiliki nasabah kategori Lost?
+- Berapa rekening per jenis rekening yang masuk cluster Young Syariah Digital?
 
 ---
 
 ## Tools yang Tersedia
 
-### 1. `sql_query`
-Generic SELECT query terhadap `customer_aggregation`.
+### 1. `quick_stats`
 
-```json
-{
-  "sql": "SELECT jenis_rekening, COUNT(*) AS total FROM customer_aggregation GROUP BY jenis_rekening"
-}
-```
+Overview 4 dimensi sekaligus: status rekening, cluster, RFM, top cabang.
+Tidak perlu parameter.
 
-### 2. `rekening_summary`
-Summary rekening per CIF: total rekening, saldo, status, transaksi terakhir.
+### 2. `cabang_performance`
 
-```json
-{
-  "cif": "CIF0000001",
-  "jenis_rekening": "Tabungan",
-  "limit": 20
-}
-```
+Performa semua cabang: aktif/dormant/tutup, pct dormant, avg saldo, avg hari sejak transaksi.
+Tidak perlu parameter.
 
 ### 3. `saldo_analysis`
-Distribusi saldo dan pola transaksi kredit/debit per jenis dan status rekening.
+
+```json
+{"jenis_rekening": "TABUNGAN IB BAROKAH", "status_rekening": 0}
+```
+
+### 4. `transaksi_trend`
+
+```json
+{"jenis_rekening": "TABUNGAN SIMPEDA"}
+```
+
+### 5. `status_rekening_distribution`
+
+```json
+{"cabang": "611"}
+```
+
+### 6. `rekening_summary`
+
+```json
+{"status_rekening": 1, "limit": 10}
+```
+
+### 7. `sql_query`
 
 ```json
 {
-  "jenis_rekening": "Giro",
-  "status_rekening": 1
+  "sql": "SELECT cluster_label, rfm_segment, COUNT(*) AS total, ROUND(AVG(saldo_t0),0) AS avg_saldo FROM cai_sdx_se_indonesia.customer_segments_staging GROUP BY cluster_label, rfm_segment ORDER BY avg_saldo DESC"
 }
-```
-> `status_rekening`: `0` = Aktif, `1` = Dormant, `2` = Tutup
-
-### 4. `status_rekening_distribution`
-Distribusi status rekening (Aktif/Dormant/Tutup) per jenis rekening dan cabang.
-
-```json
-{
-  "jenis_rekening": "Tabungan",
-  "cabang": "BC001"
-}
-```
-
----
-
-## Troubleshooting
-
-### App tidak mau `Running`
-
-Cek logs di CAI Application → **Logs**. Kemungkinan penyebab:
-- `ModuleNotFoundError: impyla` → dependencies belum terinstall, restart application
-- `mcp_server_aggregation/app/main.py not found` → path script salah, pastikan prefix `data-intelligence/`
-
-### `/health` OK tapi query error
-
-```bash
-curl -X POST $MCP_AGG_URL/tools/sql_query \
-  -H "Content-Type: application/json" \
-  -d '{"sql":"SELECT 1"}'
-# Jika error: cek IMPALA_HOST, CDP_USER, CDP_PASS di env vars
-```
-
-- `TSocket read 0 bytes` → credential salah atau network tidak bisa reach Impala
-- `Table not found` → `DB_NAME` atau `TABLE_NAME` salah, atau tabel belum dibuat di Impala
-
-### Test koneksi Impala dari Workbench session
-
-```bash
-cd /home/cdsw/data-intelligence/ask-data
-
-IMPALA_HOST=<host> CDP_USER=<user> CDP_PASS=<pass> \
-  python3 scripts/test_impala_connection.py
 ```
 
 ---
@@ -268,10 +251,8 @@ IMPALA_HOST=<host> CDP_USER=<user> CDP_PASS=<pass> \
 ## Checklist Final
 
 - [ ] APP 5 status: **Running**
-- [ ] `GET /health` → `{"status":"ok"}`
-- [ ] `GET /tools` → 4 tools terdaftar
-- [ ] `POST /tools/sql_query` dengan `SELECT COUNT(*) AS total FROM customer_aggregation` → `total: 100`
-- [ ] `POST /tools/rekening_summary` → data muncul
-- [ ] `POST /tools/saldo_analysis` → distribusi saldo muncul
-- [ ] `POST /tools/status_rekening_distribution` → distribusi Aktif/Dormant/Tutup muncul
+- [ ] `GET /health` → `{"status":"ok","tools":8}`
+- [ ] `GET /tools` → 8 tools terdaftar
+- [ ] `TABLE_NAME=customer_segments_staging` di env
+- [ ] `SELECT COUNT(*) FROM customer_segments_staging` → 219.262 rows
 - [ ] Registered di Agent Studio via `mcp-proxy`
