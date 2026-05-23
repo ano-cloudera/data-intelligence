@@ -19,11 +19,11 @@ import pandas as pd
 from pathlib import Path
 
 RANDOM_SEED = 42
-SAMPLE_SIZE = 10_000
+SAMPLE_SIZE = 1_000
 DIST = {0: 0.70, 1: 0.20, 2: 0.10}  # status_rekening distribution
 
 INPUT  = Path(__file__).parents[1] / "data/sample_data_parquet/customer_segments.parquet"
-OUTPUT = Path(__file__).parents[1] / "data/sample_data_parquet/customer_segments_sample_10k.parquet"
+OUTPUT = Path(__file__).parents[1] / "data/sample_data_parquet/customer_segments_sample_1k.parquet"
 
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
