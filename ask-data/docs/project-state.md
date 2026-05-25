@@ -1,303 +1,280 @@
 # Ask Data — Project State (Bank Jawa Timur PoC)
 
-_Last updated: 2026-05-14_
+_Last updated: 2026-05-23_
 
 ---
 
 ## 1. Executive Summary
 
-**Customer:** Bank Jawa Timur (Bank Jatim)  
-**Use Case:** AI-powered Customer Analytics Assistant — Natural Language to SQL + RAG Document Q&A  
-**Status:** ✅ End-to-end working locally, siap demo
+**Customer:** Bank Jawa Timur (Bank Jatim)
+**Use Case:** AI-powered Customer Segmentation Analytics Assistant — Multi-Agent + MCP + Impala CDW
+**Status:** ✅ End-to-end working di CAI, siap demo
 
-Asisten analitik berbahasa Indonesia yang memungkinkan tim bisnis mengajukan pertanyaan tentang data segmentasi nasabah dalam bahasa alami. Backend generate SQL, eksekusi ke Impala/CDW Cloudera, dan kembalikan jawaban dalam Bahasa Indonesia. Selain SQL, asisten juga bisa menjawab pertanyaan berbasis dokumen kebijakan via ChromaDB (RAG).
-
----
-
-## 2. Demo Flow
-
-### SQL Flow (default)
-1. User buka frontend → AI Assistant
-2. User tanya dalam Bahasa Indonesia (contoh: "Berapa jumlah nasabah per segmen?")
-3. Frontend kirim ke `POST /chat/query`
-4. Backend generate SQL via Qwen2.5:7b (Ollama), eksekusi ke Impala CDW
-5. Backend kembalikan: jawaban Bahasa Indonesia + SQL + rows + visualization spec
-6. Frontend render jawaban + chart (bar/line/pie/table) otomatis
-
-### RAG Flow (Knowledge Base aktif)
-1. User klik tombol **"Knowledge Base"** di topbar
-2. User enable RAG, pilih collection `bankjatim_docs`, set top_k
-3. Frontend save config via `POST /rag/config`
-4. Pertanyaan selanjutnya dikirim ke `POST /chat/answer`
-5. Backend query ChromaDB → ambil chunks relevan → kirim ke Qwen → jawaban dengan sumber PDF
+Asisten analitik berbahasa Indonesia yang memungkinkan tim bisnis mengajukan pertanyaan tentang data segmentasi nasabah dalam bahasa alami. Arsitektur multi-agent (Master → Retrieval → Penasihat) dengan MCP Server yang terhubung ke Impala CDW. Agent Retrieval mengambil data via MCP tools, Agent Penasihat memberikan insight dan rekomendasi bisnis.
 
 ---
 
-## 3. Architecture
+## 2. Architecture
 
 | Layer | Teknologi |
 |---|---|
-| Structured data | Impala / CDW (Cloudera Data Warehouse) |
-| LLM provider | Qwen2.5:7b via Ollama (lokal M1 Mac) |
-| Vector store | ChromaDB embedded (PersistentClient) |
-| Embedding model | `nomic-embed-text` via Ollama |
-| Backend | FastAPI + Uvicorn, Python 3.11 |
-| Frontend | Next.js 15 + Tailwind CSS + TypeScript |
-| Session store | SQLite |
-| Deployment target | Cloudera AI Applications (CAI) |
+| Structured data | Impala CDW (Cloudera Data Warehouse) |
+| LLM provider | Qwen2.5-14B-Instruct-AWQ via vLLM (CAI Application) |
+| MCP Server | FastAPI + MCP Python SDK (SSE transport) |
+| Agent orchestration | Cloudera Agent Studio (multi-agent workflow) |
+| Data storage | S3 → Parquet → Impala External Table |
 
-### Catatan penting
-- Untuk demo lokal: Ollama serve Qwen2.5:7b di `http://localhost:11434/v1`
-- Untuk deploy ke CAI: ganti `LLM_PROVIDER=local_qwen` ke `vllm` atau provider lain yang di-support
-- ChromaDB `persist_dir` perlu mount ke persistent storage saat di CAI
+### CAI Applications (4 apps)
 
----
-
-## 4. Data Model
-
-**Database:** `cai_sdx_se_indonesia`  
-**Table:** `customer_dormant_segment`  
-**Rows:** 10.000 (synthetic, non-PII)  
-**Storage:** Impala native PARQUET di S3 path `s3a://go01-demo/user/cai-demo-se-indonesia/data/customer dormant segmentation/`
-
-**Kolom utama:** 47 kolom — customer profile, segment, dormant risk, deposito, kredit, campaign, cabang, digital activity.  
-Detail lengkap: [customer_dormant_segment_metadata.md](customer_dormant_segment_metadata.md)
-
-**Sample queries yang sudah diverifikasi:**
-- `SELECT customer_segment, COUNT(*) FROM ... GROUP BY customer_segment` → 7 segmen
-- Total saldo deposito per segmen
-- Nasabah dormant risk HIGH
-- Distribusi kota per segmen
+| App | Nama | Fungsi |
+|---|---|---|
+| APP 1 | Qwen vLLM | LLM inference engine (GPU) |
+| APP 2 | Ask-the-Data Backend | FastAPI backend NL→SQL |
+| APP 3 | Ask-the-Data Frontend | Next.js UI |
+| APP 5 | MCP Server Aggregation | MCP tools untuk customer_segments_staging |
 
 ---
 
-## 5. Backend
+## 3. Data Model
 
-**Entry point:** `backend/backend_entry.py`  
-**Jalankan lokal:** `cd ask-data && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080`
+**Database:** `cai_sdx_se_indonesia`
+**Table:** `customer_segments_staging`
+**Rows:** 1.000 (sample dari 219.262 rows, stratified by cluster)
+**Storage:** S3 Parquet → `s3a://go01-demo/user/cai-demo-se-indonesia/data/customer_segments/`
+**Format:** PARQUET (External Table)
 
-### Key endpoints
+### Kolom utama (37 kolom)
 
-| Endpoint | Purpose |
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| cif | STRING | ID nasabah (tidak ditampilkan) |
+| no_rekening | STRING | Nomor rekening (tidak ditampilkan) |
+| jenis | STRING | KONVEN / SYARIAH |
+| jenis_rekening | STRING | TABUNGAN SIMPEDA, TABUNGAN IB BAROKAH, dll |
+| cabang | STRING | Kode cabang |
+| saldo_t0 | DOUBLE | Saldo saat ini |
+| total_tx | BIGINT | Total transaksi |
+| status_rekening | TINYINT | 0=Aktif, 1=Dormant, 2=Tutup |
+| status_label | STRING | Aktif / Dormant / Tutup |
+| umur | INT | Usia nasabah |
+| hari_sejak_trx | BIGINT | Hari sejak transaksi terakhir |
+| cluster_label | STRING | Silent Mature / Young Syariah Digital / Konvensional Produktif |
+| rfm_segment | STRING | Champions / Loyal / Potential / At Risk / Lost |
+| rfm_score | BIGINT | Total RFM score |
+| activity_level | STRING | Sangat Aktif / Aktif / Kurang Aktif / Tidak Aktif |
+| saldo_segment | STRING | Rendah / Menengah / Tinggi / Premium |
+| age_group | STRING | Kelompok usia |
+
+### Distribusi Data Sample
+
+| Status | Jumlah | % |
+|---|---|---|
+| Aktif | 700 | 70% |
+| Dormant | 200 | 20% |
+| Tutup | 100 | 10% |
+
+| Cluster | Jumlah |
 |---|---|
-| `GET /health` | App liveness check |
-| `GET /health/db` | Impala connectivity check |
-| `GET /llm/providers` | List LLM providers yang tersedia |
-| `POST /llm/providers/select` | Pilih LLM provider untuk session |
-| `GET /rag/options` | List ChromaDB collections |
-| `GET /rag/config/{session_id}` | Load RAG config session |
-| `POST /rag/config` | Save RAG config session |
-| `POST /rag/ingest` | Ingest PDF ke ChromaDB collection |
-| `POST /chat/query` | SQL flow: NL → SQL → Impala → answer + visualization |
-| `POST /chat/answer` | RAG flow: NL → ChromaDB → Qwen → answer + sources |
-| `GET /sessions` | List recent sessions |
-| `GET /sessions/{session_id}` | Load session history |
-| `GET /analytics/summary` | Usage metrics ringkasan |
-| `GET /analytics/events` | Recent activity log |
-
-### LLM Provider: Qwen2.5:7b via Ollama
-- `LLM_PROVIDER=local_qwen`
-- `QWEN_BASE_URL=http://localhost:11434/v1`
-- `QWEN_API_KEY=ollama`
-- `QWEN_MODEL=qwen2.5:7b`
-- Compatible dengan OpenAI Python SDK
-
-### ChromaDB RAG
-- `CHROMA_ENABLED=true`
-- `CHROMA_PERSIST_DIR=./chroma_db`
-- `EMBED_MODEL=nomic-embed-text`
-- `OLLAMA_BASE_URL=http://localhost:11434`
-- Collection: `bankjatim_docs` — 17 chunks dari 5 PDF
-- Embedding: `OllamaEmbeddingFunction` (fallback ke SentenceTransformer)
-
-### Impala Connection
-- `IMPALA_HOST=coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site`
-- `IMPALA_PORT=443`
-- `IMPALA_HTTP_PATH=cliservice`
-- `CDP_USER=triano`
-- `DB_NAME=cai_sdx_se_indonesia`
-
-### Guardrails
-- `GUARDRAILS_ENABLED=true`
-- Mode: `local-only` (custom heuristic, tidak pakai guardrails-ai library)
-- Block: PII requests (nomor hp, email nasabah, dll), prompt injection, out-of-scope
-- Redact: email, phone, long numerics dari jawaban
-
-### Visualization
-- Backend generate visualization spec (type, title, x_key, y_key, series, table_rows)
-- Supported: `bar`, `line`, `pie`, `table`
-- Frontend render otomatis via Recharts
+| Konvensional Produktif | ~669 |
+| Silent Mature | ~183 |
+| Young Syariah Digital | ~148 |
 
 ---
 
-## 6. Frontend
+## 4. MCP Server (APP 5)
 
-**Stack:** Next.js 15 (App Router), Tailwind CSS 3, TypeScript, Recharts, @mui/icons-material  
-**Jalankan lokal:** `cd ask-data/frontend && npm run dev` → http://localhost:3000
+**Folder:** `ask-data/mcp_server_aggregation/`
+**Entry:** `mcp_server_aggregation/mcp_entry.py`
+**Port:** Auto-detect dari `CDSW_APP_PORT`
+**Tools:** 8 tools
 
-### Key components
-| Component | Purpose |
+### Tools yang tersedia
+
+| Tool | Fungsi |
 |---|---|
-| `app/page.tsx` | Main page — chat state, RAG state, session management |
-| `lib/api.ts` | Typed API client → proxy `/api/backend` |
-| `components/rag-config-modal.tsx` | ChromaDB RAG config modal (collection picker + top_k) |
-| `components/answer-card.tsx` | Render jawaban asisten + RAG sources |
-| `components/result-chart-card.tsx` | Render visualization spec (chart/table) |
-| `components/model-settings-panel.tsx` | Provider selector (termasuk `local_qwen`) |
-| `components/chat-input-panel.tsx` | Input area + starter prompts |
+| `quick_stats` | Overview 4 dimensi: status, cluster, RFM, top cabang (4 query paralel) |
+| `get_schema` | Daftar kolom dan tipe data |
+| `cabang_performance` | Performa semua cabang: aktif/dormant/tutup, avg saldo, LIMIT 50 |
+| `transaksi_trend` | Tren aktivitas per jenis rekening |
+| `status_rekening_distribution` | Distribusi status per jenis dan cabang, LIMIT 30 |
+| `saldo_analysis` | Avg/min/max saldo per jenis/status |
+| `rekening_summary` | Ringkasan per cluster/RFM/segmen, default 20 max 100 |
+| `sql_query` | Free SELECT query (last resort) |
 
-### RAG UI (ChromaDB)
-- Tombol **"Knowledge Base"** di topbar (bukan "RAG Studio")
-- Modal: enable/disable toggle, collection dropdown, top_k slider (1–10)
-- `VectorRagConfig { enabled, collection_name, top_k }` — sudah aligned dengan backend schema
-- Status aktif: badge hijau "Knowledge Base Aktif"
+### Fitur teknis MCP Server
 
-### Starter prompts (Bank Jatim)
-1. "Tampilkan jumlah nasabah berdasarkan customer segment."
-2. "Segmen mana yang memiliki risiko dormant paling tinggi?"
-3. "Berapa total saldo deposito untuk nasabah dormant risk high?"
+- **Connection pool:** 5 koneksi Impala, reused across calls
+- **Parallel queries:** `quick_stats` jalankan 4 query serentak via ThreadPoolExecutor
+- **Query timeout:** `QUERY_TIMEOUT_S=30` — query >30 detik di-kill otomatis
+- **Stop signal:** Setiap response diakhiri signal `FINAL_ANSWER` untuk cegah Qwen ReAct looping
+- **Output format:** Plain text ljust alignment (bukan markdown — Agent Studio tidak render markdown)
 
-### API routing
-- Frontend proxy: `/api/backend` → `BACKEND_API_BASE_URL`
-- SQL chat: `POST /chat/query`
-- RAG chat: `POST /chat/answer` (saat `enabled && collection_name`)
-- RAG config: `GET /rag/config/{session_id}`, `POST /rag/config`
-- RAG options: `GET /rag/options`
+### Environment Variables APP 5
+
+| Key | Nilai |
+|---|---|
+| `IMPALA_HOST` | `coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site` |
+| `IMPALA_PORT` | `443` |
+| `IMPALA_HTTP_PATH` | `cliservice` |
+| `CDP_USER` | `<cdp-username>` |
+| `CDP_PASS` | `<cdp-password>` |
+| `DB_NAME` | `cai_sdx_se_indonesia` |
+| `TABLE_NAME` | `customer_segments_staging` |
 
 ---
 
-## 7. RAG Documents (ChromaDB)
+## 5. Agent Studio — Multi-Agent Workflow
 
-Collection: `bankjatim_docs` — 17 chunks  
+### Agents
 
-| File | Konten |
-|---|---|
-| `01_strategi_customer_segmentation_portfolio_bank_jatim.pdf` | Segmentasi portfolio nasabah |
-| `02_dormant_customer_retention_strategy_bank_jatim.pdf` | Strategi retensi nasabah dormant |
-| `03_campaign_planning_next_best_action_bank_jatim.pdf` | Campaign planning & NBA |
-| `04_branch_city_segment_channel_analytics_playbook.pdf` | Analytics cabang & kota |
-| `05_customer_analytics_governance_decisioning_policy.pdf` | Kebijakan governance analytics |
+| Agent | Role | Tools |
+|---|---|---|
+| Master Agent | Orchestrator — routing pertanyaan ke sub-agent | Tidak ada |
+| Data Retrieval Agent | Ambil data dari Impala via MCP | BJT Customer Aggregation MCP |
+| Agent Penasihat | Insight bisnis dari data yang sudah diambil | Tidak ada |
 
-**Ingest script:** `scripts/ingest_documents.py`  
+### MCP Server Config (Agent Studio)
+
+```json
+{
+  "mcpServers": {
+    "BJT Customer Aggregation": {
+      "command": "uvx",
+      "args": ["mcp-proxy", "https://<subdomain-app5>.<domain-cai>/sse"],
+      "env": {}
+    }
+  }
+}
+```
+
+### Anti-looping measures
+
+1. Retrieval Agent: max 2 tool call per pertanyaan, STOP setelah tool return
+2. MCP response: stop signal `FINAL_ANSWER` di setiap output tool
+3. Penasihat Agent: tidak punya tools, output format dibatasi 2-3 insight + 3-5 rekomendasi
+
+---
+
+## 6. Data Generation
+
+**Script:** `ask-data/data_generation/generate_customer_segments_sample.py`
+**Input:** `customer_segments.parquet` (219.262 rows)
+**Output:** `customer_segments_sample_1k.parquet` (1.000 rows)
+
+### Yang dilakukan script
+
+1. Stratified sample 1.000 rows by `cluster_label` (preserve proporsi)
+2. Simulasi `status_rekening`: 70% Aktif, 20% Dormant, 10% Tutup
+3. Update kolom turunan: `status_label`, `hari_sejak_trx`, `activity_level`, `rfm_r`, `rfm_score`, `rfm_segment`
+4. Write via pyarrow explicit schema — semua string → `pa.string()` (bukan `large_string`)
+
+### Upload ke Impala
+
 ```bash
-cd ask-data && PYTHONPATH=backend .venv/bin/python scripts/ingest_documents.py
+# Upload parquet ke S3
+s3a://go01-demo/user/cai-demo-se-indonesia/data/customer_segments/
+
+# Di Hue:
+REFRESH cai_sdx_se_indonesia.customer_segments_staging;
+COMPUTE STATS cai_sdx_se_indonesia.customer_segments_staging;
+# Expected: Updated 1 partition(s) and 37 column(s)
+# #Rows: 1000, Format: PARQUET
 ```
 
 ---
 
-## 8. Environment Variables Lengkap
+## 7. DDL
 
-File: `ask-data/.env` (jangan commit ke git — sudah ada di `.gitignore`)
+File: `ask-data/sql/impala_customer_segments_ddl.sql`
 
-```env
-LLM_PROVIDER=local_qwen
-QWEN_BASE_URL=http://localhost:11434/v1
-QWEN_API_KEY=ollama
-QWEN_MODEL=qwen2.5:7b
-
-IMPALA_HOST=coordinator-default-impala-aws.dw-go01-demo-aws.ylcu-atmi.cloudera.site
-IMPALA_PORT=443
-IMPALA_HTTP_PATH=cliservice
-CDP_USER=triano
-CDP_PASS=<redacted>
-DB_NAME=cai_sdx_se_indonesia
-
-SESSION_BACKEND=sqlite
-GUARDRAILS_ENABLED=true
-
-CHROMA_ENABLED=true
-CHROMA_PERSIST_DIR=./chroma_db
-EMBED_MODEL=nomic-embed-text
-OLLAMA_BASE_URL=http://localhost:11434
+```sql
+CREATE EXTERNAL TABLE IF NOT EXISTS cai_sdx_se_indonesia.customer_segments_staging (
+    cif STRING, no_rekening STRING, jenis STRING, jenis_rekening STRING,
+    cabang STRING, saldo_t0 DOUBLE, total_tx BIGINT, status_rekening TINYINT,
+    status_label STRING, t0 STRING, umur INT, jenis_kelamin STRING,
+    hari_sejak_trx BIGINT, rasio_kredit DOUBLE,
+    cluster_kmeans BIGINT, cluster_gmm BIGINT,
+    gmm_max_prob DOUBLE, gmm_entropy DOUBLE,
+    gmm_p0 DOUBLE, gmm_p1 DOUBLE, gmm_p2 DOUBLE, gmm_p3 DOUBLE,
+    gmm_p4 DOUBLE, gmm_p5 DOUBLE, gmm_p6 DOUBLE, gmm_p7 DOUBLE,
+    cluster_label STRING, cluster_color STRING, age_group STRING,
+    jenis_kelamin_label STRING, saldo_segment STRING, activity_level STRING,
+    rfm_r BIGINT, rfm_f BIGINT, rfm_m BIGINT, rfm_score BIGINT, rfm_segment STRING
+)
+STORED AS PARQUET
+LOCATION 's3a://go01-demo/user/cai-demo-se-indonesia/data/customer_segments/';
 ```
+
+**Catatan:** `t0` pakai STRING bukan TIMESTAMP, `status_rekening` TINYINT (int8)
 
 ---
 
-## 9. Progress Checklist
+## 8. Progress Checklist
 
 ### ✅ Selesai
 
 #### Data & Infrastructure
-- [x] Design table `customer_dormant_segment` — 47 kolom, 10.000 rows synthetic
-- [x] DDL Impala native PARQUET (bukan Iceberg) di `sql/impala_customer_dormant_segment_ddl.sql`
-- [x] Data upload ke Impala CDW via Hue — verified 10.000 rows
-- [x] Koneksi Impala dari backend verified (`COUNT(*)` = 10.000)
-- [x] Database rename: `bankjatim` → `cai_sdx_se_indonesia`
-- [x] Table rename: `customer_ai_profile` → `customer_dormant_segment`
-- [x] Schema metadata & business glossary: `docs/customer_dormant_segment_metadata.md`
+- [x] Table `customer_segments_staging` — 37 kolom, 1.000 rows sample di Impala CDW
+- [x] DDL Impala External Table PARQUET
+- [x] COMPUTE STATS dijalankan — #Rows: 1000, 37 columns
+- [x] Parquet schema fix: `large_string` → `pa.string()`, `cluster_label` preserved
+- [x] Distribusi status simulasi: 70% Aktif, 20% Dormant, 10% Tutup
 
-#### LLM Setup
-- [x] Ollama install di M1 Mac + pull `qwen2.5:7b`
-- [x] Pull embedding model `nomic-embed-text`
-- [x] Python venv `.venv` dengan Python 3.11 + semua dependencies installed
-- [x] `LLM_PROVIDER=local_qwen` routing di backend
+#### MCP Server (APP 5)
+- [x] 8 MCP tools untuk `customer_segments_staging`
+- [x] Connection pool 5 koneksi Impala
+- [x] Parallel query execution (`quick_stats` 4 query serentak)
+- [x] Query timeout 30 detik
+- [x] Stop signal `FINAL_ANSWER` di setiap tool response
+- [x] Plain text output format (bukan markdown)
+- [x] LIMIT di semua tools (cabang_performance LIMIT 50, dll)
+- [x] APP 5 running di CAI
 
-#### Backend
-- [x] FastAPI backend berjalan di port 8080
-- [x] SQL flow end-to-end: NL → Qwen → SQL → Impala → jawaban Bahasa Indonesia ✅
-- [x] Visualization spec generation (bar/line/pie/table)
-- [x] ChromaDB integration — `ChromaRagClient` di `services/rag_client.py`
-- [x] RAG flow end-to-end: NL → ChromaDB → Qwen → jawaban + sumber PDF ✅
-- [x] 5 PDF diingest ke collection `bankjatim_docs` (17 chunks)
-- [x] Guardrails local mode (custom heuristic)
-- [x] Session management (SQLite)
-- [x] Analytics events logging
-- [x] `POST /rag/ingest` endpoint untuk ingest PDF via API
-- [x] `GET /rag/options` mengembalikan daftar ChromaDB collections
-- [x] Schema telah di-cleanup dari sisa referensi RAG Studio lama
+#### Agent Studio
+- [x] Multi-agent workflow: Master → Retrieval → Penasihat
+- [x] MCP terdaftar di Retrieval Agent
+- [x] System prompt Retrieval diupdate ke `customer_segments_staging`
+- [x] Anti-looping rules di semua agent prompt
 
-#### Frontend
-- [x] UI berbahasa Indonesia, bertema Bank Jawa Timur
-- [x] Starter prompts relevan ke use case dormant nasabah
-- [x] `rag-config-modal.tsx` ditulis ulang — collection picker + top_k (bukan RAG Studio fields)
-- [x] `model-settings-panel.tsx` ditambah case `local_qwen`
-- [x] `lib/api.ts` — RAG types diganti ke `VectorRagConfig`, `RagCollectionOption`, `RagOptionsResponse`
-- [x] `page.tsx` — semua logika RAG Studio lama diganti ke ChromaDB flow
-- [x] TypeScript compile: 0 errors
-- [x] Endpoint test via curl: semua ✅
+### 🔄 Sedang Di-test
+
+- [ ] Verifikasi stop signal efektif cegah Qwen ReAct looping
+- [ ] End-to-end test 10 pertanyaan demo
+
+### ❌ Belum / Next Steps
+
+- [ ] Tambah data lebih besar (saat ini 1.000 rows — bisa naik ke 10.000 jika perlu)
+- [ ] Migrate MCP ke FastMCP (lebih ringkas, less boilerplate)
+- [ ] RAG integration untuk dokumen kebijakan Bank Jatim
 
 ---
 
-### ❌ Belum Selesai / Next Steps
+## 9. Contoh Pertanyaan Demo
 
-#### MCP Server
-- [ ] MCP Server sebagai CAI Application terpisah — tool-based structured queries
-- [ ] Tools yang direncanakan: `query_customer_segment`, `get_dormant_risk_summary`, `get_campaign_recommendation`
-
-#### CAI Deployment
-- [ ] Deploy Backend sebagai CAI Application
-  - [ ] Ganti `LLM_PROVIDER` ke provider yang tersedia di CAI (vLLM atau Bedrock)
-  - [ ] Set env vars di CAI (Impala creds, LLM config)
-  - [ ] Pastikan ChromaDB `persist_dir` ke persistent storage
-  - [ ] Upload `chroma_db/` atau re-ingest PDF setelah deploy
-- [ ] Deploy Frontend sebagai CAI Application
-  - [ ] Set `BACKEND_API_BASE_URL` ke URL backend CAI Application
-- [ ] Deploy Qwen/vLLM sebagai CAI Application (GPU) — untuk produksi bukan Ollama
-- [ ] Smoke test end-to-end di CAI environment
-
-#### Testing & Polish
-- [ ] Test live di browser (http://localhost:3000) — RAG modal flow, SQL chat, visualization
-- [ ] Unit test update untuk schema baru (beberapa test masih referensi schema lama)
-- [ ] Guardrails test untuk Bahasa Indonesia PII patterns
-
-#### Optional / Future
-- [ ] RAG ingest UI — upload PDF langsung dari frontend (saat ini via API/script)
-- [ ] Conversation memory improvements — ringkasan konteks multi-turn
-- [ ] Multi-table support (jika ada tabel lain di `cai_sdx_se_indonesia`)
+1. `Berikan ringkasan performa nasabah Bank Jawa Timur berdasarkan cluster segmentasi`
+2. `Cabang mana yang paling banyak rekening dormant dan berapa rata-rata saldonya?`
+3. `Berapa rata-rata saldo nasabah Champions?`
+4. `Berapa rekening yang tidak aktif lebih dari 180 hari per jenis rekening?`
+5. `Tampilkan distribusi saldo segment per status rekening`
+6. `Bandingkan jumlah rekening antara nasabah pria dan wanita per cluster`
+7. `Berapa jumlah nasabah per cluster segmentasi dan rata-rata saldonya?`
+8. `Tampilkan performa semua cabang berdasarkan jumlah rekening aktif dan rata-rata saldo`
+9. `Bagaimana distribusi nasabah berdasarkan kelompok usia?`
+10. `Bandingkan rata-rata hari sejak transaksi antara rekening Aktif, Dormant, dan Tutup`
 
 ---
 
 ## 10. Resume Instructions
 
 Saat mulai session baru, assume:
-1. Use case: Customer Analytics + Dormant Risk, Bank Jawa Timur
-2. Data: `cai_sdx_se_indonesia.customer_dormant_segment`, 10.000 rows di Impala CDW
-3. LLM: Qwen2.5:7b via Ollama lokal M1 Mac (`http://localhost:11434/v1`)
-4. RAG: ChromaDB embedded di `./chroma_db`, collection `bankjatim_docs`, 17 chunks
-5. Backend: FastAPI port 8080 — cek `lsof -i :8080` apakah sudah running
-6. Frontend: Next.js port 3000 — cek `lsof -i :3000` apakah sudah running
-7. Semua flow sudah verified working — fokus ke CAI deployment atau feature tambahan
-8. `.env` ada di `ask-data/.env` — jangan di-commit
+1. Use case: Customer Segmentation Analytics, Bank Jawa Timur
+2. Data: `cai_sdx_se_indonesia.customer_segments_staging`, 1.000 rows di Impala CDW
+3. LLM: Qwen2.5-14B-Instruct-AWQ via vLLM di CAI (APP 1)
+4. MCP Server: APP 5 di CAI — 8 tools untuk `customer_segments_staging`
+5. Agent Studio: multi-agent workflow (Master → Retrieval → Penasihat)
+6. Semua flow sudah deployed di CAI — fokus ke testing dan demo polish
+7. Repo: `https://github.com/ano-cloudera/data-intelligence`
+8. MCP folder: `ask-data/mcp_server_aggregation/`
 
 ---
 
