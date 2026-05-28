@@ -143,11 +143,14 @@ def main() -> None:
 
     ensure_deps_installed()
 
-    # Disable Qwen3 thinking mode globally — prevents <think> tags in responses
-    # and reduces latency from extended reasoning in agent workflows
+    # Qwen3 thinking budget — limits reasoning tokens for faster responses
+    # Set QWEN_CHAT_TEMPLATE_KWARGS in env to override:
+    #   '{"enable_thinking": false}'     → no thinking (fastest)
+    #   '{"thinking_budget": 512}'       → medium (balanced)
+    #   '{"enable_thinking": true}'      → full thinking (slowest, most accurate)
     chat_template_kwargs = os.getenv(
         "QWEN_CHAT_TEMPLATE_KWARGS",
-        '{"enable_thinking": false}'
+        '{"thinking_budget": 512}'
     )
 
     cmd = [
