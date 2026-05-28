@@ -129,7 +129,7 @@ def main() -> None:
     logging.info("Working directory: %s", Path.cwd())
 
     port = resolve_port()
-    model = os.getenv("QWEN_MODEL", "Qwen/Qwen2.5-14B-Instruct-AWQ")
+    model = os.getenv("QWEN_MODEL", "Qwen/Qwen3-8B-AWQ")
     api_key = os.getenv("QWEN_API_KEY", "local-dev-token")
     max_model_len = os.getenv("QWEN_MAX_MODEL_LEN", "4096")
     gpu_memory_utilization = os.getenv("QWEN_GPU_MEMORY_UTILIZATION", "0.90")
