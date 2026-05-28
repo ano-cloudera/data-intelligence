@@ -37,6 +37,7 @@ FROM {table}
 {where}
 GROUP BY jenis_rekening, status_rekening, status_label
 ORDER BY jenis_rekening, status_rekening
+LIMIT 30
 """.strip()
 
     try:

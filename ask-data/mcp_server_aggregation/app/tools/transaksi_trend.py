@@ -26,6 +26,7 @@ FROM {table}
 {where}
 GROUP BY jenis_rekening
 ORDER BY tidak_aktif_180hr DESC
+LIMIT 20
 """.strip()
 
     try:
