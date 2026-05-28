@@ -63,8 +63,9 @@ MCP_TOOLS = [
         description=(
             "Performa semua cabang: total rekening, jumlah aktif/dormant/tutup, persentase dormant, "
             "rata-rata saldo, rata-rata transaksi, rata-rata hari sejak transaksi, rekening tidak aktif >180 hari. "
-            "Gunakan untuk: 'performa cabang', 'cabang mana paling banyak dormant', "
-            "'top cabang tidak aktif', 'persentase tidak aktif per cabang', 'ranking cabang'. "
+            "Gunakan untuk: 'performa cabang', 'distribusi saldo per cabang', 'top cabang saldo tertinggi', "
+            "'cabang mana paling banyak dormant', 'top cabang tidak aktif', "
+            "'persentase tidak aktif per cabang', 'ranking cabang', 'cabang terbaik'. "
             "Tidak perlu parameter — return semua cabang, sort/filter di sisi agent."
         ),
         inputSchema={"type": "object", "properties": {}},
