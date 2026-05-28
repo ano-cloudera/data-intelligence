@@ -20,6 +20,8 @@ import asyncio
 
 from app.impala_client import execute_query_async
 from app.tools.cabang_performance import run_cabang_performance
+from app.tools.cluster_summary import run_cluster_summary
+from app.tools.demografis_summary import run_demografis_summary
 from app.tools.quick_stats import run_quick_stats
 from app.tools.rekening_summary import run_rekening_summary
 from app.tools.saldo_analysis import run_saldo_analysis
@@ -165,6 +167,28 @@ MCP_TOOLS = [
         },
     ),
     Tool(
+        name="cluster_summary",
+        description=(
+            "Ringkasan per cluster segmentasi: jumlah rekening, aktif, dormant, avg saldo, avg transaksi, "
+            "avg hari sejak transaksi, avg RFM score. "
+            "Gunakan untuk: 'jumlah nasabah per cluster', 'rata-rata transaksi per cluster', "
+            "'perbandingan cluster', 'Silent Mature vs Young Syariah Digital vs Konvensional Produktif', "
+            "'statistik cluster', 'detail cluster'. Tidak perlu parameter."
+        ),
+        inputSchema={"type": "object", "properties": {}},
+    ),
+    Tool(
+        name="demografis_summary",
+        description=(
+            "Distribusi demografis nasabah: gender (pria/wanita), kelompok usia (age group), "
+            "activity level, avg saldo, avg transaksi per kombinasi demografis. "
+            "Gunakan untuk: 'distribusi gender', 'kelompok usia nasabah', 'activity level pria vs wanita', "
+            "'perbandingan demografis', 'nasabah berdasarkan usia', 'distribusi age group'. "
+            "Tidak perlu parameter."
+        ),
+        inputSchema={"type": "object", "properties": {}},
+    ),
+    Tool(
         name="sql_query",
         description=(
             "Jalankan SELECT query bebas ke tabel customer_segments_staging. "
@@ -268,6 +292,10 @@ async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextConten
                 arguments.get("cluster_label"),
                 arguments.get("rfm_segment"),
             )
+        elif name == "cluster_summary":
+            result = await asyncio.to_thread(run_cluster_summary)
+        elif name == "demografis_summary":
+            result = await asyncio.to_thread(run_demografis_summary)
         elif name == "sql_query":
             result = await asyncio.to_thread(run_sql_query, arguments.get("sql", ""))
         else:
@@ -299,7 +327,7 @@ async def handle_sse(request: Request):
 app = FastAPI(
     title="MCP Server — Customer Aggregation",
     description="MCP tools for customer_aggregation table at Bank Jawa Timur",
-    version="3.0.0",
+    version="3.1.0",
 )
 
 app.add_middleware(
@@ -315,7 +343,7 @@ app.add_route("/sse", handle_sse, methods=["GET"])
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "version": "3.0.0", "tools": len(MCP_TOOLS)}
+    return {"status": "ok", "version": "3.1.0", "tools": len(MCP_TOOLS)}
 
 
 @app.get("/tools")
@@ -374,6 +402,16 @@ def tool_saldo_analysis(payload: SaldoAnalysisRequest) -> ToolResponse:
             status_rekening=payload.status_rekening,
         ),
     )
+
+
+@app.get("/tools/cluster_summary")
+def tool_cluster_summary():
+    return ToolResponse(tool="cluster_summary", result=run_cluster_summary())
+
+
+@app.get("/tools/demografis_summary")
+def tool_demografis_summary():
+    return ToolResponse(tool="demografis_summary", result=run_demografis_summary())
 
 
 @app.post("/tools/status_rekening_distribution", response_model=ToolResponse)
