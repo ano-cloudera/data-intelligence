@@ -144,14 +144,12 @@ def main() -> None:
     ensure_deps_installed()
 
     # Qwen3 thinking budget — limits reasoning tokens for faster responses
-    # Set QWEN_CHAT_TEMPLATE_KWARGS in env to override:
-    #   '{"enable_thinking": false}'     → no thinking (fastest)
-    #   '{"thinking_budget": 512}'       → medium (balanced)
-    #   '{"enable_thinking": true}'      → full thinking (slowest, most accurate)
-    chat_template_kwargs = os.getenv(
-        "QWEN_CHAT_TEMPLATE_KWARGS",
-        '{"thinking_budget": 512}'
-    )
+    # QWEN_THINKING_BUDGET env var: integer token budget (0 = disable thinking)
+    thinking_budget = int(os.getenv("QWEN_THINKING_BUDGET", "512"))
+    if thinking_budget == 0:
+        chat_template_kwargs = '{"enable_thinking": false}'
+    else:
+        chat_template_kwargs = f'{{"thinking_budget": {thinking_budget}}}'
 
     cmd = [
         sys.executable, "-m", "vllm.entrypoints.openai.api_server",
