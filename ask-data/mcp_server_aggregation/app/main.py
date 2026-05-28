@@ -61,14 +61,28 @@ MCP_TOOLS = [
     Tool(
         name="cabang_performance",
         description=(
-            "Performa semua cabang: total rekening, jumlah aktif/dormant/tutup, persentase dormant, "
+            "Performa cabang: total rekening, jumlah aktif/dormant/tutup, persentase dormant, "
             "rata-rata saldo, rata-rata transaksi, rata-rata hari sejak transaksi, rekening tidak aktif >180 hari. "
-            "Gunakan untuk: 'performa cabang', 'distribusi saldo per cabang', 'top cabang saldo tertinggi', "
-            "'cabang mana paling banyak dormant', 'top cabang tidak aktif', "
-            "'persentase tidak aktif per cabang', 'ranking cabang', 'cabang terbaik'. "
-            "Tidak perlu parameter — return semua cabang, sort/filter di sisi agent."
+            "Gunakan untuk: 'performa cabang', 'top cabang saldo tertinggi', 'distribusi saldo per cabang', "
+            "'cabang paling banyak dormant', 'ranking cabang', 'cabang terbaik', 'top N cabang'. "
+            "Parameter order_by: 'avg_saldo' (default top saldo), 'dormant' (paling banyak dormant), "
+            "'total_rekening', 'tidak_aktif', 'pct_dormant'. "
+            "Parameter limit: jumlah cabang yang dikembalikan (default 10, max 50). "
+            "Contoh top 3 saldo: order_by='avg_saldo', limit=3."
         ),
-        inputSchema={"type": "object", "properties": {}},
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "order_by": {
+                    "type": "string",
+                    "description": "Urutan hasil: 'avg_saldo', 'dormant', 'total_rekening', 'tidak_aktif', 'pct_dormant'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Jumlah cabang yang dikembalikan (1-50), default 10",
+                },
+            },
+        },
     ),
     Tool(
         name="transaksi_trend",
@@ -223,7 +237,11 @@ async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextConten
         if name == "quick_stats":
             result = await asyncio.to_thread(run_quick_stats)
         elif name == "cabang_performance":
-            result = await asyncio.to_thread(run_cabang_performance)
+            result = await asyncio.to_thread(
+                run_cabang_performance,
+                arguments.get("order_by", "dormant"),
+                arguments.get("limit", 10),
+            )
         elif name == "transaksi_trend":
             result = await asyncio.to_thread(
                 run_transaksi_trend, arguments.get("jenis_rekening")
@@ -317,8 +335,8 @@ def tool_get_schema():
 
 
 @app.get("/tools/cabang_performance")
-def tool_cabang_performance():
-    return ToolResponse(tool="cabang_performance", result=run_cabang_performance())
+def tool_cabang_performance(order_by: str = "dormant", limit: int = 10):
+    return ToolResponse(tool="cabang_performance", result=run_cabang_performance(order_by, limit))
 
 
 @app.post("/tools/transaksi_trend")

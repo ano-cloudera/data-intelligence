@@ -5,8 +5,23 @@ from typing import Any
 from app.impala_client import execute_query, qualified_table
 
 
-def run_cabang_performance() -> dict[str, Any]:
+VALID_ORDER_BY = {
+    "dormant": "dormant DESC, total_rekening DESC",
+    "avg_saldo": "avg_saldo DESC",
+    "total_rekening": "total_rekening DESC",
+    "tidak_aktif": "tidak_aktif_180hr DESC",
+    "pct_dormant": "pct_dormant DESC",
+}
+
+
+def run_cabang_performance(
+    order_by: str = "dormant",
+    limit: int = 10,
+) -> dict[str, Any]:
     table = qualified_table()
+    order_clause = VALID_ORDER_BY.get(order_by, VALID_ORDER_BY["dormant"])
+    limit = max(1, min(int(limit), 50))
+
     sql = f"""
 SELECT
     cabang,
@@ -21,8 +36,8 @@ SELECT
     SUM(CASE WHEN hari_sejak_trx > 180 THEN 1 ELSE 0 END) AS tidak_aktif_180hr
 FROM {table}
 GROUP BY cabang
-ORDER BY dormant DESC, total_rekening DESC
-LIMIT 50
+ORDER BY {order_clause}
+LIMIT {limit}
 """.strip()
 
     try:
