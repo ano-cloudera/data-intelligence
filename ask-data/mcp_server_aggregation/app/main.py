@@ -144,6 +144,8 @@ MCP_TOOLS = [
                 "cif": {"type": "string", "description": "Filter by CIF nasabah"},
                 "jenis_rekening": {"type": "string", "description": "Filter jenis rekening"},
                 "status_rekening": {"type": "integer", "description": "0=Aktif, 1=Dormant, 2=Tutup"},
+                "cluster_label": {"type": "string", "description": "Filter cluster: 'Silent Mature', 'Young Syariah Digital', 'Konvensional Produktif'"},
+                "rfm_segment": {"type": "string", "description": "Filter RFM: 'Champions', 'Loyal', 'Potential', 'At Risk', 'Lost'"},
                 "limit": {"type": "integer", "description": "Max rows (1-100), default 20"},
             },
         },
@@ -245,6 +247,8 @@ async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextConten
                 arguments.get("jenis_rekening"),
                 arguments.get("limit", 20),
                 arguments.get("status_rekening"),
+                arguments.get("cluster_label"),
+                arguments.get("rfm_segment"),
             )
         elif name == "sql_query":
             result = await asyncio.to_thread(run_sql_query, arguments.get("sql", ""))

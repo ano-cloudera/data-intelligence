@@ -10,6 +10,8 @@ def run_rekening_summary(
     jenis_rekening: str | None = None,
     limit: int = 20,
     status_rekening: int | None = None,
+    cluster_label: str | None = None,
+    rfm_segment: str | None = None,
 ) -> dict[str, Any]:
     table = qualified_table()
     conditions: list[str] = []
@@ -22,6 +24,12 @@ def run_rekening_summary(
         conditions.append(f"jenis_rekening = '{safe_jr}'")
     if status_rekening is not None:
         conditions.append(f"status_rekening = {int(status_rekening)}")
+    if cluster_label:
+        safe_cl = cluster_label.replace("'", "''")
+        conditions.append(f"cluster_label = '{safe_cl}'")
+    if rfm_segment:
+        safe_rfm = rfm_segment.replace("'", "''")
+        conditions.append(f"rfm_segment = '{safe_rfm}'")
 
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     limit = max(1, min(int(limit), 100))
