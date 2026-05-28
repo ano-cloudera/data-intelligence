@@ -143,13 +143,8 @@ def main() -> None:
 
     ensure_deps_installed()
 
-    # Qwen3 thinking budget — limits reasoning tokens for faster responses
-    # QWEN_THINKING_BUDGET env var: integer token budget (0 = disable thinking)
-    thinking_budget = int(os.getenv("QWEN_THINKING_BUDGET", "512"))
-    if thinking_budget == 0:
-        chat_template_kwargs = '{"enable_thinking": false}'
-    else:
-        chat_template_kwargs = f'{{"thinking_budget": {thinking_budget}}}'
+    # Note: --chat-template-kwargs not supported in vLLM 0.7.3
+    # Thinking mode is controlled via /no_think in system prompt instead
 
     cmd = [
         sys.executable, "-m", "vllm.entrypoints.openai.api_server",
@@ -164,7 +159,6 @@ def main() -> None:
         "--api-key", api_key,
         "--trust-remote-code",
         "--enforce-eager",
-        "--chat-template-kwargs", chat_template_kwargs,
     ]
 
     logging.info("Launching vLLM: %s", " ".join(cmd))
