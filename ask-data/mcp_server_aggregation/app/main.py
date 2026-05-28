@@ -169,13 +169,24 @@ MCP_TOOLS = [
     Tool(
         name="cluster_summary",
         description=(
-            "Ringkasan per cluster segmentasi: jumlah rekening, aktif, dormant, avg saldo, avg transaksi, "
-            "avg hari sejak transaksi, avg RFM score. "
-            "Gunakan untuk: 'jumlah nasabah per cluster', 'rata-rata transaksi per cluster', "
-            "'perbandingan cluster', 'Silent Mature vs Young Syariah Digital vs Konvensional Produktif', "
-            "'statistik cluster', 'detail cluster'. Tidak perlu parameter."
+            "Ringkasan dan karakteristik per cluster segmentasi nasabah: "
+            "jumlah rekening, aktif/dormant/tutup, avg/min/max saldo, avg transaksi, "
+            "avg hari sejak transaksi, avg RFM score, avg umur, distribusi gender (pria/wanita). "
+            "Gunakan untuk: 'karakteristik Young Syariah Digital', 'profil Silent Mature', "
+            "'karakteristik Konvensional Produktif', 'jumlah nasabah per cluster', "
+            "'perbandingan 3 cluster', 'statistik cluster', 'detail cluster'. "
+            "Parameter opsional: cluster_label untuk filter satu cluster spesifik. "
+            "Nilai cluster_label: 'Young Syariah Digital', 'Silent Mature', 'Konvensional Produktif'."
         ),
-        inputSchema={"type": "object", "properties": {}},
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "cluster_label": {
+                    "type": "string",
+                    "description": "Filter satu cluster: 'Young Syariah Digital', 'Silent Mature', 'Konvensional Produktif'. Kosongkan untuk semua cluster.",
+                }
+            },
+        },
     ),
     Tool(
         name="demografis_summary",
@@ -293,7 +304,9 @@ async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextConten
                 arguments.get("rfm_segment"),
             )
         elif name == "cluster_summary":
-            result = await asyncio.to_thread(run_cluster_summary)
+            result = await asyncio.to_thread(
+                run_cluster_summary, arguments.get("cluster_label")
+            )
         elif name == "demografis_summary":
             result = await asyncio.to_thread(run_demografis_summary)
         elif name == "sql_query":
@@ -405,8 +418,8 @@ def tool_saldo_analysis(payload: SaldoAnalysisRequest) -> ToolResponse:
 
 
 @app.get("/tools/cluster_summary")
-def tool_cluster_summary():
-    return ToolResponse(tool="cluster_summary", result=run_cluster_summary())
+def tool_cluster_summary(cluster_label: str | None = None):
+    return ToolResponse(tool="cluster_summary", result=run_cluster_summary(cluster_label))
 
 
 @app.get("/tools/demografis_summary")
