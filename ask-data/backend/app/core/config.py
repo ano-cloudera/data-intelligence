@@ -108,6 +108,7 @@ class Settings(BaseSettings):
     guardrails_api_key: str = Field(default="", alias="GUARDRAILS_API_KEY")
     guardrails_base_url: str = Field(default="", alias="GUARDRAILS_BASE_URL")
     guardrails_fail_open: bool = Field(default=True, alias="GUARDRAILS_FAIL_OPEN")
+    mcp_aggregation_url: str = Field(default="", alias="MCP_AGGREGATION_URL")
 
     @property
     def is_impala_configured(self) -> bool:

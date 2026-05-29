@@ -1056,3 +1056,41 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
         metadata=response_payload.get("metadata", {}),
         visualization=response_payload.get("visualization"),
     )
+
+
+# ---------------------------------------------------------------------------
+# Aggregation MCP endpoints
+# ---------------------------------------------------------------------------
+
+from app.services.aggregation_client import call_aggregation_tool, list_available_tools
+from pydantic import BaseModel as _PydanticBase
+
+
+class AggregationToolRequest(_PydanticBase):
+    tool: str
+    params: dict = {}
+
+
+@app.get("/aggregation/tools")
+def aggregation_tools():
+    return list_available_tools(settings)
+
+
+@app.post("/aggregation/query")
+def aggregation_query(payload: AggregationToolRequest):
+    result = call_aggregation_tool(payload.tool, payload.params, settings)
+    return {"tool": payload.tool, "result": result}
+
+
+@app.get("/aggregation/health")
+def aggregation_health():
+    from httpx import Client
+    base_url = (settings.mcp_aggregation_url or "").rstrip("/")
+    if not base_url:
+        return {"status": "not_configured"}
+    try:
+        with Client(timeout=5.0) as client:
+            resp = client.get(f"{base_url}/health")
+        return resp.json()
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
