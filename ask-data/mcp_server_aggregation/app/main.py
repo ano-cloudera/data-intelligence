@@ -370,6 +370,11 @@ def list_tools() -> dict:
 
 
 # REST endpoints for manual testing
+@app.get("/tools/quick_stats")
+def tool_quick_stats():
+    return ToolResponse(tool="quick_stats", result=run_quick_stats())
+
+
 @app.get("/tools/get_schema")
 def tool_get_schema():
     return run_get_schema()

@@ -29,8 +29,8 @@ SELECT
     ROUND(AVG(hari_sejak_trx), 0) AS avg_hari_sejak_trx,
     ROUND(AVG(rfm_score), 1) AS avg_rfm_score,
     ROUND(AVG(umur), 1) AS avg_umur,
-    SUM(CASE WHEN jenis_kelamin_label = 'Pria' THEN 1 ELSE 0 END) AS pria,
-    SUM(CASE WHEN jenis_kelamin_label = 'Wanita' THEN 1 ELSE 0 END) AS wanita
+    SUM(CASE WHEN jenis_kelamin_label = 'Laki-laki' THEN 1 ELSE 0 END) AS laki_laki,
+    SUM(CASE WHEN jenis_kelamin_label = 'Perempuan' THEN 1 ELSE 0 END) AS perempuan
 FROM {table}
 {where}
 GROUP BY cluster_label
