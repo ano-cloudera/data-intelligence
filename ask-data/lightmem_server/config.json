@@ -1,0 +1,41 @@
+{
+  "pre_compress": false,
+  "topic_segment": false,
+  "messages_use": "user_only",
+  "metadata_generate": true,
+  "text_summary": true,
+  "memory_manager": {
+    "model_name": "openai",
+    "configs": {
+      "model": "Qwen/Qwen2.5-14B-Instruct-AWQ",
+      "api_key": "local-dev-token",
+      "max_tokens": 4096,
+      "openai_base_url": "https://bjt-qwen.ml-dbfc64d1-783.go01-dem.ylcu-atmi.cloudera.site/v1"
+    }
+  },
+  "extract_threshold": 0.1,
+  "index_strategy": "embedding",
+  "text_embedder": {
+    "model_name": "huggingface",
+    "configs": {
+      "model": "sentence-transformers/all-MiniLM-L6-v2",
+      "embedding_dims": 384,
+      "model_kwargs": {"device": "cpu"}
+    }
+  },
+  "retrieve_strategy": "embedding",
+  "embedding_retriever": {
+    "model_name": "qdrant",
+    "configs": {
+      "collection_name": "bjt_memory",
+      "embedding_model_dims": 384,
+      "path": "./bjt_memory_store"
+    }
+  },
+  "update": "offline",
+  "logging": {
+    "level": "INFO",
+    "file_enabled": true,
+    "log_dir": "./logs"
+  }
+}

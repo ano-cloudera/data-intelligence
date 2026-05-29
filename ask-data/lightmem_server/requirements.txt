@@ -1,0 +1,5 @@
+lightmem @ git+https://github.com/zjunlp/LightMem.git
+fastmcp>=2.0.0
+sentence-transformers>=2.2.0
+qdrant-client>=1.7.0
+torch>=2.0.0
