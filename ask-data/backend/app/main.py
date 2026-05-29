@@ -56,6 +56,7 @@ from app.services.chat_router import (
     build_processing_fallback_answer,
     build_rag_unavailable_answer,
     extract_visualization_preference,
+    is_aggregation_request,
     is_document_request,
     is_greeting_or_smalltalk,
     is_visualization_followup,
@@ -548,6 +549,32 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
     blocked_decision = _maybe_block_with_guardrails(payload.question)
     if blocked_decision is not None:
         return _guardrails_block_response(payload, blocked_decision)
+
+    # Route ke MCP aggregation jika pertanyaan tentang segmentasi nasabah
+    if is_aggregation_request(payload.question) and settings.mcp_aggregation_url:
+        from app.services.aggregation_router import resolve_aggregation_tool, format_aggregation_answer
+        tool, params = resolve_aggregation_tool(payload.question)
+        agg_result = call_aggregation_tool(tool, params, settings)
+        answer = format_aggregation_answer(tool, agg_result)
+        if payload.session_id:
+            memory_store.append_user_message(payload.session_id, payload.question)
+            memory_store.append_assistant_message(payload.session_id, answer)
+            memory_store.set_last_answer(payload.session_id, answer)
+            memory_store.set_last_intent(payload.session_id, "aggregation")
+        return {
+            "session_id": payload.session_id,
+            "original_question": payload.question,
+            "answer": answer,
+            "generated_sql": "",
+            "executed_sql": "",
+            "columns": [],
+            "rows": [],
+            "row_count": 0,
+            "truncated": False,
+            "limit_applied": False,
+            "metadata": {"tool": tool, "params": params},
+            "visualization": None,
+        }
 
     # If the question is clearly about documents/SOPs and RAG is not active, guide the user
     if is_document_request(payload.question) and rag_client is None:

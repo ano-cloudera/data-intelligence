@@ -103,6 +103,36 @@ DATA_DOMAIN_MARKERS = (
     "keluar kan",
 )
 
+AGGREGATION_MARKERS = (
+    "cluster",
+    "segmentasi",
+    "silent mature",
+    "young syariah digital",
+    "konvensional produktif",
+    "rfm",
+    "champions",
+    "dormant",
+    "aktif",
+    "rekening",
+    "cabang",
+    "demografis",
+    "gender",
+    "usia",
+    "age group",
+    "kelompok usia",
+    "transaksi",
+    "activity level",
+    "saldo segment",
+    "performa cabang",
+    "distribusi",
+)
+
+
+def is_aggregation_request(text: str) -> bool:
+    lowered = normalize_text(text)
+    return any(marker in lowered for marker in AGGREGATION_MARKERS)
+
+
 VISUALIZATION_FOLLOWUP_PATTERNS = (
     (r"\b(bar chart|barchart)\b", "bar"),
     (r"\b(line chart|linechart)\b", "line"),
