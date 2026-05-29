@@ -37,12 +37,15 @@ def call_aggregation_tool(
     url = base_url + path
     payload = params or {}
 
+    # Filter out None values so optional params don't pollute query string / body
+    clean_payload = {k: v for k, v in payload.items() if v is not None}
+
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:
             if method == "GET":
-                resp = client.get(url, params=payload)
+                resp = client.get(url, params=clean_payload if clean_payload else None)
             else:
-                resp = client.post(url, json=payload)
+                resp = client.post(url, json=clean_payload)
         resp.raise_for_status()
         return resp.json()
     except httpx.TimeoutException:
