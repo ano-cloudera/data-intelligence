@@ -323,6 +323,9 @@ export default function HomePage() {
   const [availableTables, setAvailableTables] = useState<string[]>([]);
   const [tablePreviewData, setTablePreviewData] = useState<TablePreviewResponse | null>(null);
   const [tablePreviewLoading, setTablePreviewLoading] = useState(false);
+  const [mcpAggregationUrl, setMcpAggregationUrl] = useState(
+    () => typeof window !== "undefined" ? (localStorage.getItem("mcp_aggregation_url") || "") : ""
+  );
 
   useEffect(() => {
     const sessionId = getCurrentSessionId() || getOrCreateSessionId();
@@ -699,6 +702,23 @@ export default function HomePage() {
     } catch {
       setTableLockConfig({ session_id: sessionId, locked_table: null });
       setTableLockDirty(false);
+    }
+  }
+
+  async function handleMcpUrlSave(url: string): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/backend/aggregation/health`, {
+        headers: { "x-mcp-aggregation-url": url },
+      });
+      const data = await res.json();
+      if (data.status === "ok") {
+        setMcpAggregationUrl(url);
+        if (typeof window !== "undefined") localStorage.setItem("mcp_aggregation_url", url);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
   }
 
@@ -1192,6 +1212,8 @@ export default function HomePage() {
             onTableLockSave={(lockedTable) => void saveTableLock(lockedTable)}
             tablePreviewData={tablePreviewData}
             tablePreviewLoading={tablePreviewLoading}
+            mcpAggregationUrl={mcpAggregationUrl}
+            onMcpUrlSave={handleMcpUrlSave}
           />
         ) : null}
       </PageCanvas>

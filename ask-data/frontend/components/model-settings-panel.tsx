@@ -39,6 +39,8 @@ interface ModelSettingsPanelProps {
   onRagSave: () => void;
   onTableLockChange: (cfg: TableLockConfig) => void;
   onTableLockSave: (lockedTable?: string | null) => void;
+  mcpAggregationUrl?: string;
+  onMcpUrlSave?: (url: string) => Promise<boolean>;
 }
 
 const TABLE_SCHEMA_SECTIONS = [
@@ -172,6 +174,16 @@ const t = {
   },
   ragAutoActiveBadge: { en: "Auto-routing active", id: "Auto-routing aktif" },
   ragConfigureManually: { en: "Override manually", id: "Konfigurasi manual" },
+  mcpSection: { en: "Segmentation Analytics (MCP)", id: "Analitik Segmentasi (MCP)" },
+  mcpNote: { en: "Connect to MCP Aggregation Server for customer segmentation analytics.", id: "Hubungkan ke MCP Aggregation Server untuk analitik segmentasi nasabah." },
+  mcpUrl: { en: "MCP Aggregation URL", id: "URL MCP Aggregation" },
+  mcpUrlPlaceholder: { en: "https://bjt-mcp-aggregation.example.cloudera.site", id: "https://bjt-mcp-aggregation.example.cloudera.site" },
+  mcpStatus: { en: "Connection Status", id: "Status Koneksi" },
+  mcpConnected: { en: "Connected", id: "Terhubung" },
+  mcpDisconnected: { en: "Not connected", id: "Tidak terhubung" },
+  mcpChecking: { en: "Checking…", id: "Memeriksa…" },
+  mcpSave: { en: "Save & Test", id: "Simpan & Test" },
+  mcpSaving: { en: "Saving…", id: "Menyimpan…" },
   tableLockSection: { en: "Active Table Lock", id: "Kunci Tabel Aktif" },
   tableLockNote: { en: "Lock all queries in this session to one table.", id: "Kunci semua query sesi ini ke satu tabel." },
   tableLockSelect: { en: "Select table", id: "Pilih tabel" },
@@ -213,9 +225,25 @@ export function ModelSettingsPanel({
   onRagSave,
   onTableLockChange,
   onTableLockSave,
+  mcpAggregationUrl = "",
+  onMcpUrlSave,
 }: ModelSettingsPanelProps) {
   const [previewTab, setPreviewTab] = useState<"schema" | "data">("schema");
   const [showAdvancedRag, setShowAdvancedRag] = useState(false);
+  const [draftMcpUrl, setDraftMcpUrl] = useState(mcpAggregationUrl);
+  const [mcpSaving, setMcpSaving] = useState(false);
+  const [mcpStatus, setMcpStatus] = useState<"idle" | "checking" | "connected" | "error">(
+    mcpAggregationUrl ? "connected" : "idle"
+  );
+
+  async function handleMcpSave() {
+    if (!onMcpUrlSave) return;
+    setMcpSaving(true);
+    setMcpStatus("checking");
+    const ok = await onMcpUrlSave(draftMcpUrl);
+    setMcpStatus(ok ? "connected" : "error");
+    setMcpSaving(false);
+  }
   const qwenModels = options.filter((o) => o.provider === "local_qwen");
 
   const isRagAutoMode = ragOptions?.enabled === true && !ragConfig.enabled;
@@ -299,6 +327,55 @@ export function ModelSettingsPanel({
                   <SaveIcon sx={{ fontSize: 16 }} />
                   {saving ? tr("saving", lang) : tr("saveBtn", lang)}
                 </button>
+              </div>
+            </section>
+
+            {/* MCP Aggregation Section */}
+            <section className="rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-ink-subtle)]">
+                {tr("mcpSection", lang)}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-[var(--color-ink-muted)]">
+                {tr("mcpNote", lang)}
+              </p>
+              <div className="mt-4 space-y-3">
+                <label className="flex flex-col gap-2 text-sm text-[var(--color-ink-muted)]">
+                  <span className="font-medium text-[var(--color-ink-strong)]">{tr("mcpUrl", lang)}</span>
+                  <input
+                    type="url"
+                    value={draftMcpUrl}
+                    onChange={(e) => setDraftMcpUrl(e.target.value)}
+                    placeholder={tr("mcpUrlPlaceholder", lang)}
+                    className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2.5 text-sm outline-none focus:border-[#5c63f2] font-mono"
+                  />
+                </label>
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        mcpStatus === "connected" ? "bg-emerald-500" :
+                        mcpStatus === "error" ? "bg-rose-500" :
+                        mcpStatus === "checking" ? "bg-amber-400 animate-pulse" :
+                        "bg-gray-300"
+                      }`}
+                    />
+                    <span className="text-xs text-[var(--color-ink-subtle)]">
+                      {mcpStatus === "connected" ? tr("mcpConnected", lang) :
+                       mcpStatus === "error" ? tr("mcpDisconnected", lang) :
+                       mcpStatus === "checking" ? tr("mcpChecking", lang) :
+                       "—"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleMcpSave}
+                    disabled={mcpSaving || !draftMcpUrl}
+                    className="rounded-[var(--radius-pill)] bg-[linear-gradient(135deg,#5c63f2_0%,#4953d3_100%)] px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {mcpSaving ? tr("mcpSaving", lang) : tr("mcpSave", lang)}
+                  </button>
+                </div>
               </div>
             </section>
 
