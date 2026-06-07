@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import SaveIcon from "@mui/icons-material/Save";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
@@ -8,6 +10,13 @@ import TableChartIcon from "@mui/icons-material/TableChart";
 
 import type { LLMProviderOption, RagCollectionOption, RagOptionsResponse, TableLockConfig, TablePreviewResponse } from "@/lib/api";
 import type { VectorRagConfig } from "@/components/rag-config-modal";
+
+export interface McpServer {
+  id: string;
+  name: string;
+  url: string;
+  status: "idle" | "checking" | "connected" | "error";
+}
 
 interface ModelSettingsPanelProps {
   loading: boolean;
@@ -39,8 +48,9 @@ interface ModelSettingsPanelProps {
   onRagSave: () => void;
   onTableLockChange: (cfg: TableLockConfig) => void;
   onTableLockSave: (lockedTable?: string | null) => void;
-  mcpAggregationUrl?: string;
-  onMcpUrlSave?: (url: string) => Promise<boolean>;
+  mcpServers: McpServer[];
+  onMcpServersChange: (servers: McpServer[]) => void;
+  onMcpTest: (id: string, url: string) => Promise<boolean>;
 }
 
 const TABLE_SCHEMA_SECTIONS = [
@@ -174,15 +184,15 @@ const t = {
   },
   ragAutoActiveBadge: { en: "Auto-routing active", id: "Auto-routing aktif" },
   ragConfigureManually: { en: "Override manually", id: "Konfigurasi manual" },
-  mcpSection: { en: "Segmentation Analytics (MCP)", id: "Analitik Segmentasi (MCP)" },
-  mcpNote: { en: "Connect to MCP Aggregation Server for customer segmentation analytics.", id: "Hubungkan ke MCP Aggregation Server untuk analitik segmentasi nasabah." },
+  mcpSection: { en: "MCP Servers", id: "Server MCP" },
+  mcpNote: { en: "Register MCP servers to enable segmentation analytics and other AI tools.", id: "Daftarkan server MCP untuk mengaktifkan analitik segmentasi dan tools AI lainnya." },
   mcpUrl: { en: "MCP Aggregation URL", id: "URL MCP Aggregation" },
   mcpUrlPlaceholder: { en: "https://bjt-mcp-aggregation.example.cloudera.site", id: "https://bjt-mcp-aggregation.example.cloudera.site" },
   mcpStatus: { en: "Connection Status", id: "Status Koneksi" },
   mcpConnected: { en: "Connected", id: "Terhubung" },
   mcpDisconnected: { en: "Not connected", id: "Tidak terhubung" },
-  mcpChecking: { en: "Checking…", id: "Memeriksa…" },
-  mcpSave: { en: "Save & Test", id: "Simpan & Test" },
+  mcpChecking: { en: "Testing…", id: "Memeriksa…" },
+  mcpSave: { en: "Test", id: "Test" },
   mcpSaving: { en: "Saving…", id: "Menyimpan…" },
   tableLockSection: { en: "Active Table Lock", id: "Kunci Tabel Aktif" },
   tableLockNote: { en: "Lock all queries in this session to one table.", id: "Kunci semua query sesi ini ke satu tabel." },
@@ -225,24 +235,33 @@ export function ModelSettingsPanel({
   onRagSave,
   onTableLockChange,
   onTableLockSave,
-  mcpAggregationUrl = "",
-  onMcpUrlSave,
+  mcpServers,
+  onMcpServersChange,
+  onMcpTest,
 }: ModelSettingsPanelProps) {
   const [previewTab, setPreviewTab] = useState<"schema" | "data">("schema");
   const [showAdvancedRag, setShowAdvancedRag] = useState(false);
-  const [draftMcpUrl, setDraftMcpUrl] = useState(mcpAggregationUrl);
-  const [mcpSaving, setMcpSaving] = useState(false);
-  const [mcpStatus, setMcpStatus] = useState<"idle" | "checking" | "connected" | "error">(
-    mcpAggregationUrl ? "connected" : "idle"
-  );
+  const [draftName, setDraftName] = useState("");
+  const [draftUrl, setDraftUrl] = useState("");
 
-  async function handleMcpSave() {
-    if (!onMcpUrlSave) return;
-    setMcpSaving(true);
-    setMcpStatus("checking");
-    const ok = await onMcpUrlSave(draftMcpUrl);
-    setMcpStatus(ok ? "connected" : "error");
-    setMcpSaving(false);
+  function addServer() {
+    const trimName = draftName.trim();
+    const trimUrl = draftUrl.trim();
+    if (!trimName || !trimUrl) return;
+    const newServer: McpServer = { id: crypto.randomUUID(), name: trimName, url: trimUrl, status: "idle" };
+    onMcpServersChange([...mcpServers, newServer]);
+    setDraftName("");
+    setDraftUrl("");
+  }
+
+  function removeServer(id: string) {
+    onMcpServersChange(mcpServers.filter((s) => s.id !== id));
+  }
+
+  async function testServer(id: string, url: string) {
+    onMcpServersChange(mcpServers.map((s) => s.id === id ? { ...s, status: "checking" } : s));
+    const ok = await onMcpTest(id, url);
+    onMcpServersChange(mcpServers.map((s) => s.id === id ? { ...s, status: ok ? "connected" : "error" } : s));
   }
   const qwenModels = options.filter((o) => o.provider === "local_qwen");
 
@@ -330,7 +349,7 @@ export function ModelSettingsPanel({
               </div>
             </section>
 
-            {/* MCP Aggregation Section */}
+            {/* MCP Servers Section */}
             <section className="rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-ink-subtle)]">
                 {tr("mcpSection", lang)}
@@ -338,44 +357,72 @@ export function ModelSettingsPanel({
               <p className="mt-2 text-xs leading-5 text-[var(--color-ink-muted)]">
                 {tr("mcpNote", lang)}
               </p>
-              <div className="mt-4 space-y-3">
-                <label className="flex flex-col gap-2 text-sm text-[var(--color-ink-muted)]">
-                  <span className="font-medium text-[var(--color-ink-strong)]">{tr("mcpUrl", lang)}</span>
-                  <input
-                    type="url"
-                    value={draftMcpUrl}
-                    onChange={(e) => setDraftMcpUrl(e.target.value)}
-                    placeholder={tr("mcpUrlPlaceholder", lang)}
-                    className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2.5 text-sm outline-none focus:border-[#5c63f2] font-mono"
-                  />
-                </label>
 
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`h-2 w-2 rounded-full ${
-                        mcpStatus === "connected" ? "bg-emerald-500" :
-                        mcpStatus === "error" ? "bg-rose-500" :
-                        mcpStatus === "checking" ? "bg-amber-400 animate-pulse" :
-                        "bg-gray-300"
-                      }`}
-                    />
-                    <span className="text-xs text-[var(--color-ink-subtle)]">
-                      {mcpStatus === "connected" ? tr("mcpConnected", lang) :
-                       mcpStatus === "error" ? tr("mcpDisconnected", lang) :
-                       mcpStatus === "checking" ? tr("mcpChecking", lang) :
-                       "—"}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleMcpSave}
-                    disabled={mcpSaving || !draftMcpUrl}
-                    className="rounded-[var(--radius-pill)] bg-[linear-gradient(135deg,#5c63f2_0%,#4953d3_100%)] px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {mcpSaving ? tr("mcpSaving", lang) : tr("mcpSave", lang)}
-                  </button>
+              {/* Registered servers list */}
+              {mcpServers.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {mcpServers.map((server) => (
+                    <div key={server.id} className="flex items-center gap-2 rounded-[14px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] px-3 py-2.5">
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${
+                          server.status === "connected" ? "bg-emerald-500" :
+                          server.status === "error" ? "bg-rose-500" :
+                          server.status === "checking" ? "bg-amber-400 animate-pulse" :
+                          "bg-gray-300"
+                        }`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-[var(--color-ink-strong)] truncate">{server.name}</p>
+                        <p className="text-[10px] font-mono text-[var(--color-ink-subtle)] truncate">{server.url}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void testServer(server.id, server.url)}
+                        disabled={server.status === "checking"}
+                        className="shrink-0 rounded-[10px] bg-[linear-gradient(135deg,#5c63f2_0%,#4953d3_100%)] px-3 py-1 text-[11px] font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
+                      >
+                        {server.status === "checking" ? tr("mcpChecking", lang) : tr("mcpSave", lang)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeServer(server.id)}
+                        className="shrink-0 rounded-[10px] p-1 text-[var(--color-ink-subtle)] transition hover:bg-rose-50 hover:text-rose-500"
+                      >
+                        <DeleteIcon sx={{ fontSize: 15 }} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
+              )}
+
+              {/* Add new server form */}
+              <div className="mt-4 space-y-2 rounded-[14px] border border-dashed border-[var(--color-border-strong)] p-3">
+                <p className="text-[11px] font-semibold text-[var(--color-ink-subtle)] uppercase tracking-[0.18em]">
+                  {lang === "id" ? "Tambah Server MCP" : "Add MCP Server"}
+                </p>
+                <input
+                  type="text"
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  placeholder={lang === "id" ? "Nama server (misal: MCP Aggregation)" : "Server name (e.g. MCP Aggregation)"}
+                  className="w-full rounded-[10px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-sm outline-none focus:border-[#5c63f2]"
+                />
+                <input
+                  type="url"
+                  value={draftUrl}
+                  onChange={(e) => setDraftUrl(e.target.value)}
+                  placeholder={tr("mcpUrlPlaceholder", lang)}
+                  className="w-full rounded-[10px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-sm font-mono outline-none focus:border-[#5c63f2]"
+                />
+                <button
+                  type="button"
+                  onClick={addServer}
+                  disabled={!draftName.trim() || !draftUrl.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[linear-gradient(135deg,#5c63f2_0%,#4953d3_100%)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <AddIcon sx={{ fontSize: 15 }} />
+                  {lang === "id" ? "Tambah & Simpan" : "Add & Save"}
+                </button>
               </div>
             </section>
 

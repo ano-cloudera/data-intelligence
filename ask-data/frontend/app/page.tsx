@@ -12,7 +12,7 @@ import { AnswerCard } from "@/components/answer-card";
 import { BrandLogo } from "@/components/brand-logo";
 import { ChatInputPanel } from "@/components/chat-input-panel";
 import { DemoGuidePanel } from "@/components/demo-guide-panel";
-import { ModelSettingsPanel } from "@/components/model-settings-panel";
+import { ModelSettingsPanel, type McpServer } from "@/components/model-settings-panel";
 import { NoticePanel } from "@/components/notice-panel";
 import { ResultChartCard } from "@/components/result-chart-card";
 import { StarterCard, type StarterCardVariant } from "@/components/starter-card";
@@ -323,9 +323,14 @@ export default function HomePage() {
   const [availableTables, setAvailableTables] = useState<string[]>([]);
   const [tablePreviewData, setTablePreviewData] = useState<TablePreviewResponse | null>(null);
   const [tablePreviewLoading, setTablePreviewLoading] = useState(false);
-  const [mcpAggregationUrl, setMcpAggregationUrl] = useState(
-    () => typeof window !== "undefined" ? (localStorage.getItem("mcp_aggregation_url") || "") : ""
-  );
+  const [mcpServers, setMcpServers] = useState<McpServer[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      return JSON.parse(localStorage.getItem("mcp_servers") || "[]") as McpServer[];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     const sessionId = getCurrentSessionId() || getOrCreateSessionId();
@@ -705,18 +710,20 @@ export default function HomePage() {
     }
   }
 
-  async function handleMcpUrlSave(url: string): Promise<boolean> {
+  function handleMcpServersChange(servers: McpServer[]) {
+    setMcpServers(servers);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mcp_servers", JSON.stringify(servers));
+    }
+  }
+
+  async function handleMcpTest(_id: string, url: string): Promise<boolean> {
     try {
       const res = await fetch(`/api/backend/aggregation/health`, {
         headers: { "x-mcp-aggregation-url": url },
       });
       const data = await res.json();
-      if (data.status === "ok") {
-        setMcpAggregationUrl(url);
-        if (typeof window !== "undefined") localStorage.setItem("mcp_aggregation_url", url);
-        return true;
-      }
-      return false;
+      return data.status === "ok";
     } catch {
       return false;
     }
@@ -1212,8 +1219,9 @@ export default function HomePage() {
             onTableLockSave={(lockedTable) => void saveTableLock(lockedTable)}
             tablePreviewData={tablePreviewData}
             tablePreviewLoading={tablePreviewLoading}
-            mcpAggregationUrl={mcpAggregationUrl}
-            onMcpUrlSave={handleMcpUrlSave}
+            mcpServers={mcpServers}
+            onMcpServersChange={handleMcpServersChange}
+            onMcpTest={handleMcpTest}
           />
         ) : null}
       </PageCanvas>
