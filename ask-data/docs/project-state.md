@@ -1,6 +1,6 @@
 # Ask Data — Project State (Bank Jawa Timur PoC)
 
-_Last updated: 2026-05-29_
+_Last updated: 2026-06-08_
 
 ---
 
@@ -32,7 +32,8 @@ Asisten analitik berbahasa Indonesia yang memungkinkan tim bisnis mengajukan per
 | APP 2 | `bjt-ask-data-backend` | FastAPI backend NL→SQL + aggregation proxy |
 | APP 3 | `bjt-ask-data-frontend` | Next.js UI |
 | APP 4 | `bjt-ask-data-mcp` | MCP server lama (customer_dormant_segment) — legacy |
-| APP 5 | `bjt-mcp-aggregation` | MCP tools untuk customer_segments_staging (aktif) |
+| APP 5 | `bjt-mcp-aggregation` | MCP tools untuk customer_segments_staging (aktif, 10 tools) |
+| APP 6 | `bjt-lightmem` | LightMem memory server — persistensi memori antar sesi AI |
 
 ### URLs
 
@@ -92,7 +93,7 @@ Asisten analitik berbahasa Indonesia yang memungkinkan tim bisnis mengajukan per
 ## 4. MCP Server — APP 5 (`bjt-mcp-aggregation`)
 
 **Folder:** `ask-data/mcp_server_aggregation/`
-**Entry:** `mcp_server_aggregation/mcp_entry.py`
+**Entry:** `data-intelligence/ask-data/mcp_server_aggregation/mcp_entry.py`
 **Version:** 3.1.0
 **Tools:** 10 tools
 **URL:** `https://bjt-mcp-aggregation.ml-dbfc64d1-783.go01-dem.ylcu-atmi.cloudera.site`
@@ -148,6 +149,43 @@ Asisten analitik berbahasa Indonesia yang memungkinkan tim bisnis mengajukan per
 
 ---
 
+## 4b. LightMem Memory Server — APP 6 (`bjt-lightmem`)
+
+**Folder:** `ask-data/lightmem_server/`
+**Entry:** `data-intelligence/ask-data/lightmem_server/lightmem_entry.py`
+**Framework:** LightMem (ICLR 2026) — PreCompressor → TopicSegmenter → MemoryManager → TextEmbedder → Qdrant
+**Status:** Scaffolded lokal, belum deploy ke CAI
+
+### Tools MCP LightMem
+
+| Tool | Fungsi |
+|---|---|
+| `add_memory` | Simpan teks ke memori jangka panjang |
+| `retrieve_memory` | Cari memori relevan berdasarkan query |
+| `offline_update` | Trigger proses background memory consolidation |
+| `show_memory_status` | Status memori: jumlah item, ukuran store |
+
+### Environment Variables APP 6
+
+| Key | Nilai |
+|---|---|
+| `QWEN_BASE_URL` | `https://bjt-qwen.ml-dbfc64d1-783.go01-dem.ylcu-atmi.cloudera.site/v1` |
+| `QWEN_API_KEY` | `local-dev-token` |
+| `QWEN_MODEL` | `Qwen/Qwen2.5-14B-Instruct-AWQ` |
+| `MEMORY_STORE_PATH` | `./bjt_memory_store` |
+
+### Requirements APP 6
+
+```text
+lightmem @ git+https://github.com/zjunlp/LightMem.git
+fastmcp>=2.0.0
+sentence-transformers>=2.2.0
+qdrant-client>=1.7.0
+torch>=2.0.0
+```
+
+---
+
 ## 5. Agent Studio — Multi-Agent Workflow
 
 ### Agents
@@ -169,7 +207,7 @@ Asisten analitik berbahasa Indonesia yang memungkinkan tim bisnis mengajukan per
 
 ## 6. Backend — APP 2 (`bjt-ask-data-backend`)
 
-### Aggregation Proxy Endpoints (baru)
+### Aggregation Proxy Endpoints
 
 | Endpoint | Fungsi |
 |---|---|
@@ -182,6 +220,38 @@ Asisten analitik berbahasa Indonesia yang memungkinkan tim bisnis mengajukan per
 | Key | Nilai |
 |---|---|
 | `MCP_AGGREGATION_URL` | `https://bjt-mcp-aggregation.ml-dbfc64d1-783.go01-dem.ylcu-atmi.cloudera.site` |
+
+---
+
+## 7. Frontend — APP 3 (`bjt-ask-data-frontend`)
+
+**Framework:** Next.js 15 + React 18 + Tailwind CSS
+
+### Fitur Settings Panel
+
+| Fitur | Keterangan |
+|---|---|
+| Model selector | Dropdown model Qwen yang tersedia |
+| Table Lock | Lock query ke tabel spesifik per sesi |
+| RAG / Knowledge Base | Auto-routing aktif jika ChromaDB tersedia |
+| MCP Servers | Dynamic list: add/remove/test multiple MCP servers |
+
+### MCP Servers Config (localStorage)
+
+User bisa tambah banyak MCP server langsung dari UI Settings tanpa env var. Disimpan di browser `localStorage` key `mcp_servers` sebagai array JSON:
+
+```json
+[
+  {
+    "id": "uuid-v4",
+    "name": "MCP Aggregation",
+    "url": "https://bjt-mcp-aggregation.ml-dbfc64d1-783.go01-dem.ylcu-atmi.cloudera.site",
+    "status": "connected"
+  }
+]
+```
+
+Tiap entry bisa di-**Test** (dot hijau/merah) dan di-**Delete** dari UI.
 
 ---
 
@@ -246,7 +316,7 @@ LOCATION 's3a://go01-demo/user/cai-demo-se-indonesia/data/customer_segments/';
 - [x] Stop signal `FINAL_ANSWER` di setiap tool response
 - [x] `cluster_summary` dengan filter `cluster_label` dan kolom gender (Laki-laki/Perempuan)
 - [x] `demografis_summary` untuk distribusi gender, usia, activity level
-- [x] REST endpoint `GET /tools/quick_stats` tersedia
+- [x] REST endpoint `GET /tools/quick_stats`, `GET /tools/cluster_summary`, `GET /tools/demografis_summary`
 - [x] Allow Unauthenticated Access aktif
 - [x] APP 5 running di CAI
 
@@ -258,17 +328,33 @@ LOCATION 's3a://go01-demo/user/cai-demo-se-indonesia/data/customer_segments/';
 
 #### Backend (APP 2)
 - [x] Aggregation proxy: `/aggregation/health`, `/aggregation/tools`, `/aggregation/query`
+- [x] Auto-routing aggregation: `is_aggregation_request()` + `resolve_aggregation_tool()`
 - [x] `MCP_AGGREGATION_URL` env var tersedia
 
-### 🔄 Sedang Di-test
+#### Frontend (APP 3)
 
-- [ ] End-to-end test 8 pertanyaan demo via Agent Studio
-- [ ] Connect frontend ke `/aggregation/query` backend
+- [x] MCP Servers config section di Settings panel
+- [x] Dynamic list: add/remove/test multiple MCP servers
+- [x] Persistent di localStorage key `mcp_servers` sebagai array JSON
+
+#### LightMem (APP 6)
+
+- [x] Scaffold folder `ask-data/lightmem_server/` tersedia di repo
+- [x] `server.py` dengan 4 MCP tools: `add_memory`, `retrieve_memory`, `offline_update`, `show_memory_status`
+- [x] `config.json` terkonfigurasi untuk Qwen2.5 + CPU embeddings + Qdrant lokal
+
+### 🔄 Pending Deploy ke CAI
+
+- [ ] APP 2: git pull + tambah env `MCP_AGGREGATION_URL` + restart
+- [ ] APP 3: git pull + rebuild + restart (untuk MCP Servers UI)
+- [ ] APP 5: git pull + restart (gender fix + quick_stats endpoint)
+- [ ] APP 6: deploy LightMem ke CAI (belum dibuat sebagai Application)
 
 ### ❌ Next Steps
 
+- [ ] Deploy APP 6 (LightMem) ke CAI
+- [ ] End-to-end test chat dengan aggregation routing aktif
 - [ ] Tambah data lebih besar (saat ini 1.000 rows)
-- [ ] Integrate aggregation endpoint ke frontend UI
 
 ---
 
@@ -288,6 +374,7 @@ LOCATION 's3a://go01-demo/user/cai-demo-se-indonesia/data/customer_segments/';
 ## 11. Resume Instructions
 
 Saat mulai session baru, assume:
+
 1. Use case: Customer Segmentation Analytics, Bank Jawa Timur
 2. Data: `cai_sdx_se_indonesia.customer_segments_staging`, 1.000 rows di Impala CDW
 3. LLM: Qwen2.5-14B-Instruct-AWQ via vLLM — APP 1 (`bjt-qwen`)
@@ -295,6 +382,8 @@ Saat mulai session baru, assume:
 5. Agent Studio: multi-agent workflow (Master → Greeting → Retrieval)
 6. Repo: `https://github.com/ano-cloudera/data-intelligence`
 7. MCP folder: `ask-data/mcp_server_aggregation/`
+8. Frontend: Next.js (APP 3), MCP Servers config via localStorage dynamic array
+9. LightMem: scaffolded di `ask-data/lightmem_server/`, belum deploy ke CAI (APP 6)
 
 ---
 

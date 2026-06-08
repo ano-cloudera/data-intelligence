@@ -12,7 +12,8 @@
 | **Folder** | `ask-data/mcp_server_aggregation/` |
 | **Entry Script** | `data-intelligence/ask-data/mcp_server_aggregation/mcp_entry.py` |
 | **Tabel Target** | `customer_segments_staging` (37 kolom) |
-| **Tools** | 8 tools: `quick_stats`, `get_schema`, `cabang_performance`, `transaksi_trend`, `status_rekening_distribution`, `saldo_analysis`, `rekening_summary`, `sql_query` |
+| **Tools** | 10 tools: `quick_stats`, `get_schema`, `cabang_performance`, `transaksi_trend`, `status_rekening_distribution`, `saldo_analysis`, `rekening_summary`, `cluster_summary`, `demografis_summary`, `sql_query` |
+| **Version** | 3.1.0 |
 | **Port** | Auto-detect dari `CDSW_APP_PORT` |
 | **Resource** | 2 vCPU / 4 GiB RAM / No GPU |
 
@@ -123,7 +124,7 @@ curl -X POST $MCP_URL/tools/rekening_summary \
 
 ## System Prompt — Data Retrieval Agent
 
-```
+```text
 Kamu adalah Data Retrieval Agent untuk workflow analitik segmentasi nasabah Bank Jawa Timur.
 
 Tugas kamu adalah memahami kebutuhan data, memilih MCP tool yang paling tepat, menjalankan pengambilan data, dan mengembalikan hasil secara faktual ke Master Agent.
@@ -238,7 +239,27 @@ Tidak perlu parameter.
 {"status_rekening": 1, "limit": 10}
 ```
 
-### 7. `sql_query`
+### 7. `cluster_summary`
+
+Karakteristik satu atau semua cluster: saldo, umur, gender, RFM, status rekening.
+
+```json
+{"cluster_label": "Young Syariah Digital"}
+```
+
+Parameter `cluster_label` opsional — kosong = return semua cluster.
+
+### 8. `demografis_summary`
+
+Distribusi gender, age group, dan activity level seluruh nasabah.
+Tidak perlu parameter.
+
+### 9. `get_schema`
+
+Daftar kolom dan tipe data tabel. Gunakan sebelum `sql_query` jika tidak yakin nama kolom.
+Tidak perlu parameter.
+
+### 10. `sql_query`
 
 ```json
 {
@@ -251,8 +272,11 @@ Tidak perlu parameter.
 ## Checklist Final
 
 - [ ] APP 5 status: **Running**
-- [ ] `GET /health` → `{"status":"ok","tools":8}`
-- [ ] `GET /tools` → 8 tools terdaftar
+- [ ] `GET /health` → `{"status":"ok","version":"3.1.0","tools":10}`
+- [ ] `GET /tools` → 10 tools terdaftar
 - [ ] `TABLE_NAME=customer_segments_staging` di env
-- [ ] `SELECT COUNT(*) FROM customer_segments_staging` → 219.262 rows
-- [ ] Registered di Agent Studio via `mcp-proxy`
+- [ ] `GET /tools/quick_stats` → data ringkasan ✓
+- [ ] `GET /tools/cluster_summary?cluster_label=Young+Syariah+Digital` → data cluster ✓
+- [ ] `GET /tools/demografis_summary` → distribusi gender & usia ✓
+- [ ] `SELECT COUNT(*) FROM customer_segments_staging` → 1.000 rows (sample) ✓
+- [ ] Registered di Agent Studio via `mcp-proxy` ✓

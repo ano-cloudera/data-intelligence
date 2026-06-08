@@ -682,10 +682,10 @@ curl -X POST $MCP_URL/tools/sql_query \
 
 ---
 
-## APP 5 — MCP Server Aggregation
+## APP 5 — MCP Server Aggregation (`bjt-mcp-aggregation`)
 
-**Tujuan:** MCP tools khusus tabel `customer_aggregation` (28 kolom segmentasi rekening): sql_query, rekening_summary, saldo_analysis, status_rekening_distribution.
-**Deploy setelah tabel `customer_aggregation` sudah ada di Impala.**
+**Tujuan:** MCP tools khusus tabel `customer_segments_staging` (37 kolom segmentasi rekening nasabah): 10 tools analitik segmentasi, demografis, dan saldo.
+**Deploy setelah tabel `customer_segments_staging` sudah ada di Impala.**
 
 ---
 
@@ -729,7 +729,7 @@ Centang: **☑ Enable Unauthenticated Access**
 
 | Key | Default | Keterangan |
 |---|---|---|
-| `TABLE_NAME` | `customer_aggregation` | Ganti jika nama tabel di env kamu berbeda |
+| `TABLE_NAME` | `customer_segments_staging` | Ganti jika nama tabel di env kamu berbeda |
 
 > **Tidak perlu** set ChromaDB, Ollama, LLM, atau CHROMA_* — APP 5 hanya connect ke Impala.
 
@@ -743,15 +743,23 @@ Klik **Create Application**. Tunggu status `Running` (1–2 menit).
 MCP_AGG_URL="https://<subdomain-app5>.<domain-cai-kamu>"
 
 curl $MCP_AGG_URL/health
-# Expected: {"status":"ok"}
+# Expected: {"status":"ok","version":"3.1.0","tools":10}
 
 curl $MCP_AGG_URL/tools | python3 -m json.tool
-# Expected: 4 tools: sql_query, rekening_summary, saldo_analysis, status_rekening_distribution
+# Expected: 10 tools: quick_stats, get_schema, cabang_performance, transaksi_trend,
+#           status_rekening_distribution, saldo_analysis, rekening_summary,
+#           cluster_summary, demografis_summary, sql_query
+
+curl $MCP_AGG_URL/tools/quick_stats
+# Expected: {"tool":"quick_stats","result":"...ringkasan 4 dimensi..."}
+
+curl "$MCP_AGG_URL/tools/cluster_summary?cluster_label=Young+Syariah+Digital"
+# Expected: {"tool":"cluster_summary","result":"...karakteristik cluster..."}
 
 curl -X POST $MCP_AGG_URL/tools/sql_query \
   -H "Content-Type: application/json" \
-  -d '{"sql":"SELECT COUNT(*) AS total FROM customer_aggregation"}'
-# Expected: {"tool":"sql_query","result":{"sql":"...","columns":["total"],"rows":[{"total":100}],"row_count":1}}
+  -d '{"sql":"SELECT COUNT(*) AS total FROM cai_sdx_se_indonesia.customer_segments_staging"}'
+# Expected: {"tool":"sql_query","result":{"sql":"...","columns":["total"],"rows":[{"total":1000}],"row_count":1}}
 ```
 
 ---
@@ -905,7 +913,7 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 |---|---|---|---|
 | `BACKEND_API_BASE_URL` | _(kosong)_ | **Ya** | URL APP 2 tanpa trailing slash |
 
-### APP 5 — MCP Server Aggregation
+### APP 5 — Environment Variables (`bjt-mcp-aggregation`)
 
 | Key | Default | Wajib | Keterangan |
 |---|---|---|---|
@@ -915,7 +923,7 @@ Tabel ini adalah referensi semua env var yang bisa dikonfigurasi ulang saat depl
 | `CDP_USER` | _(kosong)_ | **Ya** | |
 | `CDP_PASS` | _(kosong)_ | **Ya** | |
 | `DB_NAME` | `cai_sdx_se_indonesia` | **Ya** | **Sesuaikan** dengan database di env kamu |
-| `TABLE_NAME` | `customer_aggregation` | Tidak | Override jika nama tabel berbeda di env lain |
+| `TABLE_NAME` | `customer_segments_staging` | Tidak | Override jika nama tabel berbeda di env lain |
 
 ---
 
@@ -1053,16 +1061,18 @@ pip show pysqlite3-binary
 - [ ] Settings panel → badge "Knowledge Base: Auto" terlihat ✓
 - [ ] Guardrails → PII query diblok ✓
 
-### APP 5 — MCP Server Aggregation
+### APP 5 — Checklist (`bjt-mcp-aggregation`)
 
-- [ ] Tabel `customer_aggregation` sudah ada di Impala (jalankan DDL di `ask-data/sql/impala_customer_aggregation_ddl.sql` dulu)
+- [ ] Tabel `customer_segments_staging` sudah ada di Impala (jalankan DDL di `ask-data/sql/impala_customer_segments_ddl.sql` dulu)
 - [ ] Script: `data-intelligence/ask-data/mcp_server_aggregation/mcp_entry.py`
 - [ ] Resource: 2 vCPU / 4 GiB, no GPU
 - [ ] Env wajib: `IMPALA_HOST`, `IMPALA_PORT`, `IMPALA_HTTP_PATH`, `CDP_USER`, `CDP_PASS`, `DB_NAME`
-- [ ] Env opsional: `TABLE_NAME` (default: `customer_aggregation`) — set jika nama tabel berbeda
+- [ ] Env opsional: `TABLE_NAME` (default: `customer_segments_staging`) — set jika nama tabel berbeda
 - [ ] Unauthenticated Access: ☑
-- [ ] Status: **Running**: `/health` → `{"status":"ok"}`, `/tools` → 4 tools
-- [ ] Test: `POST /tools/sql_query` dengan `{"sql":"SELECT COUNT(*) AS total FROM customer_aggregation"}` → row_count: 1 ✓
+- [ ] Status: **Running**: `/health` → `{"status":"ok","version":"3.1.0","tools":10}`
+- [ ] `GET /tools` → 10 tools terdaftar ✓
+- [ ] `GET /tools/quick_stats` → data ringkasan 4 dimensi ✓
+- [ ] `GET /tools/cluster_summary?cluster_label=Young+Syariah+Digital` → data cluster ✓
 - [ ] Register ke Agent Studio via `mcp-proxy` ✓
 
 ---
