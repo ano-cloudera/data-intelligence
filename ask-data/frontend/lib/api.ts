@@ -36,7 +36,7 @@ export interface SQLExecuteResponse {
 }
 
 export interface VisualizationSpec {
-  type?: "bar" | "line" | "pie" | "table" | null;
+  type?: "bar" | "line" | "pie" | "table" | "map" | null;
   title?: string | null;
   x_key?: string | null;
   y_key?: string | null;
@@ -44,6 +44,9 @@ export interface VisualizationSpec {
   table_columns?: string[];
   table_rows?: Array<Record<string, unknown>>;
   insight?: string | null;
+  // map fields
+  metric?: string | null;
+  features?: Array<Record<string, unknown>>;
 }
 
 export interface ChatQueryResponse {

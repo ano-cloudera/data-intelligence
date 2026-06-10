@@ -551,11 +551,20 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
         return _guardrails_block_response(payload, blocked_decision)
 
     # Route ke MCP aggregation jika pertanyaan tentang segmentasi nasabah
-    if is_aggregation_request(payload.question) and settings.mcp_aggregation_url:
-        from app.services.aggregation_router import resolve_aggregation_tool, format_aggregation_answer
+    from app.services.aggregation_router import resolve_aggregation_tool, format_aggregation_answer, is_map_request
+    _is_map = is_map_request(payload.question)
+    if (_is_map or is_aggregation_request(payload.question)) and settings.mcp_aggregation_url:
         tool, params = resolve_aggregation_tool(payload.question)
         agg_result = call_aggregation_tool(tool, params, settings)
         answer = format_aggregation_answer(tool, agg_result)
+        # Build map visualization payload ketika tool adalah cabang_map
+        visualization_payload = None
+        if tool == "cabang_map" and "features" in agg_result:
+            visualization_payload = {
+                "type": "map",
+                "metric": agg_result.get("metric", "total"),
+                "features": agg_result.get("features", []),
+            }
         if payload.session_id:
             memory_store.append_user_message(payload.session_id, payload.question)
             memory_store.append_assistant_message(payload.session_id, answer)
@@ -573,7 +582,7 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
             "truncated": False,
             "limit_applied": False,
             "metadata": {"tool": tool, "params": params},
-            "visualization": None,
+            "visualization": visualization_payload,
         }
 
     # If the question is clearly about documents/SOPs and RAG is not active, guide the user

@@ -125,6 +125,14 @@ AGGREGATION_MARKERS = (
     "saldo segment",
     "performa cabang",
     "distribusi",
+    # geo markers
+    "peta",
+    "map",
+    "geografis",
+    "wilayah",
+    "sebaran",
+    "persebaran",
+    "lokasi cabang",
 )
 
 

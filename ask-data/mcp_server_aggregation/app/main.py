@@ -19,6 +19,7 @@ from app.schemas import (
 import asyncio
 
 from app.impala_client import execute_query_async
+from app.tools.cabang_map import run_cabang_map
 from app.tools.cabang_performance import run_cabang_performance
 from app.tools.cluster_summary import run_cluster_summary
 from app.tools.demografis_summary import run_demografis_summary
@@ -200,6 +201,32 @@ MCP_TOOLS = [
         inputSchema={"type": "object", "properties": {}},
     ),
     Tool(
+        name="cabang_map",
+        description=(
+            "Return data geospatial per cabang untuk visualisasi PETA Jawa Timur. "
+            "Setiap cabang dilengkapi: nama cabang, kota, koordinat lat/lng, total rekening, "
+            "jumlah aktif/dormant, persentase dormant, rata-rata saldo. "
+            "Gunakan untuk: 'peta cabang', 'sebaran cabang di Jawa Timur', "
+            "'cabang mana yang paling banyak dormant di peta', 'visualisasi geografis rekening', "
+            "'distribusi cluster per wilayah', 'map cabang', 'tampilkan di peta'. "
+            "Parameter metric: 'total' (default), 'dormant', 'avg_saldo', 'pct_dormant'. "
+            "Parameter limit: jumlah cabang (default 50, max 200)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "metric": {
+                    "type": "string",
+                    "description": "Metrik untuk warna marker: 'total', 'dormant', 'avg_saldo', 'pct_dormant'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Jumlah cabang yang dikembalikan (1-200), default 50",
+                },
+            },
+        },
+    ),
+    Tool(
         name="sql_query",
         description=(
             "Jalankan SELECT query bebas ke tabel customer_segments_staging. "
@@ -229,6 +256,8 @@ _STOP_SIGNAL = (
 
 def _format_result(result: dict[str, Any]) -> str:
     """Format tool result as plain text table — readable in Agent Studio monospace output."""
+    import json
+
     if "error" in result:
         return f"ERROR: {result['error']}" + _STOP_SIGNAL
 
@@ -236,6 +265,10 @@ def _format_result(result: dict[str, Any]) -> str:
         return result["schema_info"] + _STOP_SIGNAL
     if "summary" in result:
         return result["summary"] + _STOP_SIGNAL
+
+    # Map visualization — return as JSON so frontend can render
+    if result.get("visualization") == "map":
+        return json.dumps(result, ensure_ascii=False) + _STOP_SIGNAL
 
     rows = result.get("rows", [])
     row_count = result.get("row_count", len(rows))
@@ -309,6 +342,12 @@ async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextConten
             )
         elif name == "demografis_summary":
             result = await asyncio.to_thread(run_demografis_summary)
+        elif name == "cabang_map":
+            result = await asyncio.to_thread(
+                run_cabang_map,
+                arguments.get("metric", "total"),
+                arguments.get("limit", 50),
+            )
         elif name == "sql_query":
             result = await asyncio.to_thread(run_sql_query, arguments.get("sql", ""))
         else:
@@ -340,7 +379,7 @@ async def handle_sse(request: Request):
 app = FastAPI(
     title="MCP Server — Customer Aggregation",
     description="MCP tools for customer_aggregation table at Bank Jawa Timur",
-    version="3.1.0",
+    version="3.2.0",
 )
 
 app.add_middleware(
@@ -356,7 +395,7 @@ app.add_route("/sse", handle_sse, methods=["GET"])
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "version": "3.1.0", "tools": len(MCP_TOOLS)}
+    return {"status": "ok", "version": "3.2.0", "tools": len(MCP_TOOLS)}
 
 
 @app.get("/tools")
@@ -430,6 +469,11 @@ def tool_cluster_summary(cluster_label: str | None = None):
 @app.get("/tools/demografis_summary")
 def tool_demografis_summary():
     return ToolResponse(tool="demografis_summary", result=run_demografis_summary())
+
+
+@app.get("/tools/cabang_map")
+def tool_cabang_map(metric: str = "total", limit: int = 50):
+    return run_cabang_map(metric, limit)
 
 
 @app.post("/tools/status_rekening_distribution", response_model=ToolResponse)

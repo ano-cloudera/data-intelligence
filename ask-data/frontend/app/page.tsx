@@ -16,6 +16,9 @@ import { ModelSettingsPanel, type McpServer } from "@/components/model-settings-
 import { NoticePanel } from "@/components/notice-panel";
 import { ResultChartCard } from "@/components/result-chart-card";
 import { StarterCard, type StarterCardVariant } from "@/components/starter-card";
+import dynamic from "next/dynamic";
+import type { MapFeature } from "@/components/result-map-card";
+const ResultMapCard = dynamic(() => import("@/components/result-map-card"), { ssr: false });
 import { UsageDashboardPanel } from "@/components/usage-dashboard-panel";
 import { UserMessageCard } from "@/components/user-message-card";
 import {
@@ -1110,7 +1113,14 @@ export default function HomePage() {
                             />
                           </div>
                         ) : null}
-                        {message.visualization?.type ? (
+                        {message.visualization?.type === "map" ? (
+                          <div className="w-full max-w-[56rem]">
+                            <ResultMapCard
+                              features={(message.visualization.features ?? []) as unknown as MapFeature[]}
+                              metric={message.visualization.metric ?? "total"}
+                            />
+                          </div>
+                        ) : message.visualization?.type ? (
                           <ResultChartCard visualization={message.visualization} />
                         ) : null}
                       </div>

@@ -39,6 +39,9 @@ class VisualizationSpec(BaseModel):
     table_columns: list[str] = Field(default_factory=list)
     table_rows: list[dict[str, Any]] = Field(default_factory=list)
     insight: str | None = None
+    # geo map fields
+    metric: str | None = None
+    features: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ChatAnswerResponse(BaseModel):
