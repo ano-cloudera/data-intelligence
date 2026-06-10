@@ -12,6 +12,7 @@ TOOL_ENDPOINTS: dict[str, tuple[str, str]] = {
     "cluster_summary":              ("GET",  "/tools/cluster_summary"),
     "demografis_summary":           ("GET",  "/tools/demografis_summary"),
     "cabang_performance":           ("GET",  "/tools/cabang_performance"),
+    "cabang_map":                   ("GET",  "/tools/cabang_map"),
     "transaksi_trend":              ("POST", "/tools/transaksi_trend"),
     "status_rekening_distribution": ("POST", "/tools/status_rekening_distribution"),
     "saldo_analysis":               ("POST", "/tools/saldo_analysis"),
