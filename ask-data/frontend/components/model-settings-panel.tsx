@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import InfoIcon from "@mui/icons-material/Info";
 import SaveIcon from "@mui/icons-material/Save";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
@@ -243,18 +244,39 @@ export function ModelSettingsPanel({
   const [showAdvancedRag, setShowAdvancedRag] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftUrl, setDraftUrl] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   function addServer() {
     const trimName = draftName.trim();
     const trimUrl = draftUrl.trim();
     if (!trimName || !trimUrl) return;
-    const newServer: McpServer = { id: crypto.randomUUID(), name: trimName, url: trimUrl, status: "idle" };
-    onMcpServersChange([...mcpServers, newServer]);
+    if (editingId) {
+      onMcpServersChange(mcpServers.map((s) =>
+        s.id === editingId ? { ...s, name: trimName, url: trimUrl, status: "idle" } : s
+      ));
+      setEditingId(null);
+    } else {
+      const newServer: McpServer = { id: crypto.randomUUID(), name: trimName, url: trimUrl, status: "idle" };
+      onMcpServersChange([...mcpServers, newServer]);
+    }
+    setDraftName("");
+    setDraftUrl("");
+  }
+
+  function startEdit(server: McpServer) {
+    setEditingId(server.id);
+    setDraftName(server.name);
+    setDraftUrl(server.url);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
     setDraftName("");
     setDraftUrl("");
   }
 
   function removeServer(id: string) {
+    if (editingId === id) cancelEdit();
     onMcpServersChange(mcpServers.filter((s) => s.id !== id));
   }
 
@@ -362,7 +384,11 @@ export function ModelSettingsPanel({
               {mcpServers.length > 0 && (
                 <div className="mt-4 space-y-2">
                   {mcpServers.map((server) => (
-                    <div key={server.id} className="flex items-center gap-2 rounded-[14px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] px-3 py-2.5">
+                    <div key={server.id} className={`flex items-center gap-2 rounded-[14px] border px-3 py-2.5 transition-colors ${
+                      editingId === server.id
+                        ? "border-[#5c63f2] bg-[rgba(92,99,242,0.06)]"
+                        : "border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]"
+                    }`}>
                       <span
                         className={`h-2 w-2 shrink-0 rounded-full ${
                           server.status === "connected" ? "bg-emerald-500" :
@@ -385,8 +411,17 @@ export function ModelSettingsPanel({
                       </button>
                       <button
                         type="button"
+                        onClick={() => startEdit(server)}
+                        className="shrink-0 rounded-[10px] p-1 text-[var(--color-ink-subtle)] transition hover:bg-[#eef1ff] hover:text-[#5c63f2]"
+                        title={lang === "id" ? "Edit" : "Edit"}
+                      >
+                        <EditIcon sx={{ fontSize: 15 }} />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => removeServer(server.id)}
                         className="shrink-0 rounded-[10px] p-1 text-[var(--color-ink-subtle)] transition hover:bg-rose-50 hover:text-rose-500"
+                        title={lang === "id" ? "Hapus" : "Delete"}
                       >
                         <DeleteIcon sx={{ fontSize: 15 }} />
                       </button>
@@ -395,10 +430,14 @@ export function ModelSettingsPanel({
                 </div>
               )}
 
-              {/* Add new server form */}
-              <div className="mt-4 space-y-2 rounded-[14px] border border-dashed border-[var(--color-border-strong)] p-3">
+              {/* Add / Edit server form */}
+              <div className={`mt-4 space-y-2 rounded-[14px] border border-dashed p-3 transition-colors ${
+                editingId ? "border-[#5c63f2] bg-[rgba(92,99,242,0.04)]" : "border-[var(--color-border-strong)]"
+              }`}>
                 <p className="text-[11px] font-semibold text-[var(--color-ink-subtle)] uppercase tracking-[0.18em]">
-                  {lang === "id" ? "Tambah Server MCP" : "Add MCP Server"}
+                  {editingId
+                    ? (lang === "id" ? "Edit Server MCP" : "Edit MCP Server")
+                    : (lang === "id" ? "Tambah Server MCP" : "Add MCP Server")}
                 </p>
                 <input
                   type="text"
@@ -414,15 +453,28 @@ export function ModelSettingsPanel({
                   placeholder={tr("mcpUrlPlaceholder", lang)}
                   className="w-full rounded-[10px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-sm font-mono outline-none focus:border-[#5c63f2]"
                 />
-                <button
-                  type="button"
-                  onClick={addServer}
-                  disabled={!draftName.trim() || !draftUrl.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[linear-gradient(135deg,#5c63f2_0%,#4953d3_100%)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <AddIcon sx={{ fontSize: 15 }} />
-                  {lang === "id" ? "Tambah & Simpan" : "Add & Save"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={addServer}
+                    disabled={!draftName.trim() || !draftUrl.trim()}
+                    className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-[linear-gradient(135deg,#5c63f2_0%,#4953d3_100%)] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {editingId ? <EditIcon sx={{ fontSize: 15 }} /> : <AddIcon sx={{ fontSize: 15 }} />}
+                    {editingId
+                      ? (lang === "id" ? "Simpan Perubahan" : "Save Changes")
+                      : (lang === "id" ? "Tambah & Simpan" : "Add & Save")}
+                  </button>
+                  {editingId && (
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] px-4 py-2 text-sm font-semibold text-[var(--color-ink-muted)] transition hover:border-rose-300 hover:text-rose-500"
+                    >
+                      {lang === "id" ? "Batal" : "Cancel"}
+                    </button>
+                  )}
+                </div>
               </div>
             </section>
 
