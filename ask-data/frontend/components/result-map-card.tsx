@@ -20,6 +20,32 @@ interface ResultMapCardProps {
   metric?: string;
 }
 
+// Normalize kota name from cabang data → match GeoJSON KABUPATEN property
+function normalizeKota(kota: string): string {
+  const k = kota.toUpperCase().trim();
+  const MAP: Record<string, string> = {
+    "SURABAYA": "KOTA SURABAYA",
+    "MALANG": "KOTA MALANG",
+    "KEDIRI": "KOTAKEDIRI",
+    "BLITAR": "KOTA BLITAR",
+    "MADIUN": "KOTA MADIUN",
+    "MOJOKERTO": "KOTA MOJOKERTO",
+    "PASURUAN": "KOTA PASURUAN",
+    "PROBOLINGGO": "KOTA PROBOLINGGO",
+    "BATU": "KOTA BATU",
+    "JEMBER": "JEMBER",
+    "KAB. MALANG": "MALANG",
+    "KAB. KEDIRI": "KEDIRI",
+    "KAB. BLITAR": "BLITAR",
+    "KAB. MADIUN": "MADIUN",
+    "KAB. MOJOKERTO": "MOJOKERTO",
+    "KAB. PASURUAN": "PASURUAN",
+    "KAB. PROBOLINGGO": "PROBOLINGO",
+    "KAB. JEMBER": "JEMBER",
+  };
+  return MAP[k] ?? k;
+}
+
 function getColor(value: number, max: number): string {
   if (max === 0) return "#3b82f6";
   const ratio = value / max;
@@ -58,7 +84,6 @@ export default function ResultMapCard({ features, metric = "total" }: ResultMapC
 
       if (cancelled || !mapRef.current) return;
 
-      // Clean up previous instance
       if (leafletRef.current) {
         leafletRef.current.remove();
         leafletRef.current = null;
@@ -76,7 +101,6 @@ export default function ResultMapCard({ features, metric = "total" }: ResultMapC
         maxZoom: 18,
       }).addTo(map);
 
-      // Compute max for scaling
       const getValue = (f: MapFeature) => {
         if (metric === "dormant") return f.dormant;
         if (metric === "avg_saldo") return f.avg_saldo;
@@ -85,6 +109,59 @@ export default function ResultMapCard({ features, metric = "total" }: ResultMapC
       };
       const maxVal = Math.max(...features.map(getValue), 1);
 
+      // Aggregate metric per kota for polygon coloring
+      const kotaAgg: Record<string, { sum: number; count: number }> = {};
+      features.forEach((f) => {
+        const key = normalizeKota(f.kota);
+        if (!kotaAgg[key]) kotaAgg[key] = { sum: 0, count: 0 };
+        kotaAgg[key].sum += getValue(f);
+        kotaAgg[key].count += 1;
+      });
+      const kotaMax = Math.max(...Object.values(kotaAgg).map((v) => v.sum), 1);
+
+      // Load and render GeoJSON polygon layer
+      try {
+        const resp = await fetch("/jatim.geojson");
+        const geojson = await resp.json();
+
+        L.geoJSON(geojson, {
+          style: (feature) => {
+            const kabName = feature?.properties?.KABUPATEN as string | undefined;
+            const agg = kabName ? kotaAgg[kabName] : undefined;
+            const val = agg ? agg.sum : 0;
+            const color = agg ? getColor(val, kotaMax) : "#334155";
+            return {
+              fillColor: color,
+              fillOpacity: agg ? 0.35 : 0.08,
+              color: "#475569",
+              weight: 1,
+              opacity: 0.6,
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            const kabName = feature?.properties?.KABUPATEN as string | undefined;
+            const agg = kabName ? kotaAgg[kabName] : undefined;
+            if (kabName && agg) {
+              const metricLabel =
+                metric === "avg_saldo"
+                  ? `Avg Saldo: Rp ${formatSaldo(agg.sum / agg.count)}`
+                  : metric === "pct_dormant"
+                  ? `% Dormant: ${(agg.sum / agg.count).toFixed(1)}%`
+                  : metric === "dormant"
+                  ? `Dormant: ${agg.sum.toLocaleString()}`
+                  : `Total: ${agg.sum.toLocaleString()}`;
+              layer.bindTooltip(
+                `<strong>${kabName}</strong><br/>${metricLabel}<br/>${agg.count} cabang`,
+                { sticky: true }
+              );
+            }
+          },
+        }).addTo(map);
+      } catch {
+        // GeoJSON load failed — continue with circle markers only
+      }
+
+      // Circle markers per cabang
       features.forEach((f) => {
         const val = getValue(f);
         const color = getColor(val, maxVal);
@@ -96,7 +173,7 @@ export default function ResultMapCard({ features, metric = "total" }: ResultMapC
           color: "#fff",
           weight: 1.5,
           opacity: 0.9,
-          fillOpacity: 0.75,
+          fillOpacity: 0.85,
         }).addTo(map);
 
         const metricLabel =
@@ -175,7 +252,7 @@ export default function ResultMapCard({ features, metric = "total" }: ResultMapC
       </div>
 
       {/* Map container */}
-      <div ref={mapRef} style={{ height: 420, width: "100%", background: "#0f172a" }} />
+      <div ref={mapRef} style={{ height: 460, width: "100%", background: "#0f172a" }} />
 
       {/* Legend */}
       <div
@@ -209,7 +286,7 @@ export default function ResultMapCard({ features, metric = "total" }: ResultMapC
           </span>
         ))}
         <span style={{ marginLeft: "auto", color: "#64748b", fontSize: 11 }}>
-          Klik marker untuk detail
+          Hover area · Klik marker untuk detail
         </span>
       </div>
     </div>

@@ -1,5 +1,5 @@
 """
-Generate 10.000 sample rows dari customer_segments.parquet dengan status_rekening variatif.
+Generate sample rows dari customer_segments.parquet dengan status_rekening variatif.
 
 Distribusi status:
   70% Aktif   (status_rekening=0)
@@ -21,11 +21,11 @@ import pyarrow.parquet as pq
 from pathlib import Path
 
 RANDOM_SEED = 42
-SAMPLE_SIZE = 1_000
+SAMPLE_SIZE = 10_000
 DIST = {0: 0.70, 1: 0.20, 2: 0.10}  # status_rekening distribution
 
 INPUT  = Path(__file__).parents[1] / "data/sample_data_parquet/customer_segments.parquet"
-OUTPUT = Path(__file__).parents[1] / "data/sample_data_parquet/customer_segments_sample_1k.parquet"
+OUTPUT = Path(__file__).parents[1] / "data/sample_data_parquet/customer_segments_sample_10k.parquet"
 
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
@@ -126,11 +126,12 @@ def main():
     for col in ["gmm_p0","gmm_p1","gmm_p2","gmm_p3","gmm_p4","gmm_p5","gmm_p6","gmm_p7"]:
         sample[col] = sample[col].astype("float64")
 
-    # Convert t0 to string YYYY-MM-DD
-    sample["t0"] = pd.to_datetime(sample["t0"]).dt.strftime("%Y-%m-%d")
+    # Keep t0 as timestamp (Impala DDL expects TIMESTAMP, not string)
+    sample["t0"] = pd.to_datetime(sample["t0"])
 
     # Cast all string cols to plain Python str (avoid ArrowStringArray / large_string)
-    str_cols = sample.select_dtypes(include=["object", "string"]).columns.tolist()
+    # Exclude t0 — it must stay as datetime/timestamp
+    str_cols = [c for c in sample.select_dtypes(include=["object", "string"]).columns if c != "t0"]
     for col in str_cols:
         sample[col] = sample[col].astype(str)
 
@@ -145,7 +146,7 @@ def main():
         pa.field("total_tx",           pa.int64()),
         pa.field("status_rekening",    pa.int8()),
         pa.field("status_label",       pa.string()),
-        pa.field("t0",                 pa.string()),
+        pa.field("t0",                 pa.timestamp("us")),
         pa.field("umur",               pa.int32()),
         pa.field("jenis_kelamin",      pa.string()),
         pa.field("hari_sejak_trx",     pa.int64()),
@@ -173,6 +174,11 @@ def main():
         pa.field("rfm_m",              pa.int64()),
         pa.field("rfm_score",          pa.int64()),
         pa.field("rfm_segment",        pa.string()),
+        # geo columns (added in previous batch)
+        pa.field("cabang_name",        pa.string()),
+        pa.field("kota",               pa.string()),
+        pa.field("lat",                pa.float64()),
+        pa.field("lng",                pa.float64()),
     ])
 
     # Write via pyarrow with explicit schema
