@@ -109,6 +109,8 @@ def dependencies_need_install(frontend_dir: Path) -> bool:
         "@mui/material",
         "@emotion/react",
         "@emotion/styled",
+        "leaflet",
+        "react-leaflet",
     ]
     return any(not (node_modules / module_name).exists() for module_name in required_modules)
 
