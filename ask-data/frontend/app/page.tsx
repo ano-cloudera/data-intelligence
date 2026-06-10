@@ -719,8 +719,7 @@ export default function HomePage() {
 
   async function handleMcpTest(_id: string, url: string): Promise<boolean> {
     try {
-      const base = url.replace(/\/+$/, "");
-      const res = await fetch(`${base}/health`, { signal: AbortSignal.timeout(8000) });
+      const res = await fetch(`/api/mcp-proxy?url=${encodeURIComponent(url)}`);
       const data = await res.json();
       return data.status === "ok";
     } catch {

@@ -338,7 +338,7 @@ LOCATION 's3a://go01-demo/user/cai-demo-se-indonesia/data/customer_segments/';
 - [x] MCP Servers config section di Settings panel
 - [x] Dynamic list: add/remove/test multiple MCP servers
 - [x] Persistent di localStorage key `mcp_servers` sebagai array JSON
-- [x] Fix: tombol Test langsung ping `{url}/health` ke APP 5, tidak lewat backend proxy
+- [x] Fix: tombol Test via Next.js API route `/api/mcp-proxy?url=...` (server-side) — bypass CORS browser
 
 #### LightMem (APP 6)
 
