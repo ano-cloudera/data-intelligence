@@ -1,6 +1,6 @@
 # Ask Data — Project State (Bank Jawa Timur PoC)
 
-_Last updated: 2026-06-08_
+_Last updated: 2026-06-08 (rev 2)_
 
 ---
 
@@ -253,6 +253,8 @@ User bisa tambah banyak MCP server langsung dari UI Settings tanpa env var. Disi
 
 Tiap entry bisa di-**Test** (dot hijau/merah) dan di-**Delete** dari UI.
 
+> **Catatan teknis:** Tombol Test langsung memanggil `GET {url}/health` ke MCP server (bukan lewat backend proxy). Dot hijau = `{"status":"ok"}` dari APP 5.
+
 ---
 
 ## 7. Data Generation
@@ -336,6 +338,7 @@ LOCATION 's3a://go01-demo/user/cai-demo-se-indonesia/data/customer_segments/';
 - [x] MCP Servers config section di Settings panel
 - [x] Dynamic list: add/remove/test multiple MCP servers
 - [x] Persistent di localStorage key `mcp_servers` sebagai array JSON
+- [x] Fix: tombol Test langsung ping `{url}/health` ke APP 5, tidak lewat backend proxy
 
 #### LightMem (APP 6)
 
