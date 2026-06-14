@@ -22,7 +22,20 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+# __file__ tidak tersedia di CAI Job (dijalankan sebagai session/notebook)
+# Resolve backend dir dari CDSW_ROOT atau working directory
+_this_file = Path(os.environ.get("CDSW_ROOT", "/home/cdsw"))
+_candidates = [
+    _this_file / "data-intelligence" / "ask-data" / "backend",
+    _this_file / "ask-data" / "backend",
+    Path.cwd() / "data-intelligence" / "ask-data" / "backend",
+    Path.cwd() / "ask-data" / "backend",
+    Path.cwd(),
+]
+for _candidate in _candidates:
+    if (_candidate / "app" / "main.py").exists():
+        sys.path.insert(0, str(_candidate))
+        break
 
 os.environ.setdefault("CHROMA_ENABLED", "true")
 
@@ -60,5 +73,4 @@ def main() -> None:
         sys.exit(1)
 
 
-if __name__ == "__main__":
-    main()
+main()
