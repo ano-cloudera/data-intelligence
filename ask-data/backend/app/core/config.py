@@ -110,6 +110,25 @@ class Settings(BaseSettings):
     guardrails_fail_open: bool = Field(default=True, alias="GUARDRAILS_FAIL_OPEN")
     mcp_aggregation_url: str = Field(default="", alias="MCP_AGGREGATION_URL")
 
+    # CAI REST API — untuk upload PDF + trigger Job
+    cdsw_api_url: str = Field(default="", alias="CDSW_API_URL")
+    cdsw_apiv2_key: str = Field(default="", alias="CDSW_APIV2_KEY")
+    cai_project_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("PROJECT_ID", "CDSW_PROJECT_ID", "CAI_PROJECT_ID"),
+    )
+    cai_ingest_job_id: str = Field(default="", alias="CAI_INGEST_JOB_ID")
+    rag_upload_dir: str = Field(default="./rag_uploads", alias="RAG_UPLOAD_DIR")
+
+    @property
+    def is_cai_configured(self) -> bool:
+        return all([
+            self.cdsw_api_url.strip(),
+            self.cdsw_apiv2_key.strip(),
+            self.cai_project_id.strip(),
+            self.cai_ingest_job_id.strip(),
+        ])
+
     @property
     def is_impala_configured(self) -> bool:
         required_values = (

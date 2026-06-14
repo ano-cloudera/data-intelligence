@@ -11,6 +11,7 @@ import TableChartIcon from "@mui/icons-material/TableChart";
 
 import type { LLMProviderOption, RagCollectionOption, RagOptionsResponse, TableLockConfig, TablePreviewResponse } from "@/lib/api";
 import type { VectorRagConfig } from "@/components/rag-config-modal";
+import { PdfUploadSection } from "@/components/pdf-upload-section";
 
 export interface McpServer {
   id: string;
@@ -52,6 +53,7 @@ interface ModelSettingsPanelProps {
   mcpServers: McpServer[];
   onMcpServersChange: (servers: McpServer[]) => void;
   onMcpTest: (id: string, url: string) => Promise<boolean>;
+  backendUrl?: string;
 }
 
 const TABLE_SCHEMA_SECTIONS = [
@@ -239,6 +241,7 @@ export function ModelSettingsPanel({
   mcpServers,
   onMcpServersChange,
   onMcpTest,
+  backendUrl = "/api/backend",
 }: ModelSettingsPanelProps) {
   const [previewTab, setPreviewTab] = useState<"schema" | "data">("schema");
   const [showAdvancedRag, setShowAdvancedRag] = useState(false);
@@ -845,6 +848,9 @@ export function ModelSettingsPanel({
           </div>
         </div>
       </section>
+
+      {/* PDF Upload → CAI Job */}
+      <PdfUploadSection lang={lang} backendUrl={backendUrl} />
     </div>
   );
 }

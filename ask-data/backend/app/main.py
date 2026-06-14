@@ -1118,6 +1118,128 @@ def aggregation_query(payload: AggregationToolRequest):
     return {"tool": payload.tool, "result": result}
 
 
+# ---------------------------------------------------------------------------
+# PDF Upload + CAI Job trigger endpoints
+# ---------------------------------------------------------------------------
+
+import shutil
+import tempfile
+import uuid
+from fastapi import UploadFile, File
+
+from app.services.cai_client import CAIClient, CAIClientError, get_cai_client
+
+
+class PdfUploadResponse(_PydanticBase):
+    status: str
+    filename: str
+    job_run_id: str | None = None
+    collection_name: str
+    message: str
+
+
+class JobStatusResponse(_PydanticBase):
+    job_run_id: str
+    job_id: str
+    status: str
+
+
+@app.post("/rag/upload-pdf", response_model=PdfUploadResponse)
+async def upload_pdf_and_ingest(
+    file: UploadFile = File(...),
+    collection_name: str = "bank_jatim_knowledge",
+):
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Hanya file PDF yang diizinkan.")
+
+    safe_name = Path(file.filename).name
+    if not safe_name.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Nama file tidak valid.")
+
+    upload_dir = Path(settings.rag_upload_dir)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    local_path = upload_dir / f"{uuid.uuid4().hex}_{safe_name}"
+
+    try:
+        with open(local_path, "wb") as out:
+            shutil.copyfileobj(file.file, out)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Gagal menyimpan file: {exc}") from exc
+
+    # Kalau CAI tidak dikonfigurasi: ingest langsung di proses ini (local/dev mode)
+    cai: CAIClient | None = get_cai_client()
+    if cai is None or not settings.cai_ingest_job_id:
+        try:
+            count = rag_client.ingest_pdf(
+                collection_name=collection_name,
+                pdf_path=str(local_path),
+            ) if rag_client else 0
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Ingest gagal: {exc}") from exc
+        return PdfUploadResponse(
+            status="ingested",
+            filename=safe_name,
+            job_run_id=None,
+            collection_name=collection_name,
+            message=f"PDF berhasil diingest langsung: {count} chunks.",
+        )
+
+    # CAI mode: upload ke CAI Files, lalu trigger Job
+    remote_path = f"rag_uploads/{safe_name}"
+    try:
+        cai.upload_file(str(local_path), remote_path)
+    except CAIClientError as exc:
+        raise HTTPException(status_code=502, detail=f"Upload ke CAI gagal: {exc}") from exc
+
+    cai_file_path = f"/home/cdsw/{remote_path}"
+    try:
+        run = cai.create_job_run(
+            job_id=settings.cai_ingest_job_id,
+            environment={
+                "PDF_FILE_PATH": cai_file_path,
+                "COLLECTION_NAME": collection_name,
+                "CHROMA_ENABLED": "true",
+            },
+        )
+    except CAIClientError as exc:
+        raise HTTPException(status_code=502, detail=f"Trigger Job CAI gagal: {exc}") from exc
+
+    run_id = run.get("id") or run.get("run_id") or "unknown"
+    return PdfUploadResponse(
+        status="processing",
+        filename=safe_name,
+        job_run_id=str(run_id),
+        collection_name=collection_name,
+        message="PDF sedang diproses oleh CAI Job. Cek status via /rag/job-status/{run_id}.",
+    )
+
+
+@app.get("/rag/job-status/{run_id}", response_model=JobStatusResponse)
+def get_pdf_job_status(run_id: str):
+    cai = get_cai_client()
+    if cai is None or not settings.cai_ingest_job_id:
+        raise HTTPException(status_code=400, detail="CAI tidak dikonfigurasi.")
+    try:
+        status = cai.get_job_run_status(settings.cai_ingest_job_id, run_id)
+    except CAIClientError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return JobStatusResponse(
+        job_run_id=run_id,
+        job_id=settings.cai_ingest_job_id,
+        status=status,
+    )
+
+
+@app.get("/rag/ingest-config")
+def rag_ingest_config():
+    return {
+        "cai_configured": settings.is_cai_configured,
+        "job_id": settings.cai_ingest_job_id or None,
+        "upload_dir": settings.rag_upload_dir,
+        "default_collection": settings.chroma_collection or "bank_jatim_knowledge",
+    }
+
+
 @app.get("/aggregation/health")
 def aggregation_health():
     from httpx import Client
