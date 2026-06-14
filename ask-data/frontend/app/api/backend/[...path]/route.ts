@@ -43,7 +43,11 @@ async function proxyRequest(
   };
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    init.body = await request.text();
+    const contentType = request.headers.get("content-type") ?? "";
+    // Use arrayBuffer for multipart/form-data to preserve binary structure
+    init.body = contentType.includes("multipart/form-data")
+      ? await request.arrayBuffer()
+      : await request.text();
   }
 
   const upstreamResponse = await fetch(targetUrl, init);

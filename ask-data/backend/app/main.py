@@ -942,6 +942,21 @@ def rag_options() -> RagOptionsResponse:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.get("/rag/collections")
+def list_rag_collections() -> dict:
+    """List available ChromaDB collections for the frontend dropdown."""
+    if rag_client is None:
+        return {"collections": ["bank_jatim_knowledge"]}
+    try:
+        cols = rag_client.list_collections()
+        names = [c["name"] for c in cols]
+        if not names:
+            names = ["bank_jatim_knowledge"]
+        return {"collections": names}
+    except Exception:
+        return {"collections": ["bank_jatim_knowledge"]}
+
+
 @app.post("/rag/ingest")
 def rag_ingest(collection_name: str, pdf_path: str) -> dict:
     if rag_client is None:
