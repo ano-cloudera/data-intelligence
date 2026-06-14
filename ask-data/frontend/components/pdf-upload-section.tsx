@@ -2,8 +2,8 @@
 
 import { useRef, useState } from "react";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
 
 type UploadStatus = "idle" | "uploading" | "processing" | "done" | "error";
