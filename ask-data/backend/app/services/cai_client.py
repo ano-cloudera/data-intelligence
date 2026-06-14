@@ -19,6 +19,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+
 import httpx
 
 
@@ -43,17 +44,19 @@ class CAIClient:
     # ── Files ─────────────────────────────────────────────────────────────────
 
     def upload_file(self, local_path: str, remote_path: str) -> dict[str, Any]:
-        """Upload file ke CAI project files.
+        """Upload file ke CAI project files via multipart/form-data.
 
         remote_path: path relatif di dalam project, mis. 'rag_uploads/doc.pdf'
         """
         url = f"{self.base}/api/v2/projects/{self.project_id}/files/{remote_path}"
+        # CAI Files API butuh multipart/form-data, bukan octet-stream
+        auth_headers = {"Authorization": self._headers["Authorization"]}
         with open(local_path, "rb") as f:
             try:
                 resp = httpx.put(
                     url,
-                    headers=self._headers,
-                    content=f.read(),
+                    headers=auth_headers,
+                    files={"file": (Path(local_path).name, f, "application/octet-stream")},
                     timeout=120.0,
                 )
             except httpx.RequestError as exc:
