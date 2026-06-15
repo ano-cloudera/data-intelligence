@@ -38,6 +38,8 @@ for _candidate in _candidates:
         break
 
 os.environ.setdefault("CHROMA_ENABLED", "true")
+# HTTP mode: di-inject via createJobRun environment jika CHROMA_HOST tersedia
+# CHROMA_MODE=http dan CHROMA_HOST akan otomatis dipakai oleh rag_client
 
 from app.core.config import get_settings
 from app.services.rag_client import ChromaRagClient, RagClientError

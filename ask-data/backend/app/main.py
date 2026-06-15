@@ -1207,14 +1207,23 @@ async def upload_pdf_and_ingest(
         raise HTTPException(status_code=502, detail=f"Upload ke CAI gagal: {exc}") from exc
 
     cai_file_path = f"/home/cdsw/{remote_path}"
+    job_env: dict[str, str] = {
+        "PDF_FILE_PATH": cai_file_path,
+        "COLLECTION_NAME": collection_name,
+        "CHROMA_ENABLED": "true",
+    }
+    # Propagate ChromaDB mode ke Job supaya ingest ke tempat yang sama
+    if settings.is_chroma_http:
+        job_env["CHROMA_MODE"] = "http"
+        job_env["CHROMA_HOST"] = settings.chroma_host
+        job_env["CHROMA_PORT"] = str(settings.chroma_port)
+    else:
+        job_env["CHROMA_PERSIST_DIR"] = settings.chroma_persist_dir
+
     try:
         run = cai.create_job_run(
             job_id=settings.cai_ingest_job_id,
-            environment={
-                "PDF_FILE_PATH": cai_file_path,
-                "COLLECTION_NAME": collection_name,
-                "CHROMA_ENABLED": "true",
-            },
+            environment=job_env,
         )
     except CAIClientError as exc:
         raise HTTPException(status_code=502, detail=f"Trigger Job CAI gagal: {exc}") from exc

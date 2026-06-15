@@ -101,6 +101,10 @@ class Settings(BaseSettings):
     chroma_persist_dir: str = Field(default="./chroma_db", alias="CHROMA_PERSIST_DIR")
     chroma_enabled: bool = Field(default=False, alias="CHROMA_ENABLED")
     chroma_collection: str = Field(default="", alias="CHROMA_COLLECTION")
+    # HTTP mode — set CHROMA_MODE=http dan CHROMA_HOST untuk pakai external ChromaDB App
+    chroma_mode: str = Field(default="local", alias="CHROMA_MODE")
+    chroma_host: str = Field(default="", alias="CHROMA_HOST")
+    chroma_port: int = Field(default=443, alias="CHROMA_PORT")
     rag_pdf_dir: str = Field(default="./rag_pdfs", alias="RAG_PDF_DIR")
     embed_model: str = Field(default="nomic-embed-text", alias="EMBED_MODEL")
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
@@ -199,10 +203,15 @@ class Settings(BaseSettings):
         ] or ["*"]
 
     @property
+    def is_chroma_http(self) -> bool:
+        return self.chroma_mode.strip().lower() == "http" and bool(self.chroma_host.strip())
+
+    @property
     def is_rag_configured(self) -> bool:
+        if self.is_chroma_http:
+            return True
         if self.chroma_enabled:
             return True
-        # Auto-detect: if chromadb is importable, enable RAG regardless of the flag
         try:
             import chromadb  # noqa: F401
             return True

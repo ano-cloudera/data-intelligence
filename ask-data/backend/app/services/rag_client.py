@@ -28,12 +28,21 @@ class ChromaRagClient:
     def _get_client(self) -> Any:
         if self._client is not None:
             return self._client
-        from app.compat import patch_sqlite
-        patch_sqlite()
         import chromadb
-        persist_dir = self.settings.chroma_persist_dir
-        Path(persist_dir).mkdir(parents=True, exist_ok=True)
-        self._client = chromadb.PersistentClient(path=persist_dir)
+        if self.settings.is_chroma_http:
+            # External ChromaDB App via HTTP
+            host = self.settings.chroma_host.strip()
+            # Strip protocol prefix — chromadb HttpClient expects hostname only
+            host = host.replace("https://", "").replace("http://", "").rstrip("/")
+            port = self.settings.chroma_port
+            ssl = self.settings.chroma_host.startswith("https")
+            self._client = chromadb.HttpClient(host=host, port=port, ssl=ssl)
+        else:
+            from app.compat import patch_sqlite
+            patch_sqlite()
+            persist_dir = self.settings.chroma_persist_dir
+            Path(persist_dir).mkdir(parents=True, exist_ok=True)
+            self._client = chromadb.PersistentClient(path=persist_dir)
         return self._client
 
     def _get_sentence_transformer_ef(self) -> Any:
