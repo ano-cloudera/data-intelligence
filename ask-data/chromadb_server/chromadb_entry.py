@@ -1,6 +1,6 @@
 """
 CAI Application entry point for ChromaDB HTTP Server.
-chromadb 1.5.x — uses make_system_client + chromadb.server.fastapi app directly.
+chromadb 1.5.x — runs chromadb CLI in a thread, keeps IPython session alive.
 
 Setup di CAI:
   Name    : se-chromadb
@@ -13,6 +13,8 @@ import logging
 import os
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -33,83 +35,58 @@ def resolve_data_path() -> str:
     return path
 
 
-def ensure_deps() -> None:
-    pkgs_needed = []
+def ensure_chromadb() -> None:
     try:
         import chromadb  # noqa: F401
+        logging.info("chromadb %s already installed", chromadb.__version__)
     except ImportError:
-        pkgs_needed.append("chromadb>=0.4.0")
-    try:
-        import nest_asyncio  # noqa: F401
-    except ImportError:
-        pkgs_needed.append("nest-asyncio")
-    try:
-        import uvicorn  # noqa: F401
-    except ImportError:
-        pkgs_needed.append("uvicorn[standard]")
-    if pkgs_needed:
-        logging.info("Installing: %s", pkgs_needed)
-        subprocess.run([sys.executable, "-m", "pip", "install", "-q"] + pkgs_needed, check=True)
-    else:
-        logging.info("All dependencies already installed.")
+        logging.info("Installing chromadb...")
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "chromadb>=0.4.0"], check=True)
 
 
-ensure_deps()
+ensure_chromadb()
 
-import asyncio
 import chromadb
-import nest_asyncio
-import uvicorn
-from chromadb.config import Settings as ChromaSettings
-
-nest_asyncio.apply()
 
 port = resolve_port()
 data_path = resolve_data_path()
 
 logging.info("chromadb version : %s", chromadb.__version__)
-logging.info("ChromaDB HTTP Server starting on port %s", port)
+logging.info("Port      : %s", port)
 logging.info("Data path : %s", data_path)
 
-# Set env vars so chromadb server reads them — do NOT instantiate ChromaFastAPI
-# directly as it auto-binds in chromadb 1.5.x
-os.environ["IS_PERSISTENT"] = "TRUE"
-os.environ["PERSIST_DIRECTORY"] = data_path
-os.environ["ANONYMIZED_TELEMETRY"] = "FALSE"
-os.environ["ALLOW_RESET"] = "FALSE"
-os.environ["CHROMA_SERVER_AUTHN_CREDENTIALS_FILE"] = ""
-os.environ["CHROMA_SERVER_AUTHN_PROVIDER"] = ""
+# Run chromadb CLI in a background thread so it owns its own event loop
+# The main thread keeps running via a blocking loop — this keeps CAI session alive
+cmd = [
+    sys.executable, "-m", "chromadb.cli.cli", "run",
+    "--host", "0.0.0.0",
+    "--port", str(port),
+    "--path", data_path,
+    "--log-path", "/dev/stdout",
+]
+logging.info("Launching chromadb: %s", " ".join(cmd))
 
-# Build the ASGI app without starting a server
-settings = ChromaSettings(
-    is_persistent=True,
-    persist_directory=data_path,
-    allow_reset=False,
-    anonymized_telemetry=False,
+proc = subprocess.Popen(
+    cmd,
+    stdout=sys.stdout,
+    stderr=sys.stderr,
+    env={**os.environ, "ANONYMIZED_TELEMETRY": "FALSE"},
 )
 
-# chromadb 1.5.x exposes the ASGI app via chromadb.server.fastapi.FastAPI.app()
-# but instantiating it may auto-bind. Use the lower-level approach:
-# create the FastAPI app object directly from chromadb internals.
-try:
-    from chromadb.server.fastapi import FastAPI as ChromaServer
-    # Patch: override the port ChromaDB uses internally so it doesn't bind CDSW_APP_PORT
-    # ChromaFastAPI binds via uvicorn internally only if .run() is called — safe to instantiate
-    chroma_server = ChromaServer(settings)
-    asgi_app = chroma_server.app()
-    logging.info("Using chromadb FastAPI ASGI app")
-except Exception as e:
-    logging.error("Failed to build chromadb ASGI app: %s", e)
-    raise
+logging.info("ChromaDB server PID: %s", proc.pid)
 
-config = uvicorn.Config(
-    app=asgi_app,
-    host="0.0.0.0",
-    port=port,
-    log_level="info",
-)
-uv_server = uvicorn.Server(config)
-
-logging.info("Starting uvicorn on 0.0.0.0:%s", port)
-loop = asyncio.get_event_loop()
-loop.run_until_complete(uv_server.serve())
+# Keep the IPython session alive by polling the process
+# If ChromaDB exits unexpectedly, log it and exit
+while True:
+    ret = proc.poll()
+    if ret is not None:
+        logging.error("ChromaDB process exited with code %s — restarting in 5s", ret)
+        time.sleep(5)
+        proc = subprocess.Popen(
+            cmd,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+            env={**os.environ, "ANONYMIZED_TELEMETRY": "FALSE"},
+        )
+        logging.info("ChromaDB restarted, new PID: %s", proc.pid)
+    time.sleep(2)
