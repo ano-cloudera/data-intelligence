@@ -36,68 +36,70 @@ def resolve_data_path() -> str:
     return path
 
 
-def ensure_chromadb() -> None:
+def ensure_deps() -> None:
+    pkgs_needed = []
     try:
         import chromadb  # noqa: F401
-        logging.info("chromadb already installed: %s", chromadb.__version__)
     except ImportError:
-        logging.info("Installing chromadb...")
+        pkgs_needed.append("chromadb>=0.4.0")
+    try:
+        import nest_asyncio  # noqa: F401
+    except ImportError:
+        pkgs_needed.append("nest-asyncio")
+    try:
+        import uvicorn  # noqa: F401
+    except ImportError:
+        pkgs_needed.append("uvicorn[standard]")
+
+    if pkgs_needed:
+        logging.info("Installing: %s", pkgs_needed)
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q", "chromadb>=0.4.0"],
+            [sys.executable, "-m", "pip", "install", "-q"] + pkgs_needed,
             check=True,
         )
+    else:
+        logging.info("All dependencies already installed.")
 
 
-ensure_chromadb()
+ensure_deps()
 
+import asyncio
 import chromadb
+import nest_asyncio
+import uvicorn
+from chromadb.config import Settings as ChromaSettings
+from chromadb.server.fastapi import FastAPI as ChromaFastAPI
 
-logging.info("chromadb version: %s", chromadb.__version__)
+# Allow uvicorn to run inside IPython's existing event loop
+nest_asyncio.apply()
 
 port = resolve_port()
 data_path = resolve_data_path()
 
+logging.info("chromadb version : %s", chromadb.__version__)
 logging.info("ChromaDB HTTP Server starting")
 logging.info("Port      : %s", port)
 logging.info("Data path : %s", data_path)
 
-# Use chromadb's own server directly via its internal API
-# This works across chromadb versions 0.4.x - 0.6.x
-try:
-    # chromadb >= 0.5.x
-    from chromadb.server.fastapi import FastAPI as ChromaFastAPI
-    from chromadb.config import Settings as ChromaSettings
+settings = ChromaSettings(
+    chroma_server_host="0.0.0.0",
+    chroma_server_http_port=port,
+    is_persistent=True,
+    persist_directory=data_path,
+    allow_reset=False,
+    anonymized_telemetry=False,
+)
 
-    settings = ChromaSettings(
-        chroma_server_host="0.0.0.0",
-        chroma_server_http_port=port,
-        is_persistent=True,
-        persist_directory=data_path,
-        allow_reset=False,
-        anonymized_telemetry=False,
-    )
-    server = ChromaFastAPI(settings)
-    import uvicorn
-    uvicorn.run(server.app(), host="0.0.0.0", port=port, log_level="info")
+server = ChromaFastAPI(settings)
 
-except Exception as e1:
-    logging.warning("FastAPI server approach failed (%s), falling back to CLI", e1)
+config = uvicorn.Config(
+    app=server.app(),
+    host="0.0.0.0",
+    port=port,
+    log_level="info",
+)
+uv_server = uvicorn.Server(config)
 
-    # Fallback: run chromadb CLI and keep process alive
-    cmd = [
-        sys.executable, "-m", "chromadb.cli.cli", "run",
-        "--host", "0.0.0.0",
-        "--port", str(port),
-        "--path", data_path,
-        "--log-path", "/dev/stdout",
-    ]
-    logging.info("Launching: %s", " ".join(cmd))
-    proc = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr)
-
-    # Block until process ends, then exit with its code
-    rc = proc.wait()
-    logging.info("ChromaDB process exited with code %s", rc)
-    # Do NOT raise SystemExit — let IPython session stay alive
-    # If process exits, re-raise only on error
-    if rc != 0:
-        logging.error("ChromaDB exited with non-zero code: %s", rc)
+# Run inside existing IPython event loop via nest_asyncio
+loop = asyncio.get_event_loop()
+loop.run_until_complete(uv_server.serve())
