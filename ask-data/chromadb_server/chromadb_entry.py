@@ -70,5 +70,4 @@ def main() -> None:
     process.wait()
     raise SystemExit(process.returncode)
 
-if __name__ == "__main__":
-    main()
+main()
