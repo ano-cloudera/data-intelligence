@@ -2,72 +2,76 @@
 CAI Application entry point for ChromaDB HTTP Server.
 
 Setup di CAI:
-  Name    : bjt-chromadb
+  Name    : se-chromadb
   Script  : data-intelligence/ask-data/chromadb_server/chromadb_entry.py
   Resource: 1 vCPU / 2 GiB
   Allow Unauthenticated: Yes
 
 Environment Variables:
-  CHROMA_DATA_PATH   Path ke data directory (default: existing chroma_db)
-                     Set ke: /home/cdsw/data-intelligence/ask-data/chroma_db
-                     supaya data existing langsung terbaca tanpa re-ingest.
-
-Migrasi dari local ChromaDB:
-  Tidak perlu copy data — ChromaDB App ini langsung point ke
-  /home/cdsw/data-intelligence/ask-data/chroma_db/ yang sudah berisi
-  data hasil ingest sebelumnya.
+  CHROMA_DATA_PATH   Path ke data directory
+                     Default: /home/cdsw/data-intelligence/ask-data/chroma_db
 """
 
 import logging
 import os
-import subprocess
 import sys
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-def resolve_port() -> str:
-    return os.getenv("CDSW_APP_PORT") or os.getenv("PORT") or "8000"
+def resolve_port() -> int:
+    raw = os.getenv("CDSW_APP_PORT") or os.getenv("PORT") or "8000"
+    try:
+        return int(raw)
+    except ValueError:
+        return 8000
 
 def resolve_data_path() -> str:
-    # Default: point ke existing chroma_db di project filesystem
     default = "/home/cdsw/data-intelligence/ask-data/chroma_db"
     path = os.getenv("CHROMA_DATA_PATH", default).strip()
     Path(path).mkdir(parents=True, exist_ok=True)
     return path
 
-def ensure_chromadb() -> None:
+def ensure_deps() -> None:
     try:
         import chromadb  # noqa: F401
-        logging.info("chromadb already installed.")
+        import uvicorn   # noqa: F401
+        logging.info("Dependencies already installed.")
     except ImportError:
-        logging.info("Installing chromadb...")
+        import subprocess
+        logging.info("Installing chromadb + uvicorn...")
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "chromadb>=0.6.0"],
+            [sys.executable, "-m", "pip", "install", "-q",
+             "chromadb>=0.6.0", "uvicorn[standard]>=0.29.0"],
             check=True,
         )
 
-def main() -> None:
-    port = resolve_port()
-    data_path = resolve_data_path()
+ensure_deps()
 
-    logging.info("ChromaDB HTTP Server starting")
-    logging.info("Port      : %s", port)
-    logging.info("Data path : %s", data_path)
+import chromadb
+import uvicorn
+from chromadb.app import create_app
+from chromadb.config import Settings as ChromaSettings
 
-    ensure_chromadb()
+port = resolve_port()
+data_path = resolve_data_path()
 
-    cmd = [
-        sys.executable, "-m", "chromadb.cli.cli", "run",
-        "--host", "0.0.0.0",
-        "--port", port,
-        "--path", data_path,
-        "--log-path", "/dev/stdout",
-    ]
+logging.info("ChromaDB HTTP Server starting")
+logging.info("Port      : %s", port)
+logging.info("Data path : %s", data_path)
 
-    logging.info("Launching: %s", " ".join(cmd))
-    process = subprocess.Popen(cmd)
-    process.wait()
-    raise SystemExit(process.returncode)
+chroma_settings = ChromaSettings(
+    is_persistent=True,
+    persist_directory=data_path,
+    allow_reset=False,
+    anonymized_telemetry=False,
+)
 
-main()
+server_app = create_app(chroma_settings)
+
+uvicorn.run(
+    server_app,
+    host="0.0.0.0",
+    port=port,
+    log_level="info",
+)
