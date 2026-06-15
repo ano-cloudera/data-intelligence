@@ -1247,19 +1247,11 @@ def get_pdf_job_status(run_id: str):
 
 @app.get("/rag/ingest-config")
 def rag_ingest_config():
-    import os
     return {
         "cai_configured": settings.is_cai_configured,
         "job_id": settings.cai_ingest_job_id or None,
         "upload_dir": settings.rag_upload_dir,
         "default_collection": settings.chroma_collection or "bank_jatim_knowledge",
-        "debug": {
-            "CDSW_API_URL": bool(os.getenv("CDSW_API_URL")),
-            "CDSW_APIV2_KEY": bool(os.getenv("CDSW_APIV2_KEY")),
-            "PROJECT_ID": bool(os.getenv("PROJECT_ID")),
-            "CAI_INGEST_JOB_ID": bool(os.getenv("CAI_INGEST_JOB_ID")),
-            "cai_client_none": get_cai_client() is None,
-        },
     }
 
 
