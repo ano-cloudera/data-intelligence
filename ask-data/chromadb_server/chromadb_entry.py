@@ -14,8 +14,10 @@ Environment Variables:
 
 import logging
 import os
+import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -61,31 +63,29 @@ def ensure_deps() -> None:
         logging.info("All dependencies already installed.")
 
 
-def kill_port(port: int) -> None:
-    """Kill any process holding the port so we can bind cleanly on restart."""
+def free_port(port: int) -> None:
+    """Kill any process holding the port."""
+    freed = False
     try:
-        result = subprocess.run(
-            ["fuser", "-k", f"{port}/tcp"],
-            capture_output=True,
-        )
+        result = subprocess.run(["fuser", "-k", f"{port}/tcp"], capture_output=True)
         if result.returncode == 0:
-            logging.info("Killed existing process on port %s", port)
-            import time
-            time.sleep(1)
+            freed = True
     except FileNotFoundError:
-        # fuser not available — try lsof + kill
+        pass
+
+    if not freed:
         try:
-            out = subprocess.check_output(
-                ["lsof", "-ti", f"tcp:{port}"], text=True
-            ).strip()
+            out = subprocess.check_output(["lsof", "-ti", f"tcp:{port}"], text=True).strip()
+            for pid in out.splitlines():
+                subprocess.run(["kill", "-9", pid.strip()], check=False)
             if out:
-                for pid in out.splitlines():
-                    subprocess.run(["kill", "-9", pid.strip()], check=False)
-                logging.info("Killed pids %s on port %s", out.replace('\n', ','), port)
-                import time
-                time.sleep(1)
+                freed = True
         except Exception:
             pass
+
+    if freed:
+        logging.info("Freed port %s", port)
+        time.sleep(1)
 
 
 ensure_deps()
@@ -97,23 +97,22 @@ import uvicorn
 from chromadb.config import Settings as ChromaSettings
 from chromadb.server.fastapi import FastAPI as ChromaFastAPI
 
-# Patch event loop so uvicorn can run inside IPython's existing loop
 nest_asyncio.apply()
 
 port = resolve_port()
 data_path = resolve_data_path()
 
-# Free the port in case a previous session is still holding it
-kill_port(port)
+free_port(port)
 
 logging.info("chromadb version : %s", chromadb.__version__)
 logging.info("ChromaDB HTTP Server starting")
 logging.info("Port      : %s", port)
 logging.info("Data path : %s", data_path)
 
+# chromadb 1.5.x: do NOT pass chroma_server_host/port in Settings
+# — that causes ChromaFastAPI to bind the port internally before uvicorn does.
+# Only set persistence settings; let uvicorn own the port binding.
 settings = ChromaSettings(
-    chroma_server_host="0.0.0.0",
-    chroma_server_http_port=port,
     is_persistent=True,
     persist_directory=data_path,
     allow_reset=False,
@@ -122,13 +121,19 @@ settings = ChromaSettings(
 
 server = ChromaFastAPI(settings)
 
+# Pre-bind the socket with SO_REUSEADDR so restart doesn't fail
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+sock.bind(("0.0.0.0", port))
+sock.set_inheritable(True)
+
+logging.info("Socket bound to port %s — starting uvicorn", port)
+
 config = uvicorn.Config(
     app=server.app(),
-    host="0.0.0.0",
-    port=port,
     log_level="info",
 )
 uv_server = uvicorn.Server(config)
 
 loop = asyncio.get_event_loop()
-loop.run_until_complete(uv_server.serve())
+loop.run_until_complete(uv_server.serve(sockets=[sock]))
