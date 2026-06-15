@@ -16,7 +16,6 @@ import logging
 import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -37,48 +36,23 @@ def resolve_data_path() -> str:
     return path
 
 
-def ensure_deps() -> None:
-    pkgs = [
-        "chromadb>=0.6.0",
-        "uvicorn[standard]>=0.29.0",
-        "opentelemetry-api",
-        "opentelemetry-sdk",
-        "opentelemetry-instrumentation-fastapi",
-    ]
-    missing = []
+def ensure_chromadb() -> None:
     try:
         import chromadb  # noqa: F401
+        logging.info("chromadb already installed: %s", chromadb.__version__)
     except ImportError:
-        missing.append("chromadb>=0.6.0")
-    try:
-        import uvicorn  # noqa: F401
-    except ImportError:
-        missing.append("uvicorn[standard]>=0.29.0")
-    try:
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor  # noqa: F401
-    except ImportError:
-        missing.extend([
-            "opentelemetry-api",
-            "opentelemetry-sdk",
-            "opentelemetry-instrumentation-fastapi",
-        ])
-
-    if missing:
-        logging.info("Installing missing deps: %s", missing)
+        logging.info("Installing chromadb...")
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q"] + missing,
+            [sys.executable, "-m", "pip", "install", "-q", "chromadb>=0.4.0"],
             check=True,
         )
-    else:
-        logging.info("All dependencies already installed.")
 
 
-ensure_deps()
+ensure_chromadb()
 
 import chromadb
-import uvicorn
-from chromadb.app import create_app
-from chromadb.config import Settings as ChromaSettings
+
+logging.info("chromadb version: %s", chromadb.__version__)
 
 port = resolve_port()
 data_path = resolve_data_path()
@@ -87,18 +61,43 @@ logging.info("ChromaDB HTTP Server starting")
 logging.info("Port      : %s", port)
 logging.info("Data path : %s", data_path)
 
-chroma_settings = ChromaSettings(
-    is_persistent=True,
-    persist_directory=data_path,
-    allow_reset=False,
-    anonymized_telemetry=False,
-)
+# Use chromadb's own server directly via its internal API
+# This works across chromadb versions 0.4.x - 0.6.x
+try:
+    # chromadb >= 0.5.x
+    from chromadb.server.fastapi import FastAPI as ChromaFastAPI
+    from chromadb.config import Settings as ChromaSettings
 
-server_app = create_app(chroma_settings)
+    settings = ChromaSettings(
+        chroma_server_host="0.0.0.0",
+        chroma_server_http_port=port,
+        is_persistent=True,
+        persist_directory=data_path,
+        allow_reset=False,
+        anonymized_telemetry=False,
+    )
+    server = ChromaFastAPI(settings)
+    import uvicorn
+    uvicorn.run(server.app(), host="0.0.0.0", port=port, log_level="info")
 
-uvicorn.run(
-    server_app,
-    host="0.0.0.0",
-    port=port,
-    log_level="info",
-)
+except Exception as e1:
+    logging.warning("FastAPI server approach failed (%s), falling back to CLI", e1)
+
+    # Fallback: run chromadb CLI and keep process alive
+    cmd = [
+        sys.executable, "-m", "chromadb.cli.cli", "run",
+        "--host", "0.0.0.0",
+        "--port", str(port),
+        "--path", data_path,
+        "--log-path", "/dev/stdout",
+    ]
+    logging.info("Launching: %s", " ".join(cmd))
+    proc = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr)
+
+    # Block until process ends, then exit with its code
+    rc = proc.wait()
+    logging.info("ChromaDB process exited with code %s", rc)
+    # Do NOT raise SystemExit — let IPython session stay alive
+    # If process exits, re-raise only on error
+    if rc != 0:
+        logging.error("ChromaDB exited with non-zero code: %s", rc)
