@@ -61,6 +61,33 @@ def ensure_deps() -> None:
         logging.info("All dependencies already installed.")
 
 
+def kill_port(port: int) -> None:
+    """Kill any process holding the port so we can bind cleanly on restart."""
+    try:
+        result = subprocess.run(
+            ["fuser", "-k", f"{port}/tcp"],
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            logging.info("Killed existing process on port %s", port)
+            import time
+            time.sleep(1)
+    except FileNotFoundError:
+        # fuser not available — try lsof + kill
+        try:
+            out = subprocess.check_output(
+                ["lsof", "-ti", f"tcp:{port}"], text=True
+            ).strip()
+            if out:
+                for pid in out.splitlines():
+                    subprocess.run(["kill", "-9", pid.strip()], check=False)
+                logging.info("Killed pids %s on port %s", out.replace('\n', ','), port)
+                import time
+                time.sleep(1)
+        except Exception:
+            pass
+
+
 ensure_deps()
 
 import asyncio
@@ -70,11 +97,14 @@ import uvicorn
 from chromadb.config import Settings as ChromaSettings
 from chromadb.server.fastapi import FastAPI as ChromaFastAPI
 
-# Allow uvicorn to run inside IPython's existing event loop
+# Patch event loop so uvicorn can run inside IPython's existing loop
 nest_asyncio.apply()
 
 port = resolve_port()
 data_path = resolve_data_path()
+
+# Free the port in case a previous session is still holding it
+kill_port(port)
 
 logging.info("chromadb version : %s", chromadb.__version__)
 logging.info("ChromaDB HTTP Server starting")
@@ -100,6 +130,5 @@ config = uvicorn.Config(
 )
 uv_server = uvicorn.Server(config)
 
-# Run inside existing IPython event loop via nest_asyncio
 loop = asyncio.get_event_loop()
 loop.run_until_complete(uv_server.serve())
