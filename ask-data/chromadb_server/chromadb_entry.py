@@ -14,10 +14,13 @@ Environment Variables:
 
 import logging
 import os
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
 
 def resolve_port() -> int:
     raw = os.getenv("CDSW_APP_PORT") or os.getenv("PORT") or "8000"
@@ -26,25 +29,49 @@ def resolve_port() -> int:
     except ValueError:
         return 8000
 
+
 def resolve_data_path() -> str:
     default = "/home/cdsw/data-intelligence/ask-data/chroma_db"
     path = os.getenv("CHROMA_DATA_PATH", default).strip()
     Path(path).mkdir(parents=True, exist_ok=True)
     return path
 
+
 def ensure_deps() -> None:
+    pkgs = [
+        "chromadb>=0.6.0",
+        "uvicorn[standard]>=0.29.0",
+        "opentelemetry-api",
+        "opentelemetry-sdk",
+        "opentelemetry-instrumentation-fastapi",
+    ]
+    missing = []
     try:
         import chromadb  # noqa: F401
-        import uvicorn   # noqa: F401
-        logging.info("Dependencies already installed.")
     except ImportError:
-        import subprocess
-        logging.info("Installing chromadb + uvicorn...")
+        missing.append("chromadb>=0.6.0")
+    try:
+        import uvicorn  # noqa: F401
+    except ImportError:
+        missing.append("uvicorn[standard]>=0.29.0")
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor  # noqa: F401
+    except ImportError:
+        missing.extend([
+            "opentelemetry-api",
+            "opentelemetry-sdk",
+            "opentelemetry-instrumentation-fastapi",
+        ])
+
+    if missing:
+        logging.info("Installing missing deps: %s", missing)
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q",
-             "chromadb>=0.6.0", "uvicorn[standard]>=0.29.0"],
+            [sys.executable, "-m", "pip", "install", "-q"] + missing,
             check=True,
         )
+    else:
+        logging.info("All dependencies already installed.")
+
 
 ensure_deps()
 
