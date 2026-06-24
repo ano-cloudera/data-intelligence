@@ -74,13 +74,16 @@ class ChromaRagClient:
     def list_collections(self) -> list[dict[str, Any]]:
         client = self._get_client()
         collections = client.list_collections()
-        return [
-            {
-                "name": col.name,
-                "document_count": col.count(),
-            }
-            for col in collections
-        ]
+        result = []
+        for col in collections:
+            try:
+                # get_collection with no embedding_function returns accurate count
+                full_col = client.get_collection(col.name)
+                count = full_col.count()
+            except Exception:
+                count = col.count()
+            result.append({"name": col.name, "document_count": count})
+        return result
 
     def get_or_create_collection(self, name: str) -> Any:
         client = self._get_client()
