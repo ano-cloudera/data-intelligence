@@ -28,6 +28,9 @@ class ChromaRagClient:
     def _get_client(self) -> Any:
         if self._client is not None:
             return self._client
+        # Patch sqlite BEFORE importing chromadb — chromadb checks sqlite version on import
+        from app.compat import patch_sqlite
+        patch_sqlite()
         import chromadb
         if self.settings.is_chroma_http:
             # External ChromaDB App via HTTP
@@ -38,8 +41,6 @@ class ChromaRagClient:
             ssl = self.settings.chroma_host.startswith("https")
             self._client = chromadb.HttpClient(host=host, port=port, ssl=ssl)
         else:
-            from app.compat import patch_sqlite
-            patch_sqlite()
             persist_dir = self.settings.chroma_persist_dir
             Path(persist_dir).mkdir(parents=True, exist_ok=True)
             self._client = chromadb.PersistentClient(path=persist_dir)
