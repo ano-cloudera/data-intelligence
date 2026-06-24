@@ -25,7 +25,7 @@ def resolve_aggregation_tool(question: str) -> tuple[str, dict]:
         limit = 50
         if "dormant" in q:
             metric = "dormant"
-        elif "saldo" in q:
+        elif "saldo" in q or "deposit" in q or "balance" in q:
             metric = "avg_saldo"
         elif "persen" in q or "%" in q:
             metric = "pct_dormant"
@@ -34,7 +34,7 @@ def resolve_aggregation_tool(question: str) -> tuple[str, dict]:
             limit = int(m.group(1))
         return "cabang_map", {"metric": metric, "limit": limit}
 
-    # cluster spesifik
+    # cluster spesifik — cek dulu sebelum keyword umum lainnya
     if "young syariah digital" in q:
         return "cluster_summary", {"cluster_label": "Young Syariah Digital"}
     if "silent mature" in q:
@@ -42,15 +42,21 @@ def resolve_aggregation_tool(question: str) -> tuple[str, dict]:
     if "konvensional produktif" in q:
         return "cluster_summary", {"cluster_label": "Konvensional Produktif"}
 
-    # demografis
+    # cluster / segmentasi / rfm — prioritas tinggi, sebelum saldo/cabang
+    if any(k in q for k in ("cluster", "segmentasi", "segmen nasabah", "rfm segment", "rfm")):
+        return "cluster_summary", {}
+
+    # demografis / usia
     if any(k in q for k in ("gender", "usia", "kelompok usia", "age group", "pria", "wanita", "laki", "perempuan", "demografis")):
         return "demografis_summary", {}
 
-    # cabang
-    if any(k in q for k in ("cabang", "performa cabang", "ranking cabang", "top cabang")):
+    # cabang — cek churn/credit spesifik dulu
+    if any(k in q for k in ("cabang", "performa cabang", "ranking cabang", "top cabang", "branch", "branches")):
         order_by = "avg_saldo"
         limit = 10
-        if "dormant" in q:
+        if "churn" in q:
+            order_by = "churn"
+        elif "dormant" in q:
             order_by = "dormant"
         elif "tidak aktif" in q:
             order_by = "tidak_aktif"
@@ -59,25 +65,21 @@ def resolve_aggregation_tool(question: str) -> tuple[str, dict]:
             limit = int(m.group(1))
         return "cabang_performance", {"order_by": order_by, "limit": limit}
 
-    # saldo
-    if any(k in q for k in ("saldo", "rata-rata saldo", "avg saldo")):
-        if "dormant" in q:
-            return "saldo_analysis", {"status_rekening": 1}
-        if "tutup" in q:
-            return "saldo_analysis", {"status_rekening": 2}
-        return "saldo_analysis", {}
+    # status distribusi
+    if any(k in q for k in ("distribusi status", "rekening aktif", "rekening dormant", "distribusi rekening")):
+        return "status_rekening_distribution", {}
 
     # transaksi trend
     if any(k in q for k in ("transaksi", "tren aktivitas", "aktivitas per jenis", "tidak aktif per jenis")):
         return "transaksi_trend", {}
 
-    # status distribusi
-    if any(k in q for k in ("distribusi status", "rekening aktif", "rekening dormant", "distribusi rekening")):
-        return "status_rekening_distribution", {}
-
-    # cluster perbandingan / semua cluster
-    if any(k in q for k in ("cluster", "segmentasi", "segmen nasabah", "rfm")):
-        return "cluster_summary", {}
+    # saldo — setelah cluster dan cabang dicek
+    if any(k in q for k in ("saldo", "rata-rata saldo", "avg saldo", "deposit balance", "average deposit")):
+        if "dormant" in q:
+            return "saldo_analysis", {"status_rekening": 1}
+        if "tutup" in q:
+            return "saldo_analysis", {"status_rekening": 2}
+        return "saldo_analysis", {}
 
     # default: quick_stats
     return "quick_stats", {}

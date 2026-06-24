@@ -104,35 +104,34 @@ DATA_DOMAIN_MARKERS = (
 )
 
 AGGREGATION_MARKERS = (
+    # cluster / segmentasi — MCP punya tool cluster_summary
     "cluster",
     "segmentasi",
     "silent mature",
     "young syariah digital",
     "konvensional produktif",
-    "rfm",
+    # rfm hanya jika bukan dikombinasikan dengan kolom baru
+    "rfm segment",
+    "rfm score",
     "champions",
-    "dormant",
-    "aktif",
-    "rekening",
-    "cabang",
+    # demografis — MCP punya tool demografis_summary
     "demografis",
-    "gender",
-    "usia",
-    "age group",
-    "kelompok usia",
-    "transaksi",
-    "activity level",
-    "saldo segment",
+    # cabang performance — MCP punya tool cabang_performance
     "performa cabang",
-    "distribusi",
-    # geo markers
+    "ranking cabang",
+    # geo markers — MCP punya tool cabang_map
     "peta",
-    "map",
     "geografis",
     "wilayah",
     "sebaran",
     "persebaran",
     "lokasi cabang",
+    "city locations",
+    "on the map",
+    "di peta",
+    # quick stats overview
+    "quick stats",
+    "ringkasan keseluruhan",
 )
 
 
