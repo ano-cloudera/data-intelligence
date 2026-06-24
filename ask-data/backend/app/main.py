@@ -1113,6 +1113,23 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
             "metadata": {},
             "visualization": None,
         }
+    except RagClientError as exc:
+        logger.warning("[RAG] chat_answer RagClientError: %s", exc)
+        fallback_answer = build_processing_fallback_answer(payload.question)
+        if payload.session_id:
+            memory_store.append_user_message(payload.session_id, payload.question)
+            memory_store.append_assistant_message(payload.session_id, fallback_answer)
+            memory_store.set_last_answer(payload.session_id, fallback_answer)
+            memory_store.set_last_intent(payload.session_id, "fallback")
+        response_payload = {
+            "session_id": payload.session_id,
+            "original_question": payload.question,
+            "answer": f"[RAG Error] {exc}",
+            "mode": "rag_error",
+            "sources": [],
+            "metadata": {"error": str(exc)},
+            "visualization": None,
+        }
     except Exception as exc:
         logger.exception("chat_answer unhandled exception: %s", exc)
         fallback_answer = build_processing_fallback_answer(payload.question)
