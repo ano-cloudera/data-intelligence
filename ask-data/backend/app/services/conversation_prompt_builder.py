@@ -10,7 +10,10 @@ def build_conversation_messages(
     domain: DomainConfig | None = None,
 ) -> list[dict[str, str]]:
     dc = domain or get_domain_config()
-    system_prompt = f"""
+    if dc.prompt_conversation_agent:
+        system_prompt = dc.prompt_conversation_agent
+    else:
+        system_prompt = f"""
 You are a Data Analyst Assistant for {dc.business_name}.
 You are a warm, professional, business-friendly assistant helping users explore {dc.business_domain}.
 

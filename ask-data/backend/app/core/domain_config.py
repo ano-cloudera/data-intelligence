@@ -34,6 +34,12 @@ class DomainConfig:
     guardrail_out_of_scope_en: str
     guardrail_out_of_scope_id: str
     ambiguity_guidance: list[str]
+    # Agent system prompts — all configurable, no hardcode
+    prompt_sql_agent: str
+    prompt_answer_agent: str
+    prompt_conversation_agent: str
+    prompt_rag_agent_id: str
+    prompt_rag_agent_en: str
 
     @property
     def full_table_name(self) -> str:
@@ -64,6 +70,11 @@ _DEFAULTS: dict[str, Any] = {
         "All data is in the main table — no joins are needed.",
         "If a question is broad, return a practical preview query with LIMIT applied.",
     ],
+    "prompt_sql_agent": "",
+    "prompt_answer_agent": "",
+    "prompt_conversation_agent": "",
+    "prompt_rag_agent_id": "",
+    "prompt_rag_agent_en": "",
 }
 
 
@@ -131,4 +142,9 @@ def get_domain_config() -> DomainConfig:
         guardrail_out_of_scope_en=str(get("guardrail_out_of_scope_en")).strip(),
         guardrail_out_of_scope_id=str(get("guardrail_out_of_scope_id")).strip(),
         ambiguity_guidance=[str(g) for g in get("ambiguity_guidance")],
+        prompt_sql_agent=str(get("prompt_sql_agent")).strip(),
+        prompt_answer_agent=str(get("prompt_answer_agent")).strip(),
+        prompt_conversation_agent=str(get("prompt_conversation_agent")).strip(),
+        prompt_rag_agent_id=str(get("prompt_rag_agent_id")).strip(),
+        prompt_rag_agent_en=str(get("prompt_rag_agent_en")).strip(),
     )

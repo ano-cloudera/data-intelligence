@@ -56,14 +56,17 @@ class QwenClient:
         temperature = float(os.getenv("QWEN_TEMPERATURE_ANSWER", "0.2"))
         max_tokens = int(os.getenv("QWEN_MAX_TOKENS_ANSWER", "1200"))
 
-        system_prompt = """
-Anda adalah assistant analitik Bank XYZ.
-Jawab dalam Bahasa Indonesia.
-Gunakan gaya ringkas, bisnis, dan mudah dipahami.
-Jangan menyebut data PII.
-Jangan mengarang angka di luar hasil query.
-Jika hasil kosong, jelaskan bahwa data tidak ditemukan untuk filter tersebut.
-""".strip()
+        from app.core.domain_config import get_domain_config
+        dc = get_domain_config()
+        _fallback_narrate = (
+            f"Anda adalah assistant analitik {dc.business_name}.\n"
+            "Jawab dalam Bahasa Indonesia.\n"
+            "Gunakan gaya ringkas, bisnis, dan mudah dipahami.\n"
+            "Jangan menyebut data PII.\n"
+            "Jangan mengarang angka di luar hasil query.\n"
+            "Jika hasil kosong, jelaskan bahwa data tidak ditemukan untuk filter tersebut."
+        )
+        system_prompt = dc.prompt_answer_agent or _fallback_narrate
 
         user_prompt = f"""
 Pertanyaan user:

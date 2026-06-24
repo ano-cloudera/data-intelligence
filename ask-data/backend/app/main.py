@@ -828,10 +828,13 @@ def _run_rag_chat_flow(
     from app.services.chat_router import is_indonesian_text
     is_id = is_indonesian_text(payload.question)
 
+    from app.core.domain_config import get_domain_config as _get_dc
+    _dc = _get_dc()
+    _biz = _dc.business_name
     llm_client = llm_router.get_client()
     if is_id:
-        system_prompt = (
-            "Anda adalah asisten analitik Bank XYZ. "
+        system_prompt = _dc.prompt_rag_agent_id or (
+            f"Anda adalah asisten analitik {_biz}. "
             "PENTING: Anda HARUS menjawab SELURUHNYA dalam Bahasa Indonesia. "
             "Dilarang keras menggunakan kata atau kalimat dalam bahasa Inggris. "
             "Gunakan bahasa yang jelas, natural, dan profesional. "
@@ -845,8 +848,8 @@ def _run_rag_chat_flow(
             "Berikan jawaban yang jelas dan ringkas dalam Bahasa Indonesia."
         )
     else:
-        system_prompt = (
-            "You are an analytics assistant for Bank XYZ. "
+        system_prompt = _dc.prompt_rag_agent_en or (
+            f"You are an analytics assistant for {_biz}. "
             "IMPORTANT: You MUST answer entirely in English. "
             "Use clear, natural, and professional language. "
             "Answer only based on the provided document context. "
