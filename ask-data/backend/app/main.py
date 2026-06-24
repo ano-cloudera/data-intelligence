@@ -151,6 +151,9 @@ def health() -> dict[str, object]:
         "qwen_base_url": settings.qwen_base_url,
         "qwen_model": settings.qwen_model,
         "llm_providers": [option.provider for option in llm_provider_service.list_options().options],
+        "chroma_enabled": settings.chroma_enabled,
+        "chroma_persist_dir": settings.chroma_persist_dir,
+        "chroma_collection": settings.chroma_collection,
     }
 
 
