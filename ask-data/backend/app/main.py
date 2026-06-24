@@ -956,7 +956,12 @@ def rag_options() -> RagOptionsResponse:
             collections=[RagCollectionOption(**c) for c in cols],
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.warning("rag_options list_collections failed: %s", exc)
+        # Fallback: return enabled=True with default collection from settings
+        from app.schemas.rag import RagCollectionOption
+        default_col = settings.chroma_collection or "bank_jatim_knowledge"
+        fallback_cols = [RagCollectionOption(name=default_col, document_count=0)] if default_col else []
+        return RagOptionsResponse(enabled=True, collections=fallback_cols)
 
 
 @app.get("/rag/collections")
