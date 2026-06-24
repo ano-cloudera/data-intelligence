@@ -104,7 +104,7 @@ def ensure_rag_collection(backend_dir: Path, env: dict[str, str]) -> None:
         return
 
     collection_name = env.get("CHROMA_COLLECTION", "bank_jatim_knowledge").strip()
-    chroma_dir = env.get("CHROMA_PERSIST_DIR", str(backend_dir / "chroma_db")).strip()
+    chroma_dir = env.get("CHROMA_PERSIST_DIR", "").strip() or str(backend_dir / "chroma_db")
     docs_dir = backend_dir.parent / "data" / "documents"
 
     if not docs_dir.exists() or not any(docs_dir.glob("*.pdf")):
@@ -182,6 +182,13 @@ def main() -> None:
     env = os.environ.copy()
     pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = f"{backend_dir}:{pythonpath}" if pythonpath else str(backend_dir)
+
+    # Always resolve CHROMA_PERSIST_DIR to absolute path based on backend_dir
+    # This fixes relative-path issues when CAI starts the process from a different cwd
+    if not env.get("CHROMA_PERSIST_DIR", "").strip().startswith("/"):
+        resolved_chroma = str(backend_dir / "chroma_db")
+        logging.info("CHROMA_PERSIST_DIR not set or relative — resolving to: %s", resolved_chroma)
+        env["CHROMA_PERSIST_DIR"] = resolved_chroma
 
     ensure_runtime_dependencies(backend_dir, env)
     ensure_rag_collection(backend_dir, env)
