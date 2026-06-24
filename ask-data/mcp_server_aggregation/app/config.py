@@ -29,5 +29,11 @@ class Settings(BaseSettings):
     db_name: str = Field(default="cai_sdx_se_indonesia", alias="DB_NAME")
     aggregation_table: str = Field(default="customer_aggregation", alias="TABLE_NAME")
 
+    # ChromaDB
+    chroma_persist_dir: str = Field(default="./chroma_db", alias="CHROMA_PERSIST_DIR")
+    chroma_collection: str = Field(default="bank_jatim_knowledge", alias="CHROMA_COLLECTION")
+    embed_model: str = Field(default="nomic-embed-text", alias="EMBED_MODEL")
+    ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
+
 
 settings = Settings()  # type: ignore[call-arg]

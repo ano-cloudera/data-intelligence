@@ -21,9 +21,12 @@ import asyncio
 from app.impala_client import execute_query_async
 from app.tools.cabang_map import run_cabang_map
 from app.tools.cabang_performance import run_cabang_performance
+from app.tools.campaign import get_campaign_recommendation, get_campaign_summary_by_reason
 from app.tools.cluster_summary import run_cluster_summary
 from app.tools.demografis_summary import run_demografis_summary
+from app.tools.dormant_risk import get_dormant_reason_breakdown, get_dormant_risk_summary
 from app.tools.quick_stats import run_quick_stats
+from app.tools.rag_search import search_policy_documents
 from app.tools.rekening_summary import run_rekening_summary
 from app.tools.saldo_analysis import run_saldo_analysis
 from app.tools.schema import run_get_schema
@@ -245,6 +248,87 @@ MCP_TOOLS = [
             "required": ["sql"],
         },
     ),
+    Tool(
+        name="dormant_risk_summary",
+        description=(
+            "Distribusi tingkat risiko dormant nasabah (HIGH/MEDIUM/LOW/NONE). "
+            "Return: jumlah nasabah dan persentase per risk level. "
+            "Gunakan untuk: 'berapa nasabah HIGH risk', 'distribusi dormant risk', "
+            "'nasabah berisiko tinggi', 'risk level breakdown'. "
+            "Parameter opsional: segment, city, risk_level."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "segment": {"type": "string", "description": "Filter segment nasabah"},
+                "city": {"type": "string", "description": "Filter kota"},
+                "risk_level": {"type": "string", "description": "HIGH / MEDIUM / LOW / NONE"},
+            },
+        },
+    ),
+    Tool(
+        name="dormant_reason_breakdown",
+        description=(
+            "Breakdown penyebab dormant per reason code. "
+            "Return: jumlah nasabah per dormant reason code. "
+            "Gunakan untuk: 'kenapa nasabah dormant', 'penyebab dormant terbanyak', "
+            "'breakdown reason code dormant'. "
+            "Parameter opsional: segment, risk_level."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "segment": {"type": "string", "description": "Filter segment nasabah"},
+                "risk_level": {"type": "string", "description": "Filter risk level"},
+            },
+        },
+    ),
+    Tool(
+        name="campaign_recommendation",
+        description=(
+            "Rekomendasi campaign untuk nasabah dormant HIGH/MEDIUM risk. "
+            "Return: daftar nasabah dengan aksi campaign, channel, dan prioritas yang direkomendasikan. "
+            "Gunakan untuk: 'siapa yang harus di-campaign', 'rekomendasi aksi dormant', "
+            "'nasabah prioritas campaign', 'next best action'. "
+            "Parameter opsional: segment, dormant_reason_code, risk_level, limit (default 20)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "segment": {"type": "string", "description": "Filter segment nasabah"},
+                "dormant_reason_code": {"type": "string", "description": "Filter reason code"},
+                "risk_level": {"type": "string", "description": "Filter risk level"},
+                "limit": {"type": "integer", "description": "Jumlah nasabah (default 20)"},
+            },
+        },
+    ),
+    Tool(
+        name="campaign_summary_by_reason",
+        description=(
+            "Ringkasan campaign per dormant reason code: jumlah nasabah, avg saldo, "
+            "aksi yang direkomendasikan, dan channel. "
+            "Gunakan untuk: 'ringkasan campaign per reason', 'prioritas campaign per penyebab dormant'."
+        ),
+        inputSchema={"type": "object", "properties": {}},
+    ),
+    Tool(
+        name="rag_search",
+        description=(
+            "Semantic search di dokumen kebijakan Bank Jatim (PDF yang sudah di-upload). "
+            "Gunakan untuk: pertanyaan kebijakan bank, regulasi, SOP, peraturan nasabah kredit, "
+            "'apa kebijakan...', 'bagaimana prosedur...', 'syarat...', 'ketentuan...'. "
+            "Parameter: query (wajib), top_k (default 5), collection_name (opsional)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Pertanyaan atau kata kunci pencarian"},
+                "top_k": {"type": "integer", "description": "Jumlah hasil (default 5)"},
+                "collection_name": {"type": "string", "description": "Nama collection ChromaDB"},
+            },
+            "required": ["query"],
+        },
+    ),
 ]
 
 
@@ -350,6 +434,36 @@ async def call_mcp_tool(name: str, arguments: dict[str, Any]) -> list[TextConten
             )
         elif name == "sql_query":
             result = await asyncio.to_thread(run_sql_query, arguments.get("sql", ""))
+        elif name == "dormant_risk_summary":
+            result = await asyncio.to_thread(
+                get_dormant_risk_summary,
+                arguments.get("segment"),
+                arguments.get("city"),
+                arguments.get("risk_level"),
+            )
+        elif name == "dormant_reason_breakdown":
+            result = await asyncio.to_thread(
+                get_dormant_reason_breakdown,
+                arguments.get("segment"),
+                arguments.get("risk_level"),
+            )
+        elif name == "campaign_recommendation":
+            result = await asyncio.to_thread(
+                get_campaign_recommendation,
+                arguments.get("segment"),
+                arguments.get("dormant_reason_code"),
+                arguments.get("risk_level"),
+                arguments.get("limit", 20),
+            )
+        elif name == "campaign_summary_by_reason":
+            result = await asyncio.to_thread(get_campaign_summary_by_reason)
+        elif name == "rag_search":
+            result = await asyncio.to_thread(
+                search_policy_documents,
+                arguments.get("query", ""),
+                arguments.get("top_k", 5),
+                arguments.get("collection_name"),
+            )
         else:
             result = {"error": f"Unknown tool: {name}"}
     except Exception as exc:
@@ -377,9 +491,9 @@ async def handle_sse(request: Request):
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="MCP Server — Customer Aggregation",
-    description="MCP tools for customer_aggregation table at Bank Jawa Timur",
-    version="3.2.0",
+    title="MCP Server — Bank Jawa Timur",
+    description="Unified MCP tools: customer aggregation, dormant risk, campaign, RAG search",
+    version="4.0.0",
 )
 
 app.add_middleware(
@@ -395,7 +509,7 @@ app.add_route("/sse", handle_sse, methods=["GET"])
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "version": "3.2.0", "tools": len(MCP_TOOLS)}
+    return {"status": "ok", "version": "4.0.0", "tools": len(MCP_TOOLS)}
 
 
 @app.get("/tools")
@@ -484,4 +598,63 @@ def tool_status_rekening(payload: StatusRekeningRequest) -> ToolResponse:
             jenis_rekening=payload.jenis_rekening,
             cabang=payload.cabang,
         ),
+    )
+
+
+# --- Dormant & Campaign tools ---
+
+class DormantRiskRequest(BaseModel):
+    segment: str | None = None
+    city: str | None = None
+    risk_level: str | None = None
+
+class DormantReasonRequest(BaseModel):
+    segment: str | None = None
+    risk_level: str | None = None
+
+class CampaignRequest(BaseModel):
+    segment: str | None = None
+    dormant_reason_code: str | None = None
+    risk_level: str | None = None
+    limit: int = 20
+
+class RagSearchRequest(BaseModel):
+    query: str
+    top_k: int = 5
+    collection_name: str | None = None
+
+from pydantic import BaseModel
+
+@app.post("/tools/dormant_risk_summary", response_model=ToolResponse)
+def tool_dormant_risk_summary(payload: DormantRiskRequest) -> ToolResponse:
+    return ToolResponse(
+        tool="dormant_risk_summary",
+        result=get_dormant_risk_summary(payload.segment, payload.city, payload.risk_level),
+    )
+
+@app.post("/tools/dormant_reason_breakdown", response_model=ToolResponse)
+def tool_dormant_reason_breakdown(payload: DormantReasonRequest) -> ToolResponse:
+    return ToolResponse(
+        tool="dormant_reason_breakdown",
+        result=get_dormant_reason_breakdown(payload.segment, payload.risk_level),
+    )
+
+@app.post("/tools/campaign_recommendation", response_model=ToolResponse)
+def tool_campaign_recommendation(payload: CampaignRequest) -> ToolResponse:
+    return ToolResponse(
+        tool="campaign_recommendation",
+        result=get_campaign_recommendation(
+            payload.segment, payload.dormant_reason_code, payload.risk_level, payload.limit
+        ),
+    )
+
+@app.get("/tools/campaign_summary_by_reason", response_model=ToolResponse)
+def tool_campaign_summary_by_reason() -> ToolResponse:
+    return ToolResponse(tool="campaign_summary_by_reason", result=get_campaign_summary_by_reason())
+
+@app.post("/tools/rag_search", response_model=ToolResponse)
+def tool_rag_search(payload: RagSearchRequest) -> ToolResponse:
+    return ToolResponse(
+        tool="rag_search",
+        result=search_policy_documents(payload.query, payload.top_k, payload.collection_name),
     )
