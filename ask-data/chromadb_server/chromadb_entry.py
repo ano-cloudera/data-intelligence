@@ -1,6 +1,6 @@
 """
 CAI Application entry point for ChromaDB HTTP Server.
-chromadb 1.5.x — runs chromadb CLI in a thread, keeps IPython session alive.
+chromadb 1.5.x
 
 Setup di CAI:
   Name    : se-chromadb
@@ -13,7 +13,6 @@ import logging
 import os
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -55,62 +54,94 @@ logging.info("chromadb version : %s", chromadb.__version__)
 logging.info("Port      : %s", port)
 logging.info("Data path : %s", data_path)
 
-# Run chromadb CLI in a background thread so it owns its own event loop
-# The main thread keeps running via a blocking loop — this keeps CAI session alive
-# First, check what CLI options are available in this chromadb version
-probe = subprocess.run(
-    [sys.executable, "-m", "chromadb.cli.cli", "run", "--help"],
-    capture_output=True, text=True,
-)
-logging.info("chromadb CLI help:\n%s\n%s", probe.stdout, probe.stderr)
+# ── Probe: find the right CLI entry point for this chromadb version ──────────
+def probe_cli() -> list:
+    """Try known CLI invocations and return the first one that shows 'run' in help."""
+    candidates = [
+        [sys.executable, "-m", "chromadb.cli.cli", "--help"],
+        [sys.executable, "-m", "chromadb", "--help"],
+        [sys.executable, "-c", "import chromadb.cli.cli; print('ok')"],
+    ]
+    for c in candidates:
+        r = subprocess.run(c, capture_output=True, text=True)
+        logging.info("Probe %s → rc=%s stdout=%s stderr=%s",
+                     c[-1], r.returncode, r.stdout[:500], r.stderr[:500])
 
-# Build command — omit --log-path which may not exist in 1.5.x
-cmd = [
-    sys.executable, "-m", "chromadb.cli.cli", "run",
-    "--host", "0.0.0.0",
-    "--port", str(port),
-    "--path", data_path,
+    # Also show chromadb package location and what modules exist
+    r = subprocess.run(
+        [sys.executable, "-c",
+         "import chromadb, os; pkg=os.path.dirname(chromadb.__file__); "
+         "[print(os.path.join(dp,f)) for dp,dn,fn in os.walk(pkg) for f in fn if f.endswith('.py') and 'cli' in f.lower()]"],
+        capture_output=True, text=True,
+    )
+    logging.info("CLI-related files in chromadb package:\n%s", r.stdout)
+    return []
+
+
+probe_cli()
+
+# ── Try to start chromadb server ─────────────────────────────────────────────
+env = {**os.environ, "ANONYMIZED_TELEMETRY": "FALSE", "IS_PERSISTENT": "TRUE",
+       "PERSIST_DIRECTORY": data_path, "CHROMA_SERVER_HOST": "0.0.0.0",
+       "CHROMA_SERVER_HTTP_PORT": str(port)}
+
+# Try different invocation styles for chromadb 1.5.x
+run_cmds = [
+    [sys.executable, "-m", "chromadb.cli.cli", "run", "--host", "0.0.0.0", "--port", str(port), "--path", data_path],
+    [sys.executable, "-m", "chromadb", "run", "--host", "0.0.0.0", "--port", str(port), "--path", data_path],
+    [sys.executable, "-m", "chromadb.cli", "run", "--host", "0.0.0.0", "--port", str(port), "--path", data_path],
 ]
 
-# Add --log-path only if supported
-if "--log-path" in probe.stdout:
-    cmd += ["--log-path", "/dev/stdout"]
-
-logging.info("Launching: %s", " ".join(cmd))
-
-env = {**os.environ, "ANONYMIZED_TELEMETRY": "FALSE", "CHROMA_LOG_CONFIG": ""}
-
-
-def start_proc():
-    return subprocess.Popen(
-        cmd,
-        stdout=sys.stdout,
-        stderr=sys.stderr,
-        env=env,
+working_cmd = None
+for cmd in run_cmds:
+    logging.info("Testing: %s", " ".join(cmd))
+    r = subprocess.run(cmd + ["--help"] if "--help" not in cmd else cmd,
+                       capture_output=True, text=True, timeout=10)
+    logging.info("  rc=%s out=%s err=%s", r.returncode, r.stdout[:300], r.stderr[:300])
+    # A 0 exit on --help means command is valid
+    test_cmd = cmd[:-4] + ["--help"]  # replace path args with --help
+    r2 = subprocess.run(
+        [cmd[0], cmd[1], cmd[2], "--help"],
+        capture_output=True, text=True, timeout=10,
     )
+    if r2.returncode == 0 and ("run" in r2.stdout or "host" in r2.stdout):
+        working_cmd = cmd
+        logging.info("Found working CLI: %s", " ".join(cmd))
+        break
 
+if working_cmd is None:
+    # Last resort: use chromadb Python API directly in a new process
+    logging.warning("No working CLI found — using Python API in subprocess")
+    api_script = f"""
+import sys, os
+os.environ['ANONYMIZED_TELEMETRY'] = 'FALSE'
+import uvicorn
+from chromadb.config import Settings
+from chromadb.server.fastapi import FastAPI as ChromaFastAPI
+settings = Settings(is_persistent=True, persist_directory='{data_path}', allow_reset=False, anonymized_telemetry=False)
+server = ChromaFastAPI(settings)
+uvicorn.run(server.app(), host='0.0.0.0', port={port}, log_level='info')
+"""
+    working_cmd = [sys.executable, "-c", api_script]
 
-proc = start_proc()
-logging.info("ChromaDB server PID: %s", proc.pid)
+logging.info("Starting chromadb with: %s", " ".join(working_cmd[:4]))
 
-# Give it a moment to start, then check if it died immediately
-time.sleep(3)
+proc = subprocess.Popen(working_cmd, stdout=sys.stdout, stderr=sys.stderr, env=env)
+logging.info("ChromaDB PID: %s", proc.pid)
+
+time.sleep(5)
 if proc.poll() is not None:
-    # Died immediately — re-run with output captured to see the error
-    logging.error("ChromaDB died immediately — capturing output for debug")
-    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    logging.error("STDOUT: %s", result.stdout[-3000:] if result.stdout else "(empty)")
-    logging.error("STDERR: %s", result.stderr[-3000:] if result.stderr else "(empty)")
-    logging.error("Exit code: %s", result.returncode)
-    raise RuntimeError(f"chromadb CLI failed with code {result.returncode}")
+    result = subprocess.run(working_cmd, capture_output=True, text=True, env=env, timeout=10)
+    logging.error("ChromaDB died! STDOUT: %s", result.stdout[-2000:])
+    logging.error("ChromaDB died! STDERR: %s", result.stderr[-2000:])
+    raise RuntimeError(f"chromadb failed with code {result.returncode}")
 
-logging.info("ChromaDB is running — keeping session alive")
+logging.info("ChromaDB is running on port %s — keeping session alive", port)
 while True:
     ret = proc.poll()
     if ret is not None:
-        logging.error("ChromaDB exited with code %s", ret)
-        logging.info("Restarting in 5s...")
+        logging.error("ChromaDB exited (code %s) — restarting in 5s", ret)
         time.sleep(5)
-        proc = start_proc()
+        proc = subprocess.Popen(working_cmd, stdout=sys.stdout, stderr=sys.stderr, env=env)
         logging.info("ChromaDB restarted, PID: %s", proc.pid)
     time.sleep(2)
