@@ -15,6 +15,7 @@ import { DemoGuidePanel } from "@/components/demo-guide-panel";
 import { ModelSettingsPanel, type McpServer } from "@/components/model-settings-panel";
 import { NoticePanel } from "@/components/notice-panel";
 import { ResultChartCard } from "@/components/result-chart-card";
+import { ResultTableCard } from "@/components/result-table-card";
 import { StarterCard, type StarterCardVariant } from "@/components/starter-card";
 import dynamic from "next/dynamic";
 import type { MapFeature } from "@/components/result-map-card";
@@ -58,6 +59,11 @@ interface ChatMessage {
   sources?: AnswerSource[];
   metadata?: Record<string, unknown>;
   visualization?: VisualizationSpec | null;
+  rows?: Array<Record<string, unknown>>;
+  columns?: string[];
+  row_count?: number;
+  truncated?: boolean;
+  limit_applied?: boolean;
 }
 
 interface ChatState {
@@ -814,6 +820,11 @@ export default function HomePage() {
         sources: response.sources ?? [],
         metadata: response.metadata ?? {},
         visualization: response.visualization ?? null,
+        rows: response.rows ?? [],
+        columns: response.columns ?? [],
+        row_count: response.row_count ?? 0,
+        truncated: response.truncated ?? false,
+        limit_applied: response.limit_applied ?? false,
       };
       setState((cur) => ({
         ...cur,
@@ -1141,6 +1152,17 @@ export default function HomePage() {
                           </div>
                         ) : message.visualization?.type ? (
                           <ResultChartCard visualization={message.visualization} />
+                        ) : null}
+                        {!message.visualization?.type && (message.rows?.length ?? 0) > 0 && (message.columns?.length ?? 0) > 0 ? (
+                          <div className="w-full max-w-[56rem]">
+                            <ResultTableCard
+                              columns={message.columns!}
+                              rows={message.rows!}
+                              rowCount={message.row_count ?? message.rows!.length}
+                              truncated={message.truncated ?? false}
+                              limitApplied={message.limit_applied ?? false}
+                            />
+                          </div>
                         ) : null}
                       </div>
                     );
