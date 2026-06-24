@@ -553,9 +553,16 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
     # Route ke MCP aggregation jika pertanyaan tentang segmentasi nasabah
     from app.services.aggregation_router import resolve_aggregation_tool, format_aggregation_answer, is_map_request
     _is_map = is_map_request(payload.question)
-    if (_is_map or is_aggregation_request(payload.question)) and settings.mcp_aggregation_url:
+    _is_agg = is_aggregation_request(payload.question)
+    logger.info(
+        "[MCP-ROUTE] question=%r is_map=%s is_agg=%s mcp_url=%r mcp_server_urls=%r",
+        payload.question, _is_map, _is_agg, settings.mcp_aggregation_url, payload.mcp_server_urls,
+    )
+    if (_is_map or _is_agg) and settings.mcp_aggregation_url:
         tool, params = resolve_aggregation_tool(payload.question)
+        logger.info("[MCP-CALL] tool=%r params=%r", tool, params)
         agg_result = call_aggregation_tool_multi(tool, params, payload.mcp_server_urls or [], settings)
+        logger.info("[MCP-RESULT] keys=%r error=%r", list(agg_result.keys()), agg_result.get("error"))
         answer = format_aggregation_answer(tool, agg_result)
         # Build map visualization payload ketika tool adalah cabang_map
         visualization_payload = None
@@ -1279,3 +1286,28 @@ def aggregation_health():
         return resp.json()
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+
+@app.get("/aggregation/debug")
+def aggregation_debug():
+    """Debug endpoint: test MCP connection + quick_stats tool call."""
+    from app.services.aggregation_client import call_aggregation_tool
+    base_url = (settings.mcp_aggregation_url or "").rstrip("/")
+    result = {
+        "mcp_aggregation_url": base_url or "(not set)",
+        "health": None,
+        "quick_stats": None,
+        "cluster_summary": None,
+    }
+    if not base_url:
+        return result
+    from httpx import Client
+    try:
+        with Client(timeout=5.0) as client:
+            h = client.get(f"{base_url}/health")
+        result["health"] = h.json()
+    except Exception as e:
+        result["health"] = {"error": str(e)}
+    result["quick_stats"] = call_aggregation_tool("quick_stats", {}, settings)
+    result["cluster_summary"] = call_aggregation_tool("cluster_summary", {}, settings)
+    return result
