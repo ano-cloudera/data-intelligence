@@ -92,7 +92,7 @@ class Settings(BaseSettings):
     sql_default_limit: int = Field(default=100, alias="SQL_DEFAULT_LIMIT")
     sql_max_preview_rows: int = Field(default=100, alias="SQL_MAX_PREVIEW_ROWS")
     sql_allowed_tables: str = Field(
-        default="customer_dormant_segment",
+        default="customer_segments_staging",
         alias="SQL_ALLOWED_TABLES",
     )
     llm_provider: str = Field(default="local_qwen", alias="LLM_PROVIDER")

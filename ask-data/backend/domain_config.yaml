@@ -22,26 +22,26 @@ business_domain: "dormant customer risk analysis, credit risk scoring, churn pre
 # Nilai di bawah ini dipakai di schema context dan prompt — harus konsisten
 # dengan env vars tersebut.
 database_name: "cai_sdx_se_indonesia"
-table_name: "customer_dormant_segment"
-table_description: "AI-enriched customer profile for segmentation and dormant risk scoring"
-table_grain: "one row per customer per snapshot date"
+table_name: "customer_segments_staging"
+table_description: "AI-enriched customer profile with segmentation, credit risk, churn, and behavioral analytics"
+table_grain: "one row per account (no_rekening) at reference period t0"
 
 # -----------------------------------------------------------------------------
 # 3. Scope bisnis — dipakai di system prompt
 # Setiap item adalah satu bullet point yang menjelaskan area analitik yang didukung
 # -----------------------------------------------------------------------------
 business_scope:
-  - "Customer segmentation: distribution by segment, segment scores, segment descriptions."
-  - "Dormancy risk: dormant flags, dormant risk levels, dormant probability, dormant reason codes."
-  - "Credit risk: credit_score (300-850), credit_risk_label (GOOD/FAIR/POOR/BAD) per customer and segment."
-  - "Churn prediction: churn_probability (0-1), churn_risk_label (HIGH/MEDIUM/LOW) per customer and segment."
-  - "Behavioral analytics: transaction frequency, days since last transaction, active months, digital login counts."
-  - "Product holding: savings, current account, deposit, loan, mobile/internet banking flags, loan_type (KPR/KKB/KTA)."
-  - "Digital adoption: digital_banking_adoption (Active/Passive/None) per customer segment."
-  - "Balance analytics: average savings balance, average deposit balance, total deposit balance, outstanding loan balance."
-  - "Campaign intelligence: recommended campaigns, recommended channels, next best actions."
-  - "Demographic context: age band, gender, city, district, branch, occupation, income band, customer tenure."
-  - "Geospatial: lat/lng coordinates for Indonesia-wide branch and customer mapping."
+  - "Account status: distribution of Aktif (status_rekening=0), Dormant (=1), Tutup (=2)."
+  - "Cluster segmentation: K-Means clusters — Silent Mature, Young Syariah Digital, Konvensional Produktif."
+  - "RFM segmentation: Champions, Loyal, Potential, At Risk, Lost."
+  - "Credit risk: credit_score (300-850), credit_risk_label (GOOD/FAIR/POOR/BAD) per cluster and account."
+  - "Churn prediction: churn_probability (0-1), churn_risk_label (HIGH/MEDIUM/LOW) per segment."
+  - "Behavioral analytics: hari_sejak_trx (days since last transaction), total_tx, rasio_kredit, activity_level."
+  - "Product analytics: jenis (SYARIAH vs KONVEN), jenis_rekening (product type), loan_type (KPR/KKB/KTA/None)."
+  - "Digital adoption: digital_banking_adoption (Active/Passive/None) per cluster."
+  - "Balance analytics: saldo_t0 (account balance at reference date), saldo_segment (tier label)."
+  - "Demographic context: umur, jenis_kelamin, age_group, cabang_name, kota."
+  - "Geospatial: lat/lng coordinates for city-level mapping across Indonesia."
 
 # -----------------------------------------------------------------------------
 # 4. Schema tabel — kolom-kolom yang tersedia
@@ -49,144 +49,130 @@ business_scope:
 # Tambah/hapus kolom sesuai skema data aktual kamu.
 # -----------------------------------------------------------------------------
 columns:
-  - name: customer_id
-    description: "synthetic analytics identifier (not real PII)"
-  - name: snapshot_date
-    description: "date of the scoring snapshot"
-  - name: age_band
-    description: "customer age group (e.g. 26-35, 36-45)"
-  - name: gender
-    description: "customer gender (M/F)"
-  - name: city
-    description: "customer city"
-  - name: district
-    description: "customer district"
-  - name: branch_code
-    description: "branch code"
-  - name: branch_name
-    description: "branch name"
-  - name: customer_tenure_months
-    description: "months since customer onboarding"
-  - name: occupation_category
-    description: "customer occupation category"
-  - name: income_band
-    description: "customer income band"
-  - name: customer_type
-    description: "Individual or SME"
-  - name: total_accounts
-    description: "total number of accounts held"
-  - name: has_savings
-    description: "boolean, customer has savings account"
-  - name: has_current_account
-    description: "boolean, customer has current account"
-  - name: has_deposit
-    description: "boolean, customer has deposit account"
-  - name: has_loan
-    description: "boolean, customer has active loan"
-  - name: has_mobile_banking
-    description: "boolean, customer enrolled in mobile banking"
-  - name: has_internet_banking
-    description: "boolean, customer enrolled in internet banking"
-  - name: product_holding_count
-    description: "total number of products held"
-  - name: avg_savings_balance_3m
-    description: "average savings balance over last 3 months"
-  - name: avg_deposit_balance_3m
-    description: "average deposit balance over last 3 months"
-  - name: total_deposit_balance
-    description: "total current deposit balance"
-  - name: outstanding_loan_balance
-    description: "total outstanding loan balance"
-  - name: monthly_avg_transaction_amount
-    description: "average monthly transaction amount"
-  - name: monthly_transaction_count
-    description: "average monthly transaction count"
-  - name: days_since_last_transaction
-    description: "days since the last recorded transaction"
-  - name: active_months_last_6m
-    description: "number of active months in the last 6 months"
-  - name: debit_transaction_count_3m
-    description: "debit transaction count in last 3 months"
-  - name: credit_transaction_count_3m
-    description: "credit transaction count in last 3 months"
-  - name: digital_login_count_3m
-    description: "digital channel login count in last 3 months"
-  - name: atm_transaction_count_3m
-    description: "ATM transaction count in last 3 months"
-  - name: branch_transaction_count_3m
-    description: "branch transaction count in last 3 months"
-  - name: customer_segment
-    description: "customer segment label (e.g. Affluent Depositor, Mass Retail, Digital Active)"
-  - name: segment_description
-    description: "segment description text"
-  - name: segment_score
-    description: "segment model confidence score (0-1)"
-  - name: dormant_flag
-    description: "boolean, true if customer is classified as dormant"
-  - name: dormant_risk_level
-    description: "dormant risk level: HIGH, MEDIUM, or LOW"
-  - name: dormant_probability
-    description: "dormant probability score (0-1)"
-  - name: dormant_reason_code
-    description: "reason code for dormant classification"
-  - name: recommended_campaign
-    description: "recommended campaign for the customer"
-  - name: recommended_channel
-    description: "recommended contact channel"
-  - name: next_best_action
-    description: "recommended next action text"
-  - name: credit_score
-    description: "credit score (300-850); higher is better credit quality"
-  - name: credit_risk_label
-    description: "credit risk classification: GOOD (750+), FAIR (650-749), POOR (550-649), BAD (<550)"
-  - name: churn_probability
-    description: "churn probability score (0-1); higher means more likely to churn"
-  - name: churn_risk_label
-    description: "churn risk level: HIGH (>=0.65), MEDIUM (0.35-0.64), LOW (<0.35)"
-  - name: loan_type
-    description: "type of loan held: KPR (mortgage), KKB (vehicle), KTA (unsecured), or None"
-  - name: digital_banking_adoption
-    description: "digital banking adoption level: Active, Passive, or None"
+  # Identitas
+  - name: cif
+    description: "customer identification number (synthetic, no real PII)"
+  - name: no_rekening
+    description: "account number (synthetic)"
+  - name: jenis
+    description: "account type: SYARIAH or KONVEN (conventional)"
+  - name: jenis_rekening
+    description: "product name, e.g. TABUNGAN IB BAROKAH, GIRO"
+  - name: cabang
+    description: "branch code, e.g. 611"
+  - name: cabang_name
+    description: "branch full name, e.g. KC Surabaya Gubeng"
+  - name: kota
+    description: "city/kabupaten name"
   - name: lat
-    description: "latitude coordinate of the customer's city (Indonesia-wide)"
+    description: "latitude coordinate of the branch city"
   - name: lng
-    description: "longitude coordinate of the customer's city (Indonesia-wide)"
-  - name: segmentation_model_version
-    description: "version of the segmentation model used"
-  - name: dormant_model_version
-    description: "version of the dormant risk model used"
-  - name: scoring_timestamp
-    description: "timestamp when scoring was last run"
+    description: "longitude coordinate of the branch city"
+  # Saldo & Transaksi
+  - name: saldo_t0
+    description: "account balance at reference period t0 (Rupiah)"
+  - name: total_tx
+    description: "total number of transactions"
+  - name: hari_sejak_trx
+    description: "days since last transaction; higher = less active"
+  - name: rasio_kredit
+    description: "ratio of credit transactions to total (0-1)"
+  - name: t0
+    description: "reference date of the scoring period"
+  # Demografis
+  - name: umur
+    description: "customer age in years"
+  - name: jenis_kelamin
+    description: "gender code: P=Perempuan, L=Laki-laki"
+  - name: jenis_kelamin_label
+    description: "gender label: Perempuan / Laki-laki / Tidak Diketahui"
+  - name: age_group
+    description: "age group: Muda (<30) / Dewasa (30-45) / Matang (45-60) / Senior (>60)"
+  # Status
+  - name: status_rekening
+    description: "account status: 0=Aktif, 1=Dormant, 2=Tutup (integer, no CAST needed)"
+  - name: status_label
+    description: "status label: Aktif / Dormant / Tutup"
+  - name: activity_level
+    description: "activity level label based on hari_sejak_trx"
+  - name: saldo_segment
+    description: "balance tier: Rendah (<1jt) / Menengah (1-10jt) / Tinggi (10-100jt) / Premium (>100jt)"
+  # Segmentasi K-Means
+  - name: cluster_kmeans
+    description: "K-Means cluster: 0=Silent Mature, 1=Young Syariah Digital, 2=Konvensional Produktif"
+  - name: cluster_label
+    description: "cluster label: Silent Mature / Young Syariah Digital / Konvensional Produktif"
+  - name: cluster_color
+    description: "hex color for cluster visualization"
+  # RFM
+  - name: rfm_r
+    description: "RFM Recency score 1-5 (5=most recent)"
+  - name: rfm_f
+    description: "RFM Frequency score 1-5 (5=most frequent)"
+  - name: rfm_m
+    description: "RFM Monetary score 1-5 (5=highest balance)"
+  - name: rfm_score
+    description: "Total RFM score (3-15)"
+  - name: rfm_segment
+    description: "RFM segment: Champions / Loyal / Potential / At Risk / Lost"
+  # GMM Clustering
+  - name: cluster_gmm
+    description: "GMM cluster ID (0-7)"
+  - name: gmm_max_prob
+    description: "highest cluster probability from GMM"
+  - name: gmm_entropy
+    description: "entropy of GMM probability distribution"
+  # Credit Risk (NEW)
+  - name: credit_score
+    description: "credit score 300-850; higher = better credit quality"
+  - name: credit_risk_label
+    description: "credit risk: GOOD (>=750), FAIR (650-749), POOR (550-649), BAD (<550)"
+  # Churn (NEW)
+  - name: churn_probability
+    description: "churn probability 0-1; higher = more likely to churn"
+  - name: churn_risk_label
+    description: "churn risk: HIGH (>=0.65), MEDIUM (0.35-0.64), LOW (<0.35)"
+  # Product & Digital (NEW)
+  - name: loan_type
+    description: "loan product type: KPR (mortgage), KKB (vehicle loan), KTA (unsecured), None"
+  - name: digital_banking_adoption
+    description: "digital banking adoption: Active, Passive, None"
 
 # -----------------------------------------------------------------------------
 # 5. Business term mappings — istilah bisnis ke nama kolom
 # Dipakai di query guidance agar LLM tahu terjemahan istilah lokal ke kolom SQL
 # -----------------------------------------------------------------------------
 term_mappings:
-  - term: "risiko dormant tinggi"
-    column: "dormant_risk_level = 'HIGH'"
-  - term: "dormant high risk"
-    column: "dormant_risk_level = 'HIGH'"
   - term: "nasabah dormant"
-    column: "dormant_flag = true"
+    column: "status_rekening = 1"
+  - term: "dormant"
+    column: "status_rekening = 1"
+  - term: "rekening tutup"
+    column: "status_rekening = 2"
+  - term: "rekening aktif"
+    column: "status_rekening = 0"
   - term: "segmentasi"
-    column: "customer_segment"
-  - term: "customer segment"
-    column: "customer_segment"
-  - term: "rekomendasi campaign"
-    column: "recommended_campaign"
-  - term: "channel rekomendasi"
-    column: "recommended_channel"
+    column: "cluster_label"
+  - term: "cluster"
+    column: "cluster_label"
+  - term: "cluster segment"
+    column: "cluster_label"
+  - term: "rfm"
+    column: "rfm_segment"
   - term: "cabang"
-    column: "branch_name"
+    column: "cabang_name"
   - term: "kota"
-    column: "city"
-  - term: "saldo deposito"
-    column: "total_deposit_balance"
-  - term: "saldo pinjaman"
-    column: "outstanding_loan_balance"
-  - term: "probability dormant"
-    column: "dormant_probability"
+    column: "kota"
+  - term: "saldo"
+    column: "saldo_t0"
+  - term: "saldo rekening"
+    column: "saldo_t0"
+  - term: "jenis produk"
+    column: "jenis_rekening"
+  - term: "syariah"
+    column: "jenis = 'SYARIAH'"
+  - term: "konvensional"
+    column: "jenis = 'KONVEN'"
   - term: "credit score"
     column: "credit_score"
   - term: "skor kredit"
@@ -215,29 +201,24 @@ term_mappings:
 # Sesuaikan dengan kolom dan istilah yang ada di dataset kamu
 # -----------------------------------------------------------------------------
 example_questions:
-  - "customer count by dormant_risk_level (low / medium / high)"
-  - "customer count by customer_segment"
-  - "average dormant_probability by customer_segment"
-  - "total deposit balance by dormant_risk_level"
-  - "average savings balance by city or district"
-  - "outstanding loan balance by income_band"
-  - "customers with dormant_flag = true grouped by age_band"
-  - "days_since_last_transaction distribution by segment"
-  - "count of customers with has_mobile_banking = true vs false"
-  - "recommended_campaign distribution for high-risk dormant customers"
-  - "recommended_channel breakdown by customer_segment"
-  - "next_best_action frequency by dormant_reason_code"
-  - "product_holding_count distribution across segments"
-  - "active_months_last_6m average by dormant_risk_level"
-  - "digital_login_count_3m average by customer_type"
-  - "average credit_score by customer_segment"
-  - "credit_risk_label distribution across segments"
-  - "average churn_probability by dormant_risk_level"
-  - "count customers by churn_risk_label"
-  - "digital_banking_adoption breakdown by age_band"
-  - "loan_type distribution by customer_segment"
-  - "customers with credit_risk_label = 'BAD' and churn_risk_label = 'HIGH'"
-  - "average credit_score for customers with dormant_flag = true"
+  - "account count by status_rekening (aktif/dormant/tutup)"
+  - "account count by cluster_label (segmentasi K-Means)"
+  - "average saldo_t0 by cluster_label"
+  - "rfm_segment distribution across all accounts"
+  - "account count by jenis (SYARIAH vs KONVEN)"
+  - "top 10 kota by total saldo_t0"
+  - "average hari_sejak_trx by status_rekening"
+  - "distribution by age_group and jenis_kelamin_label"
+  - "average credit_score by cluster_label"
+  - "credit_risk_label distribution (GOOD/FAIR/POOR/BAD)"
+  - "average churn_probability by status_rekening"
+  - "count accounts by churn_risk_label"
+  - "digital_banking_adoption breakdown by cluster_label"
+  - "loan_type distribution by cluster_label"
+  - "accounts with credit_risk_label = 'BAD' and churn_risk_label = 'HIGH'"
+  - "average credit_score for dormant accounts (status_rekening = 1)"
+  - "count by rfm_segment and credit_risk_label"
+  - "top 5 cabang by average saldo_t0"
 
 # -----------------------------------------------------------------------------
 # 7. SQL behavior rules tambahan — opsional
@@ -245,14 +226,18 @@ example_questions:
 # Gunakan untuk GROUP BY pattern atau filter yang spesifik ke domain kamu.
 # -----------------------------------------------------------------------------
 sql_extra_rules:
-  - "For dormancy distribution: GROUP BY dormant_risk_level or dormant_flag."
-  - "For segment analysis: GROUP BY customer_segment."
+  - "status_rekening is an integer: 0=Aktif, 1=Dormant, 2=Tutup — never CAST, filter with WHERE status_rekening = 1."
+  - "For dormancy analysis: WHERE status_rekening = 1 or GROUP BY status_rekening or status_label."
+  - "For cluster/segment analysis: GROUP BY cluster_label."
+  - "For RFM analysis: GROUP BY rfm_segment."
   - "For credit risk distribution: GROUP BY credit_risk_label."
   - "For churn analysis: GROUP BY churn_risk_label."
   - "For digital adoption analysis: GROUP BY digital_banking_adoption."
   - "For loan product analysis: GROUP BY loan_type."
   - "credit_score is an integer (300-850); use AVG() for aggregation."
   - "churn_probability is a float (0-1); use AVG() for aggregation."
+  - "saldo_t0 is a DOUBLE in Rupiah; use SUM() or AVG() — no CAST needed."
+  - "jenis column values are 'SYARIAH' or 'KONVEN' (uppercase)."
 
 # -----------------------------------------------------------------------------
 # 8. Pesan guardrail out-of-scope
