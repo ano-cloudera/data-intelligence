@@ -72,6 +72,11 @@ export interface ChatAnswerResponse {
   sources?: AnswerSource[];
   metadata?: Record<string, unknown>;
   visualization?: VisualizationSpec | null;
+  columns?: string[];
+  rows?: Array<Record<string, unknown>>;
+  row_count?: number;
+  truncated?: boolean;
+  limit_applied?: boolean;
 }
 
 export type ChatResponsePayload =
