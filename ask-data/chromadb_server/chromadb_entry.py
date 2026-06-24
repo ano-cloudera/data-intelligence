@@ -20,12 +20,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 
 def resolve_port() -> int:
-    # CAI pre-binds CDSW_APP_PORT as a reverse proxy — do NOT listen on it.
-    # Listen on a fixed internal port instead; CAI forwards traffic to it.
-    # Log all port-related env vars for debugging.
-    for var in ["CDSW_APP_PORT", "PORT", "CDSW_PUBLIC_PORT", "CDSW_READONLY_PORT"]:
+    for var in ["CDSW_APP_PORT", "PORT", "CDSW_PUBLIC_PORT"]:
         logging.info("ENV %s = %s", var, os.getenv(var, "(not set)"))
-    return 8080
+    raw = os.getenv("CDSW_APP_PORT") or os.getenv("PORT") or "9000"
+    try:
+        return int(raw)
+    except ValueError:
+        return 9000
 
 
 def resolve_data_path() -> str:
@@ -99,12 +100,30 @@ logging.info("=== STARTING SERVER ===")
 api_script = f"""
 import sys, os
 os.environ['ANONYMIZED_TELEMETRY'] = 'FALSE'
+os.environ['IS_PERSISTENT'] = 'TRUE'
+os.environ['PERSIST_DIRECTORY'] = '{data_path}'
+os.environ['ALLOW_RESET'] = 'FALSE'
+os.environ['CHROMA_SERVER_HTTP_PORT'] = '{port}'
+os.environ['CHROMA_SERVER_HOST'] = '0.0.0.0'
+
 import uvicorn
-from chromadb.config import Settings
+from chromadb.config import Settings, System
 from chromadb.server.fastapi import FastAPI as ChromaFastAPI
-settings = Settings(is_persistent=True, persist_directory='{data_path}', allow_reset=False, anonymized_telemetry=False)
+
+settings = Settings(
+    is_persistent=True,
+    persist_directory='{data_path}',
+    allow_reset=False,
+    anonymized_telemetry=False,
+    chroma_server_http_port={port},
+    chroma_server_host='0.0.0.0',
+)
+
+# Instantiate but do NOT call .run() — extract the ASGI app only
 server = ChromaFastAPI(settings)
-uvicorn.run(server.app(), host='0.0.0.0', port={port}, log_level='info')
+asgi_app = server.app()
+
+uvicorn.run(asgi_app, host='0.0.0.0', port={port}, log_level='info')
 """
 
 env = {**os.environ, "ANONYMIZED_TELEMETRY": "FALSE"}
