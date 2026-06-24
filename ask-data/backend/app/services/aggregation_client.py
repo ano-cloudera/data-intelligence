@@ -51,7 +51,11 @@ def call_aggregation_tool(
             else:
                 resp = client.post(url, json=clean_payload)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        # MCP server wraps result in {"tool": "...", "result": {...}} — unwrap it
+        if isinstance(data, dict) and "result" in data and "tool" in data:
+            return data["result"]
+        return data
     except httpx.TimeoutException:
         return {"error": f"Timeout memanggil tool {tool_name}"}
     except httpx.HTTPStatusError as e:
@@ -82,7 +86,11 @@ def call_aggregation_tool_at_url(
             else:
                 resp = client.post(url, json=clean_payload)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        # MCP server wraps result in {"tool": "...", "result": {...}} — unwrap it
+        if isinstance(data, dict) and "result" in data and "tool" in data:
+            return data["result"]
+        return data
     except httpx.TimeoutException:
         return {"error": f"Timeout memanggil tool {tool_name} di {base_url}"}
     except httpx.HTTPStatusError as e:
