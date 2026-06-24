@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 from mcp.types import TextContent, Tool
@@ -622,8 +623,6 @@ class RagSearchRequest(BaseModel):
     query: str
     top_k: int = 5
     collection_name: str | None = None
-
-from pydantic import BaseModel
 
 @app.post("/tools/dormant_risk_summary", response_model=ToolResponse)
 def tool_dormant_risk_summary(payload: DormantRiskRequest) -> ToolResponse:
