@@ -574,6 +574,11 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
                 "metric": agg_result.get("metric", "total"),
                 "features": agg_result.get("features", []),
             }
+        # Pass structured rows/columns so frontend can render table modal
+        agg_rows = agg_result.get("rows", [])
+        agg_columns = agg_result.get("columns", list(agg_rows[0].keys()) if agg_rows else [])
+        agg_row_count = agg_result.get("row_count", len(agg_rows))
+
         if payload.session_id:
             memory_store.append_user_message(payload.session_id, payload.question)
             memory_store.append_assistant_message(payload.session_id, answer)
@@ -585,9 +590,9 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
             "answer": answer,
             "generated_sql": "",
             "executed_sql": "",
-            "columns": [],
-            "rows": [],
-            "row_count": 0,
+            "columns": agg_columns,
+            "rows": agg_rows,
+            "row_count": agg_row_count,
             "truncated": False,
             "limit_applied": False,
             "metadata": {"tool": tool, "params": params},

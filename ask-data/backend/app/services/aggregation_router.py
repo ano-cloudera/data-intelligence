@@ -119,17 +119,21 @@ def format_aggregation_answer(tool: str, result: dict) -> str:
     if not rows:
         return "Tidak ada data ditemukan untuk pertanyaan ini."
 
+    row_count = result.get("row_count", len(rows))
     cols = list(rows[0].keys())
 
-    # Build tabel plain text
-    col_widths = {c: max(len(c), max(len(str(r.get(c, ""))) for r in rows)) for c in cols}
-    header = "  ".join(c.upper().ljust(col_widths[c]) for c in cols)
-    separator = "  ".join("-" * col_widths[c] for c in cols)
-    data_lines = [
-        "  ".join(str(r.get(c, "")).ljust(col_widths[c]) for c in cols)
-        for r in rows
-    ]
+    # Build short narrative summary — table is rendered by frontend
+    summary_parts = []
+    for row in rows[:5]:
+        parts = []
+        for col in cols:
+            val = row.get(col, "")
+            if isinstance(val, float) and val > 1000:
+                val = f"{val:,.0f}"
+            parts.append(f"{col}: {val}")
+        summary_parts.append(" | ".join(parts))
 
-    table = "\n".join([header, separator] + data_lines)
-    row_count = result.get("row_count", len(rows))
-    return f"{table}\n\n({row_count} baris data)"
+    header = f"Ditemukan **{row_count} baris data**. Berikut ringkasannya:\n"
+    lines = "\n".join(f"- {s}" for s in summary_parts)
+    suffix = f"\n\n_(+{row_count - 5} baris lainnya tersedia di tabel)_" if row_count > 5 else ""
+    return header + lines + suffix
