@@ -558,7 +558,9 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
         "[MCP-ROUTE] question=%r is_map=%s is_agg=%s mcp_url=%r mcp_server_urls=%r",
         payload.question, _is_map, _is_agg, settings.mcp_aggregation_url, payload.mcp_server_urls,
     )
-    if (_is_map or _is_agg) and settings.mcp_aggregation_url:
+    from app.services.chat_router import is_visualization_request
+    _wants_viz = is_visualization_request(payload.question)
+    if (_is_map or (_is_agg and not _wants_viz)) and settings.mcp_aggregation_url:
         tool, params = resolve_aggregation_tool(payload.question)
         logger.info("[MCP-CALL] tool=%r params=%r", tool, params)
         agg_result = call_aggregation_tool_multi(tool, params, payload.mcp_server_urls or [], settings)

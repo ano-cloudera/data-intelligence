@@ -153,6 +153,13 @@ VISUALIZATION_INTENT_PATTERNS = (
 )
 
 
+def is_visualization_request(text: str) -> bool:
+    """Return True if user explicitly asks for a chart/graph/visualization."""
+    lowered = normalize_text(text)
+    viz_keywords = ("grafik", "chart", "visualisasi", "bar chart", "pie chart", "line chart", "barchart", "dalam bentuk grafik", "show grafik", "tampilkan grafik")
+    return any(k in lowered for k in viz_keywords)
+
+
 def is_document_request(text: str) -> bool:
     lowered = normalize_text(text)
     return any(marker in lowered for marker in DOCUMENT_INTENT_MARKERS)
