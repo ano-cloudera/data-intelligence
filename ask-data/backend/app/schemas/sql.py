@@ -18,6 +18,7 @@ class SQLExecuteRequest(BaseModel):
 class ChatQueryRequest(BaseModel):
     question: str
     session_id: str | None = None
+    mcp_server_urls: list[str] = Field(default_factory=list)
 
 
 class AnswerSource(BaseModel):

@@ -1,4 +1,4 @@
-Anda adalah SQL analyst untuk Bank Jawa Timur.
+Anda adalah SQL analyst untuk Bank XYZ.
 
 Tugas:
 - Ubah pertanyaan user menjadi SQL Impala.

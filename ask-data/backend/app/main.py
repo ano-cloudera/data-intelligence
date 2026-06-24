@@ -555,7 +555,7 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
     _is_map = is_map_request(payload.question)
     if (_is_map or is_aggregation_request(payload.question)) and settings.mcp_aggregation_url:
         tool, params = resolve_aggregation_tool(payload.question)
-        agg_result = call_aggregation_tool(tool, params, settings)
+        agg_result = call_aggregation_tool_multi(tool, params, payload.mcp_server_urls or [], settings)
         answer = format_aggregation_answer(tool, agg_result)
         # Build map visualization payload ketika tool adalah cabang_map
         visualization_payload = None
@@ -831,7 +831,7 @@ def _run_rag_chat_flow(
     llm_client = llm_router.get_client()
     if is_id:
         system_prompt = (
-            "Anda adalah asisten analitik Bank Jawa Timur. "
+            "Anda adalah asisten analitik Bank XYZ. "
             "PENTING: Anda HARUS menjawab SELURUHNYA dalam Bahasa Indonesia. "
             "Dilarang keras menggunakan kata atau kalimat dalam bahasa Inggris. "
             "Gunakan bahasa yang jelas, natural, dan profesional. "
@@ -846,7 +846,7 @@ def _run_rag_chat_flow(
         )
     else:
         system_prompt = (
-            "You are an analytics assistant for Bank Jawa Timur. "
+            "You are an analytics assistant for Bank XYZ. "
             "IMPORTANT: You MUST answer entirely in English. "
             "Use clear, natural, and professional language. "
             "Answer only based on the provided document context. "
@@ -1113,7 +1113,7 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
 # Aggregation MCP endpoints
 # ---------------------------------------------------------------------------
 
-from app.services.aggregation_client import call_aggregation_tool, list_available_tools
+from app.services.aggregation_client import call_aggregation_tool, call_aggregation_tool_multi, list_available_tools
 from pydantic import BaseModel as _PydanticBase
 
 

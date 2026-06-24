@@ -1,8 +1,11 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import ArticleIcon from "@mui/icons-material/Article";
 
 import type { AnswerSource } from "@/lib/api";
+import { PdfViewerModal } from "./pdf-viewer-modal";
 
 interface AnswerCardProps {
   answer: string;
@@ -193,8 +196,16 @@ function renderBlock(block: ContentBlock, index: number): ReactNode {
 
 export function AnswerCard({ answer, sources = [] }: AnswerCardProps) {
   const blocks = parseAnswerBlocks(answer);
+  const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null);
 
   return (
+    <>
+    <PdfViewerModal
+      open={pdfModal !== null}
+      url={pdfModal?.url ?? null}
+      title={pdfModal?.title ?? ""}
+      onClose={() => setPdfModal(null)}
+    />
     <section className="w-full max-w-[56rem] rounded-[var(--radius-panel)] border border-[var(--color-border-soft)] bg-[var(--color-surface)] shadow-panel">
       <div className="flex items-center gap-2 border-b border-[var(--color-border-soft)] px-5 py-3">
         <span className="icon-box h-7 w-7 rounded-full">
@@ -241,14 +252,12 @@ export function AnswerCard({ answer, sources = [] }: AnswerCardProps) {
                     {/* Action buttons */}
                     <div className="flex shrink-0 gap-2">
                       {source.preview_url ? (
-                        <a
-                          href={source.preview_url}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          onClick={() => setPdfModal({ url: source.preview_url!, title: source.title ?? "Dokumen" })}
                           className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
                         >
                           Buka PDF
-                        </a>
+                        </button>
                       ) : null}
                       {source.download_url ? (
                         <a
@@ -279,5 +288,6 @@ export function AnswerCard({ answer, sources = [] }: AnswerCardProps) {
         ) : null}
       </div>
     </section>
+    </>
   );
 }

@@ -57,7 +57,7 @@ class QwenClient:
         max_tokens = int(os.getenv("QWEN_MAX_TOKENS_ANSWER", "1200"))
 
         system_prompt = """
-Anda adalah assistant analitik Bank Jawa Timur.
+Anda adalah assistant analitik Bank XYZ.
 Jawab dalam Bahasa Indonesia.
 Gunakan gaya ringkas, bisnis, dan mudah dipahami.
 Jangan menyebut data PII.

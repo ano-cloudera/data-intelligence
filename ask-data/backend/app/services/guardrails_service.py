@@ -50,16 +50,19 @@ ACCOUNT_LABEL_PATTERN = re.compile(
 )
 
 SENSITIVE_COLUMN_MARKERS = {
-    "account",
-    "rekening",
-    "email",
-    "phone",
-    "telepon",
-    "hp",
-    "mobile",
+    "account_number",
+    "nomor_rekening",
+    "email_address",
+    "alamat_email",
+    "phone_number",
+    "mobile_number",
+    "nomor_telepon",
+    "nomor_hp",
+    "no_hp",
     "handphone",
-    "address",
-    "alamat",
+    "home_address",
+    "alamat_rumah",
+    "alamat_lengkap",
     "nik",
     "npwp",
     "passport",
@@ -70,6 +73,8 @@ AGGREGATE_CUSTOMER_ALLOW_PATTERNS = (
     r"\b(total|jumlah|count|berapa)\b.*\b(customer|customers|nasabah)\b",
     r"\b(customer|customers|nasabah)\b.*\b(per bulan|bulanan|by month|monthly|per segment|by segment|per city|by city|per region|by region)\b",
     r"\b(tren|trend)\b.*\b(customer|customers|nasabah)\b",
+    r"\b(mobile banking|digital banking|internet banking|adoption rate|adoption)\b",
+    r"\b(credit score|churn|risk score|scoring)\b",
 )
 
 BLOCK_REASON_MESSAGES = {
@@ -155,7 +160,7 @@ class GuardrailsService:
     ) -> GuardrailsDecision:
         lowered_columns = [column.lower() for column in columns]
         for column in lowered_columns:
-            if any(marker in column for marker in SENSITIVE_COLUMN_MARKERS):
+            if column in SENSITIVE_COLUMN_MARKERS:
                 return self._blocked("sensitive_result", question)
 
         return GuardrailsDecision(action="allow", metadata={"provider": "heuristic"})

@@ -10,10 +10,10 @@
 # -----------------------------------------------------------------------------
 # 1. Identitas bisnis
 # -----------------------------------------------------------------------------
-business_name: "Bank Jawa Timur"
+business_name: "Bank XYZ"
 
 # Deskripsi singkat use case — dipakai di system prompt dan conversation prompt
-business_domain: "dormant customer risk analysis, customer segmentation, campaign recommendations, and behavioral analytics"
+business_domain: "dormant customer risk analysis, credit risk scoring, churn prediction, customer segmentation, campaign recommendations, and behavioral analytics"
 
 # -----------------------------------------------------------------------------
 # 2. Database & tabel utama
@@ -33,11 +33,15 @@ table_grain: "one row per customer per snapshot date"
 business_scope:
   - "Customer segmentation: distribution by segment, segment scores, segment descriptions."
   - "Dormancy risk: dormant flags, dormant risk levels, dormant probability, dormant reason codes."
+  - "Credit risk: credit_score (300-850), credit_risk_label (GOOD/FAIR/POOR/BAD) per customer and segment."
+  - "Churn prediction: churn_probability (0-1), churn_risk_label (HIGH/MEDIUM/LOW) per customer and segment."
   - "Behavioral analytics: transaction frequency, days since last transaction, active months, digital login counts."
-  - "Product holding: savings, current account, deposit, loan, mobile/internet banking flags."
+  - "Product holding: savings, current account, deposit, loan, mobile/internet banking flags, loan_type (KPR/KKB/KTA)."
+  - "Digital adoption: digital_banking_adoption (Active/Passive/None) per customer segment."
   - "Balance analytics: average savings balance, average deposit balance, total deposit balance, outstanding loan balance."
   - "Campaign intelligence: recommended campaigns, recommended channels, next best actions."
   - "Demographic context: age band, gender, city, district, branch, occupation, income band, customer tenure."
+  - "Geospatial: lat/lng coordinates for Indonesia-wide branch and customer mapping."
 
 # -----------------------------------------------------------------------------
 # 4. Schema tabel — kolom-kolom yang tersedia
@@ -131,6 +135,22 @@ columns:
     description: "recommended contact channel"
   - name: next_best_action
     description: "recommended next action text"
+  - name: credit_score
+    description: "credit score (300-850); higher is better credit quality"
+  - name: credit_risk_label
+    description: "credit risk classification: GOOD (750+), FAIR (650-749), POOR (550-649), BAD (<550)"
+  - name: churn_probability
+    description: "churn probability score (0-1); higher means more likely to churn"
+  - name: churn_risk_label
+    description: "churn risk level: HIGH (>=0.65), MEDIUM (0.35-0.64), LOW (<0.35)"
+  - name: loan_type
+    description: "type of loan held: KPR (mortgage), KKB (vehicle), KTA (unsecured), or None"
+  - name: digital_banking_adoption
+    description: "digital banking adoption level: Active, Passive, or None"
+  - name: lat
+    description: "latitude coordinate of the customer's city (Indonesia-wide)"
+  - name: lng
+    description: "longitude coordinate of the customer's city (Indonesia-wide)"
   - name: segmentation_model_version
     description: "version of the segmentation model used"
   - name: dormant_model_version
@@ -167,6 +187,28 @@ term_mappings:
     column: "outstanding_loan_balance"
   - term: "probability dormant"
     column: "dormant_probability"
+  - term: "credit score"
+    column: "credit_score"
+  - term: "skor kredit"
+    column: "credit_score"
+  - term: "risiko kredit"
+    column: "credit_risk_label"
+  - term: "credit risk"
+    column: "credit_risk_label"
+  - term: "churn"
+    column: "churn_probability"
+  - term: "probability churn"
+    column: "churn_probability"
+  - term: "risiko churn"
+    column: "churn_risk_label"
+  - term: "adopsi digital"
+    column: "digital_banking_adoption"
+  - term: "digital adoption"
+    column: "digital_banking_adoption"
+  - term: "jenis pinjaman"
+    column: "loan_type"
+  - term: "loan type"
+    column: "loan_type"
 
 # -----------------------------------------------------------------------------
 # 6. Contoh pertanyaan bisnis — ditampilkan ke LLM sebagai panduan
@@ -188,6 +230,14 @@ example_questions:
   - "product_holding_count distribution across segments"
   - "active_months_last_6m average by dormant_risk_level"
   - "digital_login_count_3m average by customer_type"
+  - "average credit_score by customer_segment"
+  - "credit_risk_label distribution across segments"
+  - "average churn_probability by dormant_risk_level"
+  - "count customers by churn_risk_label"
+  - "digital_banking_adoption breakdown by age_band"
+  - "loan_type distribution by customer_segment"
+  - "customers with credit_risk_label = 'BAD' and churn_risk_label = 'HIGH'"
+  - "average credit_score for customers with dormant_flag = true"
 
 # -----------------------------------------------------------------------------
 # 7. SQL behavior rules tambahan — opsional
@@ -197,20 +247,26 @@ example_questions:
 sql_extra_rules:
   - "For dormancy distribution: GROUP BY dormant_risk_level or dormant_flag."
   - "For segment analysis: GROUP BY customer_segment."
+  - "For credit risk distribution: GROUP BY credit_risk_label."
+  - "For churn analysis: GROUP BY churn_risk_label."
+  - "For digital adoption analysis: GROUP BY digital_banking_adoption."
+  - "For loan product analysis: GROUP BY loan_type."
+  - "credit_score is an integer (300-850); use AVG() for aggregation."
+  - "churn_probability is a float (0-1); use AVG() for aggregation."
 
 # -----------------------------------------------------------------------------
 # 8. Pesan guardrail out-of-scope
 # Dipakai ketika user bertanya di luar domain yang didukung
 # -----------------------------------------------------------------------------
 guardrail_out_of_scope_en: >
-  This assistant is focused on dormant customer segmentation and risk analytics.
-  Try asking about customer segments, dormancy risk levels, campaign recommendations,
-  or balance distribution.
+  This assistant is focused on customer segmentation, credit risk, churn prediction, and behavioral analytics.
+  Try asking about credit scores, churn probability, dormancy risk levels, campaign recommendations,
+  digital banking adoption, or balance distribution.
 
 guardrail_out_of_scope_id: >
-  Asisten ini difokuskan pada analitik segmentasi nasabah dormant dan risiko.
-  Coba tanyakan tentang segmen nasabah, tingkat risiko dormant, rekomendasi kampanye,
-  atau distribusi saldo.
+  Asisten ini difokuskan pada analitik segmentasi nasabah, credit risk, prediksi churn, dan behavioral analytics.
+  Coba tanyakan tentang credit score, churn probability, tingkat risiko dormant, rekomendasi kampanye,
+  adopsi digital banking, atau distribusi saldo.
 
 # -----------------------------------------------------------------------------
 # 9. Ambiguity guidance — panduan interpretasi pertanyaan ambigu
@@ -221,4 +277,8 @@ ambiguity_guidance:
   - "If a question asks for segment distribution, GROUP BY customer_segment."
   - "If a question asks about balance, use avg_deposit_balance_3m, total_deposit_balance, or avg_savings_balance_3m as appropriate."
   - "If a question asks about campaign or reactivation, use recommended_campaign, recommended_channel, or next_best_action."
+  - "If a question asks about credit risk or credit score, use credit_score or credit_risk_label."
+  - "If a question asks about churn or retention risk, use churn_probability or churn_risk_label."
+  - "If a question asks about digital adoption or mobile banking adoption, use digital_banking_adoption."
+  - "If a question asks about loan products, use loan_type."
   - "If a question is broad, return a practical preview query with LIMIT applied."

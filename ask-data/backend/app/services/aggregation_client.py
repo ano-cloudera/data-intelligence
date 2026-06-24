@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 import httpx
 
 from app.core.config import Settings, get_settings
@@ -55,6 +58,94 @@ def call_aggregation_tool(
         return {"error": f"HTTP {e.response.status_code} dari tool {tool_name}"}
     except Exception as e:
         return {"error": str(e)}
+
+
+def call_aggregation_tool_at_url(
+    tool_name: str,
+    params: dict | None = None,
+    base_url: str = "",
+) -> dict:
+    """Call a specific tool at a specific MCP server URL."""
+    if not base_url:
+        return {"error": "base_url is empty"}
+    if tool_name not in TOOL_ENDPOINTS:
+        return {"error": f"Tool tidak dikenal: {tool_name}"}
+
+    method, path = TOOL_ENDPOINTS[tool_name]
+    url = base_url.rstrip("/") + path
+    clean_payload = {k: v for k, v in (params or {}).items() if v is not None}
+
+    try:
+        with httpx.Client(timeout=_TIMEOUT) as client:
+            if method == "GET":
+                resp = client.get(url, params=clean_payload if clean_payload else None)
+            else:
+                resp = client.post(url, json=clean_payload)
+        resp.raise_for_status()
+        return resp.json()
+    except httpx.TimeoutException:
+        return {"error": f"Timeout memanggil tool {tool_name} di {base_url}"}
+    except httpx.HTTPStatusError as e:
+        return {"error": f"HTTP {e.response.status_code} dari {base_url}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def call_aggregation_tool_multi(
+    tool_name: str,
+    params: dict | None = None,
+    server_urls: list[str] | None = None,
+    settings: Settings | None = None,
+) -> dict:
+    """Call tool across multiple MCP servers in parallel, merge results."""
+    cfg = settings or get_settings()
+    primary = (cfg.mcp_aggregation_url or "").rstrip("/")
+
+    all_urls: list[str] = []
+    if primary:
+        all_urls.append(primary)
+    for url in (server_urls or []):
+        u = url.rstrip("/")
+        if u and u not in all_urls:
+            all_urls.append(u)
+
+    if not all_urls:
+        return {"error": "Tidak ada MCP server yang dikonfigurasi"}
+
+    if len(all_urls) == 1:
+        return call_aggregation_tool_at_url(tool_name, params, all_urls[0])
+
+    with ThreadPoolExecutor(max_workers=len(all_urls)) as pool:
+        futures = [pool.submit(call_aggregation_tool_at_url, tool_name, params, url) for url in all_urls]
+        results = [f.result() for f in futures]
+
+    # Merge: take the first successful result for map/features, combine rows for tabular
+    successes = [r for r in results if "error" not in r]
+    if not successes:
+        errors = "; ".join(r.get("error", "unknown") for r in results)
+        return {"error": f"Semua MCP server gagal: {errors}"}
+
+    merged = successes[0]
+    if len(successes) > 1:
+        # Merge rows arrays if present
+        if "rows" in merged:
+            all_rows = []
+            for r in successes:
+                all_rows.extend(r.get("rows", []))
+            merged = {**merged, "rows": all_rows, "row_count": len(all_rows)}
+        # Merge features for map tool
+        if "features" in merged:
+            all_features: list = []
+            seen: set = set()
+            for r in successes:
+                for feat in r.get("features", []):
+                    key = feat.get("cabang_code") or feat.get("branch_code") or str(feat)
+                    if key not in seen:
+                        seen.add(key)
+                        all_features.append(feat)
+            merged = {**merged, "features": all_features}
+
+    return merged
 
 
 def list_available_tools(settings: Settings | None = None) -> dict:

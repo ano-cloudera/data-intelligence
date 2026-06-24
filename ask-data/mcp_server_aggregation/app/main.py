@@ -315,7 +315,7 @@ MCP_TOOLS = [
     Tool(
         name="rag_search",
         description=(
-            "Semantic search di dokumen kebijakan Bank Jatim (PDF yang sudah di-upload). "
+            "Semantic search di dokumen kebijakan Bank XYZ (PDF yang sudah di-upload). "
             "Gunakan untuk: pertanyaan kebijakan bank, regulasi, SOP, peraturan nasabah kredit, "
             "'apa kebijakan...', 'bagaimana prosedur...', 'syarat...', 'ketentuan...'. "
             "Parameter: query (wajib), top_k (default 5), collection_name (opsional)."
@@ -492,7 +492,7 @@ async def handle_sse(request: Request):
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="MCP Server — Bank Jawa Timur",
+    title="MCP Server — Bank XYZ",
     description="Unified MCP tools: customer aggregation, dormant risk, campaign, RAG search",
     version="4.0.0",
 )

@@ -339,7 +339,7 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  chatAnswer: (payload: { question: string; session_id?: string }) =>
+  chatAnswer: (payload: { question: string; session_id?: string; mcp_server_urls?: string[] }) =>
     request<ChatAnswerResponse>("/chat/answer", {
       method: "POST",
       body: JSON.stringify(payload),

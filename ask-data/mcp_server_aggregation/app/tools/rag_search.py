@@ -12,7 +12,7 @@ def search_policy_documents(
     collection_name: str | None = None,
 ) -> dict[str, Any]:
     """
-    MCP Tool: Search Bank Jatim policy documents in ChromaDB.
+    MCP Tool: Search Bank XYZ policy documents in ChromaDB.
     Returns relevant document chunks with source info and relevance score.
     """
     collection = collection_name or settings.chroma_collection

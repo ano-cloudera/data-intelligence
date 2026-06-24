@@ -66,7 +66,7 @@ def main() -> None:
     print()
     print("Test questions:")
     print("  ID: Apa strategi retensi untuk nasabah dormant risiko tinggi?")
-    print("  ID: Bagaimana prinsip governance customer analytics di Bank Jawa Timur?")
+    print("  ID: Bagaimana prinsip governance customer analytics di Bank XYZ?")
     print("  ID: Apa panduan next best action untuk campaign reactivation?")
     print("  EN: What is the dormant customer retention strategy?")
     print("  EN: How should campaigns be planned based on segment and risk level?")

@@ -103,7 +103,7 @@ def format_aggregation_answer(tool: str, result: dict) -> str:
             return "Tidak ada data cabang ditemukan."
         # Top 5 summary untuk teks
         top5 = features[:5]
-        lines = [f"Peta sebaran {n} cabang Bank Jatim berdasarkan **{metric_label}**:\n"]
+        lines = [f"Peta sebaran {n} cabang Bank XYZ berdasarkan **{metric_label}**:\n"]
         for i, f in enumerate(top5, 1):
             val = f.get(metric if metric != "total" else "total", 0)
             val_str = f"{val:,.0f}" if metric != "pct_dormant" else f"{val:.1f}%"

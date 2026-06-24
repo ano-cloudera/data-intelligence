@@ -90,8 +90,8 @@ export default function ResultMapCard({ features, metric = "total" }: ResultMapC
       }
 
       const map = L.map(mapRef.current, {
-        center: [-7.5, 112.7],
-        zoom: 8,
+        center: [-2.5, 118.0],
+        zoom: 4,
         scrollWheelZoom: true,
       });
       leafletRef.current = map;
@@ -121,12 +121,12 @@ export default function ResultMapCard({ features, metric = "total" }: ResultMapC
 
       // Load and render GeoJSON polygon layer
       try {
-        const resp = await fetch("/jatim.geojson");
+        const resp = await fetch("/indonesia.geojson");
         const geojson = await resp.json();
 
         L.geoJSON(geojson, {
           style: (feature) => {
-            const kabName = feature?.properties?.KABUPATEN as string | undefined;
+            const kabName = (feature?.properties?.state ?? feature?.properties?.KABUPATEN) as string | undefined;
             const agg = kabName ? kotaAgg[kabName] : undefined;
             const val = agg ? agg.sum : 0;
             const color = agg ? getColor(val, kotaMax) : "#334155";
@@ -139,7 +139,7 @@ export default function ResultMapCard({ features, metric = "total" }: ResultMapC
             };
           },
           onEachFeature: (feature, layer) => {
-            const kabName = feature?.properties?.KABUPATEN as string | undefined;
+            const kabName = (feature?.properties?.state ?? feature?.properties?.KABUPATEN) as string | undefined;
             const agg = kabName ? kotaAgg[kabName] : undefined;
             if (kabName && agg) {
               const metricLabel =

@@ -138,16 +138,28 @@ const starterPrompts: Array<{
     variant: "campaign",
   },
   {
-    title: { en: "City-Level Dormancy", id: "Dormant per Kota" },
-    description: { en: "Dormant customer count by city", id: "Jumlah nasabah dormant per kota" },
-    prompt: { en: "Show dormant customer count by city", id: "Tampilkan jumlah nasabah dormant per kota" },
-    variant: "city",
+    title: { en: "Credit Risk Distribution", id: "Distribusi Credit Risk" },
+    description: { en: "Customer count by credit risk label", id: "Jumlah nasabah per credit risk label" },
+    prompt: { en: "Show customer count by credit_risk_label", id: "Tampilkan jumlah nasabah berdasarkan credit_risk_label" },
+    variant: "risk",
   },
   {
-    title: { en: "Digital Banking Adoption", id: "Adopsi Mobile Banking" },
-    description: { en: "Mobile banking adoption rate by segment", id: "Tingkat adopsi mobile banking per segmen" },
-    prompt: { en: "Show mobile banking adoption rate by customer segment", id: "Tampilkan tingkat adopsi mobile banking per customer segment" },
+    title: { en: "Churn Risk Analysis", id: "Analisis Risiko Churn" },
+    description: { en: "Average churn probability per segment", id: "Rata-rata churn probability per segmen" },
+    prompt: { en: "Show average churn probability by customer segment", id: "Tampilkan rata-rata churn probability per customer segment" },
+    variant: "risk",
+  },
+  {
+    title: { en: "Digital Banking Adoption", id: "Adopsi Digital Banking" },
+    description: { en: "Digital adoption breakdown by age band", id: "Distribusi adopsi digital per kelompok usia" },
+    prompt: { en: "Show digital banking adoption breakdown by age band", id: "Tampilkan distribusi digital_banking_adoption per age_band" },
     variant: "digital",
+  },
+  {
+    title: { en: "Loan Type Distribution", id: "Distribusi Jenis Pinjaman" },
+    description: { en: "Loan type breakdown by customer segment", id: "Jenis pinjaman per customer segment" },
+    prompt: { en: "Show loan type distribution by customer segment", id: "Tampilkan distribusi loan_type per customer segment" },
+    variant: "balance",
   },
 ];
 
@@ -786,7 +798,14 @@ export default function HomePage() {
     }));
 
     try {
-      const response = await apiClient.chatAnswer({ question: trimmed, session_id: sessionId });
+      const connectedMcpUrls = mcpServers
+        .filter((s) => s.status === "connected")
+        .map((s) => s.url);
+      const response = await apiClient.chatAnswer({
+        question: trimmed,
+        session_id: sessionId,
+        mcp_server_urls: connectedMcpUrls.length > 0 ? connectedMcpUrls : undefined,
+      });
 
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
@@ -1045,8 +1064,8 @@ export default function HomePage() {
                     </div>
                     <h3 className="font-headline text-2xl font-bold tracking-tight text-[var(--color-ink-strong)]">
                       {lang === "id"
-                        ? "Halo, saya Asisten Analitik Bank Jawa Timur."
-                        : "Hello, I am Bank Jawa Timur Analytics Assistant."}
+                        ? "Halo, saya Asisten Analitik Bank XYZ."
+                        : "Hello, I am Bank XYZ Analytics Assistant."}
                     </h3>
                     <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[var(--color-ink-muted)]">
                       {lang === "id"

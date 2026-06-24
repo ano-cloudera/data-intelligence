@@ -88,7 +88,7 @@ export function RagConfigModal({
               Konfigurasi Knowledge Base
             </h3>
             <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
-              Aktifkan RAG agar jawaban asisten dapat merujuk dokumen kebijakan atau prosedur Bank Jatim.
+              Aktifkan RAG agar jawaban asisten dapat merujuk dokumen kebijakan atau prosedur Bank XYZ.
             </p>
           </div>
           <button

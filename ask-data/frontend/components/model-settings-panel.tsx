@@ -144,10 +144,10 @@ const t = {
   modelActive: { en: "Active Model", id: "Model Aktif" },
   modelName: { en: "Qwen 2.5 (14B Instruct)", id: "Qwen 2.5 (14B Instruct)" },
   modelNote: { en: "Hosted on Cloudera AI Workbench via vLLM", id: "Dijalankan di Cloudera AI Workbench via vLLM" },
-  disclaimerTitle: { en: "Single Model — Future Expansion Ready", id: "Satu Model — Siap untuk Ekspansi" },
+  disclaimerTitle: { en: "AI-Powered Analytics — Bank XYZ", id: "Analitik Berbasis AI — Bank XYZ" },
   disclaimerBody: {
-    en: "This deployment currently uses one AI model (Qwen 2.5) to ensure consistent, governed responses across all sessions. Future releases will support additional model providers — including Amazon Bedrock and Azure OpenAI — for cross-provider evaluation and cost optimization.",
-    id: "Deployment ini saat ini menggunakan satu model AI (Qwen 2.5) untuk memastikan respons yang konsisten dan terkelola di semua sesi. Rilis mendatang akan mendukung provider model tambahan — termasuk Amazon Bedrock dan Azure OpenAI — untuk evaluasi lintas-provider dan optimasi biaya.",
+    en: "This platform uses a local vLLM (Qwen 2.5) for SQL generation and natural language answers — running fully on-premises for data governance and security. All analytics are grounded in real query results with no hallucinated numbers.",
+    id: "Platform ini menggunakan vLLM lokal (Qwen 2.5) untuk pembuatan SQL dan jawaban bahasa alami — berjalan sepenuhnya on-premises untuk tata kelola data dan keamanan. Semua analitik didasarkan pada hasil kueri nyata tanpa angka yang dikarang.",
   },
   saveBtn: { en: "Apply Settings", id: "Terapkan Pengaturan" },
   saving: { en: "Saving...", id: "Menyimpan..." },

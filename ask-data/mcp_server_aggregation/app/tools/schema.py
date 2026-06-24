@@ -49,26 +49,93 @@ COLUMNS = [
 ]
 
 
+CUSTOMER_DORMANT_SEGMENT_COLUMNS = [
+    ("customer_id",                   "STRING",  "Synthetic analytics identifier (no real PII)"),
+    ("snapshot_date",                 "DATE",    "Scoring snapshot date"),
+    ("age_band",                      "STRING",  "Age group: 18-25, 26-35, 36-45, 46-55, 56-65, >65"),
+    ("gender",                        "STRING",  "Gender: M / F"),
+    ("city",                          "STRING",  "Customer city (Indonesia-wide)"),
+    ("district",                      "STRING",  "Customer district"),
+    ("branch_code",                   "STRING",  "Branch code"),
+    ("branch_name",                   "STRING",  "Branch name"),
+    ("customer_tenure_months",        "INT",     "Months since onboarding"),
+    ("occupation_category",           "STRING",  "Occupation category"),
+    ("income_band",                   "STRING",  "Income band: <5jt, 5-10jt, 10-25jt, 25-50jt, >50jt"),
+    ("customer_type",                 "STRING",  "Individual or SME"),
+    ("total_accounts",                "INT",     "Total number of accounts held"),
+    ("has_savings",                   "BOOLEAN", "Has savings account"),
+    ("has_deposit",                   "BOOLEAN", "Has deposit account"),
+    ("has_loan",                      "BOOLEAN", "Has active loan"),
+    ("has_mobile_banking",            "BOOLEAN", "Enrolled in mobile banking"),
+    ("has_internet_banking",          "BOOLEAN", "Enrolled in internet banking"),
+    ("product_holding_count",         "INT",     "Total products held"),
+    ("avg_savings_balance_3m",        "DOUBLE",  "Average savings balance last 3 months"),
+    ("avg_deposit_balance_3m",        "DOUBLE",  "Average deposit balance last 3 months"),
+    ("total_deposit_balance",         "DOUBLE",  "Total current deposit balance"),
+    ("outstanding_loan_balance",      "DOUBLE",  "Total outstanding loan balance"),
+    ("monthly_avg_transaction_amount","DOUBLE",  "Average monthly transaction amount"),
+    ("monthly_transaction_count",     "INT",     "Average monthly transaction count"),
+    ("days_since_last_transaction",   "INT",     "Days since last recorded transaction"),
+    ("active_months_last_6m",         "INT",     "Active months in last 6 months"),
+    ("digital_login_count_3m",        "INT",     "Digital channel login count last 3 months"),
+    ("customer_segment",              "STRING",  "Segment label: Affluent Depositor, Mass Retail, Digital Active, Credit Heavy, Dormant Risk, Payroll Customer, SME Owner"),
+    ("segment_score",                 "DOUBLE",  "Segment model confidence score (0-1)"),
+    ("dormant_flag",                  "BOOLEAN", "True if customer is classified dormant"),
+    ("dormant_risk_level",            "STRING",  "Dormant risk: HIGH / MEDIUM / LOW"),
+    ("dormant_probability",           "DOUBLE",  "Dormant probability score (0-1)"),
+    ("dormant_reason_code",           "STRING",  "Reason code: LOW_ACTIVITY, NO_DIGITAL_LOGIN, BALANCE_DECLINE, MATURED_DEPOSIT, LOW_TRANSACTION_COUNT, NORMAL_ACTIVITY"),
+    ("recommended_campaign",          "STRING",  "Recommended campaign for customer"),
+    ("recommended_channel",           "STRING",  "Recommended contact channel"),
+    ("next_best_action",              "STRING",  "Recommended next action text"),
+    ("credit_score",                  "INT",     "Credit score 300-850; higher is better"),
+    ("credit_risk_label",             "STRING",  "Credit risk: GOOD (750+), FAIR (650-749), POOR (550-649), BAD (<550)"),
+    ("churn_probability",             "DOUBLE",  "Churn probability score (0-1); higher = more likely to churn"),
+    ("churn_risk_label",              "STRING",  "Churn risk level: HIGH (>=0.65), MEDIUM (0.35-0.64), LOW (<0.35)"),
+    ("loan_type",                     "STRING",  "Loan type: KPR (mortgage), KKB (vehicle), KTA (unsecured), None"),
+    ("digital_banking_adoption",      "STRING",  "Digital banking adoption: Active, Passive, None"),
+    ("lat",                           "DOUBLE",  "Latitude coordinate (Indonesia-wide)"),
+    ("lng",                           "DOUBLE",  "Longitude coordinate (Indonesia-wide)"),
+]
+
+
 def run_get_schema() -> dict:
     lines = [
-        f"Tabel: {qualified_table()}",
+        f"Tabel 1 (Agregasi & Segmentasi): {qualified_table()}",
         f"Nama pendek: {table_name()}",
         "",
-        "PENTING — tabel ini sudah bertipe native (bukan STRING staging):",
-        "- Kolom numerik (DOUBLE, BIGINT, INT, TINYINT): TIDAK perlu CAST",
-        "- status_rekening: 0=Aktif, 1=Dormant, 2=Tutup (integer langsung)",
-        "- Tidak ada kolom boolean STRING — gunakan hari_sejak_trx untuk cek aktivitas",
+        "PENTING — tabel ini sudah bertipe native:",
+        "- status_rekening: 0=Aktif, 1=Dormant, 2=Tutup (integer langsung, tidak perlu CAST)",
         "- Cluster: 0=Silent Mature, 1=Young Syariah Digital, 2=Konvensional Produktif",
         "- RFM segment: Champions / Loyal / Potential / At Risk / Lost",
         "",
-        "Kolom tersedia:",
+        f"Kolom Tabel 1 ({table_name()}):",
     ]
     for col, dtype, desc in COLUMNS:
+        lines.append(f"  {col} ({dtype}) — {desc}")
+
+    lines += [
+        "",
+        "Tabel 2 (Customer Dormant Segment — credit risk & churn): cai_sdx_se_indonesia.customer_dormant_segment",
+        "",
+        "PENTING — Tabel 2 field kunci:",
+        "- credit_score: INT 300-850 (lebih tinggi = lebih baik)",
+        "- credit_risk_label: GOOD/FAIR/POOR/BAD",
+        "- churn_probability: FLOAT 0-1 (lebih tinggi = lebih berisiko churn)",
+        "- churn_risk_label: HIGH/MEDIUM/LOW",
+        "- dormant_risk_level: HIGH/MEDIUM/LOW",
+        "- digital_banking_adoption: Active/Passive/None",
+        "- loan_type: KPR/KKB/KTA/None",
+        "- lat/lng: koordinat kota nasabah (seluruh Indonesia)",
+        "",
+        f"Kolom Tabel 2 (customer_dormant_segment):",
+    ]
+    for col, dtype, desc in CUSTOMER_DORMANT_SEGMENT_COLUMNS:
         lines.append(f"  {col} ({dtype}) — {desc}")
 
     return {
         "table": qualified_table(),
         "short_name": table_name(),
         "column_count": len(COLUMNS),
+        "column_count_dormant_segment": len(CUSTOMER_DORMANT_SEGMENT_COLUMNS),
         "schema_info": "\n".join(lines),
     }

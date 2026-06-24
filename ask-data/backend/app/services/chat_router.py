@@ -231,28 +231,28 @@ def normalize_text(text: str) -> str:
 def build_greeting_answer(question: str) -> str:
     if is_indonesian_text(question):
         return (
-            "Selamat datang. Saya Data Analyst Assistant Bank Jawa Timur, siap membantu Anda "
-            "mengeksplorasi segmentasi nasabah, risiko dormant, rekomendasi kampanye, "
+            "Selamat datang. Saya Data Analyst Assistant Bank XYZ, siap membantu Anda "
+            "mengeksplorasi segmentasi nasabah, risiko kredit, churn nasabah, rekomendasi kampanye, "
             "dan distribusi saldo dalam bahasa alami. Jika Anda perlu "
             "jawaban yang berasal dari dokumen atau SOP, aktifkan Knowledge Base "
             "melalui menu Settings.\n\n"
             "Kalau mau mulai, Anda bisa tanya hal seperti:\n"
             "1. Berapa jumlah nasabah di tiap segmen?\n"
-            "2. Tampilkan distribusi nasabah berdasarkan dormant risk level\n"
-            "3. Kampanye apa yang direkomendasikan untuk nasabah dormant risiko tinggi?\n"
-            "4. Tampilkan rata-rata saldo deposito per customer segment"
+            "2. Tampilkan distribusi nasabah berdasarkan credit risk level\n"
+            "3. Nasabah mana yang memiliki churn probability tertinggi?\n"
+            "4. Tampilkan rata-rata credit score per customer segment"
         )
 
     return (
-        "Hello, I am the Data Analyst Assistant for Bank Jawa Timur, "
-        "ready to help you explore customer segmentation, dormancy risk, campaign recommendations, "
+        "Hello, I am the Data Analyst Assistant for Bank XYZ, "
+        "ready to help you explore customer segmentation, credit risk, churn prediction, campaign recommendations, "
         "and balance analytics in natural language. "
         "If you need answers grounded in documents or SOPs, enable the Knowledge Base via Settings.\n\n"
         "You can start with questions like:\n"
         "1. How many customers are in each segment?\n"
-        "2. Show distribution by dormant risk level\n"
-        "3. What campaigns are recommended for high dormancy risk customers?\n"
-        "4. Show average deposit balance by customer segment"
+        "2. Show distribution by credit risk level\n"
+        "3. Which customers have the highest churn probability?\n"
+        "4. Show average credit score by customer segment"
     )
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate synthetic Bank Jawa Timur customer_dormant_segment sample data.
+Generate synthetic Bank XYZ customer_dormant_segment sample data.
 
 No real PII is generated.
 customer_id is synthetic analytics identifier only.
@@ -23,17 +23,57 @@ SEGMENTS = [
     ("SME Owner", "Nasabah pemilik usaha kecil dan menengah"),
 ]
 
+# Indonesia-wide cities with approximate lat/lng
 CITIES = [
-    ("Surabaya", ["Cabang Basuki Rahmat", "Cabang Darmo", "Cabang Manyar"]),
-    ("Malang", ["Cabang Malang Kawi", "Cabang Malang Soekarno Hatta"]),
-    ("Sidoarjo", ["Cabang Sidoarjo", "Cabang Waru"]),
-    ("Kediri", ["Cabang Kediri"]),
-    ("Madiun", ["Cabang Madiun"]),
-    ("Jember", ["Cabang Jember"]),
-    ("Banyuwangi", ["Cabang Banyuwangi"]),
-    ("Gresik", ["Cabang Gresik"]),
-    ("Pasuruan", ["Cabang Pasuruan"]),
-    ("Bojonegoro", ["Cabang Bojonegoro"]),
+    # Jawa Timur
+    ("Surabaya", ["Cabang Basuki Rahmat", "Cabang Darmo", "Cabang Manyar"], -7.2575, 112.7521),
+    ("Malang", ["Cabang Malang Kawi", "Cabang Malang Soekarno Hatta"], -7.9797, 112.6304),
+    ("Sidoarjo", ["Cabang Sidoarjo", "Cabang Waru"], -7.4478, 112.7183),
+    ("Kediri", ["Cabang Kediri"], -7.8166, 112.0115),
+    ("Madiun", ["Cabang Madiun"], -7.6298, 111.5239),
+    ("Jember", ["Cabang Jember"], -8.1845, 113.6683),
+    ("Banyuwangi", ["Cabang Banyuwangi"], -8.2191, 114.3691),
+    ("Gresik", ["Cabang Gresik"], -7.1567, 112.6522),
+    ("Pasuruan", ["Cabang Pasuruan"], -7.6451, 112.9079),
+    ("Bojonegoro", ["Cabang Bojonegoro"], -7.1550, 111.8815),
+    # DKI Jakarta
+    ("Jakarta Pusat", ["Cabang Jakarta Pusat", "Cabang Gambir"], -6.1805, 106.8284),
+    ("Jakarta Selatan", ["Cabang Jakarta Selatan", "Cabang Sudirman"], -6.2615, 106.8106),
+    ("Jakarta Barat", ["Cabang Jakarta Barat"], -6.1481, 106.7477),
+    # Jawa Barat
+    ("Bandung", ["Cabang Bandung Dago", "Cabang Bandung Braga"], -6.9175, 107.6191),
+    ("Bekasi", ["Cabang Bekasi", "Cabang Bekasi Barat"], -6.2383, 106.9756),
+    ("Bogor", ["Cabang Bogor Sudirman"], -6.5971, 106.8060),
+    ("Depok", ["Cabang Depok"], -6.4025, 106.7942),
+    ("Tangerang", ["Cabang Tangerang"], -6.1784, 106.6319),
+    # Jawa Tengah
+    ("Semarang", ["Cabang Semarang Pemuda", "Cabang Semarang Siliwangi"], -6.9932, 110.4203),
+    ("Solo", ["Cabang Solo Slamet Riyadi"], -7.5755, 110.8243),
+    ("Yogyakarta", ["Cabang Yogyakarta Malioboro"], -7.7972, 110.3688),
+    # Sumatera
+    ("Medan", ["Cabang Medan Sudirman", "Cabang Medan Gatsu"], 3.5952, 98.6722),
+    ("Palembang", ["Cabang Palembang"], -2.9761, 104.7754),
+    ("Pekanbaru", ["Cabang Pekanbaru"], 0.5071, 101.4478),
+    ("Padang", ["Cabang Padang"], -0.9198, 100.3531),
+    ("Batam", ["Cabang Batam"], 1.1301, 104.0529),
+    ("Banda Aceh", ["Cabang Banda Aceh"], 5.5483, 95.3238),
+    # Kalimantan
+    ("Balikpapan", ["Cabang Balikpapan"], -1.2654, 116.8312),
+    ("Samarinda", ["Cabang Samarinda"], -0.5022, 117.1536),
+    ("Banjarmasin", ["Cabang Banjarmasin"], -3.3186, 114.5944),
+    ("Pontianak", ["Cabang Pontianak"], -0.0263, 109.3425),
+    # Sulawesi
+    ("Makassar", ["Cabang Makassar Sudirman", "Cabang Makassar Urip"], -5.1477, 119.4327),
+    ("Manado", ["Cabang Manado"], 1.4748, 124.8421),
+    ("Kendari", ["Cabang Kendari"], -3.9985, 122.5127),
+    # Bali & Nusa Tenggara
+    ("Denpasar", ["Cabang Denpasar Gajah Mada", "Cabang Kuta"], -8.6705, 115.2126),
+    ("Mataram", ["Cabang Mataram"], -8.5833, 116.1167),
+    # Papua
+    ("Jayapura", ["Cabang Jayapura"], -2.5916, 140.6690),
+    ("Sorong", ["Cabang Sorong"], -0.8833, 131.2500),
+    # Maluku
+    ("Ambon", ["Cabang Ambon"], -3.6954, 128.1814),
 ]
 
 AGE_BANDS = ["18-25", "26-35", "36-45", "46-55", "56-65", ">65"]
@@ -44,6 +84,9 @@ CUSTOMER_TYPES = ["Individual", "SME"]
 CAMPAIGNS = ["Reaktivasi Dormant", "Cross-sell Deposito", "Upgrade Digital Banking", "Loan Restructure Outreach", "Payroll Bundle", "SME Advisory"]
 CHANNELS = ["Mobile Banking", "Relationship Manager", "Branch Outreach", "SMS Campaign", "Call Center"]
 REASON_CODES = ["LOW_ACTIVITY", "NO_DIGITAL_LOGIN", "BALANCE_DECLINE", "MATURED_DEPOSIT", "LOW_TRANSACTION_COUNT", "NORMAL_ACTIVITY"]
+
+LOAN_TYPES = ["KPR", "KKB", "KTA", "None"]
+DIGITAL_ADOPTION_LEVELS = ["Active", "Passive", "None"]
 
 
 def money(min_v, max_v):
@@ -67,10 +110,25 @@ def dormant_level(prob):
     return "LOW"
 
 
+def credit_risk_label(score):
+    if score >= 750:
+        return "GOOD"
+    if score >= 650:
+        return "FAIR"
+    if score >= 550:
+        return "POOR"
+    return "BAD"
+
+
 def generate_row(i, snapshot_date):
     segment, desc = choose_segment()
-    city, branches = random.choice(CITIES)
+    city_entry = random.choice(CITIES)
+    city, branches, base_lat, base_lng = city_entry
     branch = random.choice(branches)
+
+    # Add small jitter to lat/lng so points don't stack exactly
+    lat = round(base_lat + random.uniform(-0.05, 0.05), 6)
+    lng = round(base_lng + random.uniform(-0.05, 0.05), 6)
 
     is_digital = segment == "Digital Active"
     is_affluent = segment == "Affluent Depositor"
@@ -153,6 +211,48 @@ def generate_row(i, snapshot_date):
     has_mobile = is_digital or random.random() < 0.55
     has_internet = has_mobile and random.random() < 0.60
 
+    # Credit score: 300-850, higher for affluent/payroll, lower for dormant/bad credit
+    if is_affluent:
+        base_credit = random.randint(700, 850)
+    elif is_dormant_segment:
+        base_credit = random.randint(300, 550)
+    elif is_credit:
+        base_credit = random.randint(450, 680)
+    elif is_payroll:
+        base_credit = random.randint(620, 800)
+    else:
+        base_credit = random.randint(500, 750)
+    score = base_credit
+
+    # Churn probability: correlated with dormant_probability but not identical
+    churn_base = dormant_probability * 0.70 + random.uniform(-0.05, 0.15)
+    if is_dormant_segment:
+        churn_base += 0.15
+    if is_digital:
+        churn_base -= 0.10
+    churn_prob = round(clamp(churn_base), 4)
+
+    churn_label = "HIGH" if churn_prob >= 0.65 else ("MEDIUM" if churn_prob >= 0.35 else "LOW")
+
+    # Loan type
+    if has_loan:
+        if is_sme:
+            loan_type = "KTA"
+        elif loan > 500_000_000:
+            loan_type = random.choice(["KPR", "KKB"])
+        else:
+            loan_type = random.choice(LOAN_TYPES[:-1])
+    else:
+        loan_type = "None"
+
+    # Digital banking adoption
+    if is_digital or (has_mobile and digital_login_count >= 20):
+        digital_adoption = "Active"
+    elif has_mobile or has_internet:
+        digital_adoption = "Passive"
+    else:
+        digital_adoption = "None"
+
     return {
         "customer_id": f"CUST{i:09d}",
         "snapshot_date": snapshot_date.isoformat(),
@@ -160,7 +260,7 @@ def generate_row(i, snapshot_date):
         "gender": random.choice(GENDERS),
         "city": city,
         "district": city,
-        "branch_code": f"BJTM{random.randint(100, 999)}",
+        "branch_code": f"BXY{random.randint(100, 999)}",
         "branch_name": branch,
         "customer_tenure_months": random.randint(3, 240),
         "occupation_category": "UMKM" if is_sme else random.choice(OCCUPATIONS),
@@ -197,8 +297,17 @@ def generate_row(i, snapshot_date):
         "recommended_campaign": campaign,
         "recommended_channel": channel,
         "next_best_action": action,
-        "segmentation_model_version": "segmentation-kmeans-v1",
-        "dormant_model_version": "dormant-xgboost-v1",
+        # New columns
+        "credit_score": score,
+        "credit_risk_label": credit_risk_label(score),
+        "churn_probability": churn_prob,
+        "churn_risk_label": churn_label,
+        "loan_type": loan_type,
+        "digital_banking_adoption": digital_adoption,
+        "lat": lat,
+        "lng": lng,
+        "segmentation_model_version": "segmentation-kmeans-v2",
+        "dormant_model_version": "dormant-xgboost-v2",
         "scoring_timestamp": datetime.now().replace(microsecond=0).isoformat(sep=" "),
     }
 
