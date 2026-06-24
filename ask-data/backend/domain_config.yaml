@@ -230,14 +230,19 @@ sql_extra_rules:
   - "For dormancy analysis: WHERE status_rekening = 1 or GROUP BY status_rekening or status_label."
   - "For cluster/segment analysis: GROUP BY cluster_label."
   - "For RFM analysis: GROUP BY rfm_segment."
-  - "For credit risk distribution: GROUP BY credit_risk_label."
-  - "For churn analysis: GROUP BY churn_risk_label."
-  - "For digital adoption analysis: GROUP BY digital_banking_adoption."
-  - "For loan product analysis: GROUP BY loan_type."
+  - "For credit risk distribution: GROUP BY credit_risk_label. Values are GOOD, FAIR, POOR, BAD — never HIGH/MEDIUM/LOW."
+  - "For churn analysis: GROUP BY churn_risk_label. Values are HIGH, MEDIUM, LOW — never GOOD/FAIR/POOR/BAD."
+  - "CRITICAL: 'credit risk HIGH' or 'risiko kredit tinggi' means churn_risk_label = 'HIGH', NOT credit_risk_label."
+  - "CRITICAL: credit_risk_label values = GOOD/FAIR/POOR/BAD. churn_risk_label values = HIGH/MEDIUM/LOW. Never mix these."
+  - "For digital adoption analysis: GROUP BY digital_banking_adoption. Values are Active, Passive, None."
+  - "For loan product analysis: GROUP BY loan_type. Values are KPR, KKB, KTA, None."
   - "credit_score is an integer (300-850); use AVG() for aggregation."
-  - "churn_probability is a float (0-1); use AVG() for aggregation."
-  - "saldo_t0 is a DOUBLE in Rupiah; use SUM() or AVG() — no CAST needed."
+  - "churn_probability is a float (0-1); use AVG() for aggregation, or filter with WHERE churn_probability > 0.7."
+  - "saldo_t0 is a DOUBLE in Rupiah; use SUM() or AVG() — no CAST needed. For 'saldo tinggi' use ORDER BY saldo_t0 DESC."
+  - "saldo_segment values are: Premium, High, Medium, Low — use this for segmented balance analysis."
   - "jenis column values are 'SYARIAH' or 'KONVEN' (uppercase)."
+  - "For 'nasabah dengan saldo tinggi': use ORDER BY saldo_t0 DESC or WHERE saldo_t0 > (SELECT AVG(saldo_t0) FROM table)."
+  - "umur=0 means age data is missing — always add WHERE umur > 0 when filtering or grouping by age."
 
 # -----------------------------------------------------------------------------
 # 8. Pesan guardrail out-of-scope
@@ -257,16 +262,17 @@ guardrail_out_of_scope_id: >
 # 9. Ambiguity guidance — panduan interpretasi pertanyaan ambigu
 # -----------------------------------------------------------------------------
 ambiguity_guidance:
-  - "All data is in the main table — no joins are needed."
-  - "If a question asks for 'dormant customers', filter on dormant_flag = true or dormant_risk_level = 'HIGH'."
-  - "If a question asks for segment distribution, GROUP BY customer_segment."
-  - "If a question asks about balance, use avg_deposit_balance_3m, total_deposit_balance, or avg_savings_balance_3m as appropriate."
-  - "If a question asks about campaign or reactivation, use recommended_campaign, recommended_channel, or next_best_action."
-  - "If a question asks about credit risk or credit score, use credit_score or credit_risk_label."
-  - "If a question asks about churn or retention risk, use churn_probability or churn_risk_label."
-  - "If a question asks about digital adoption or mobile banking adoption, use digital_banking_adoption."
-  - "If a question asks about loan products, use loan_type."
-  - "If a question is broad, return a practical preview query with LIMIT applied."
+  - "All data is in one table — no joins needed."
+  - "For 'dormant customers': WHERE status_rekening = 1."
+  - "For segment distribution: GROUP BY cluster_label."
+  - "For balance analysis: use saldo_t0 (account balance). 'Saldo tinggi' = ORDER BY saldo_t0 DESC."
+  - "For credit risk: use credit_risk_label (GOOD/FAIR/POOR/BAD) or credit_score (300-850)."
+  - "For churn risk: use churn_risk_label (HIGH/MEDIUM/LOW) or churn_probability (0-1)."
+  - "IMPORTANT: 'risiko tinggi' or 'HIGH risk' without context = churn_risk_label = 'HIGH'."
+  - "For digital adoption: use digital_banking_adoption (Active/Passive/None)."
+  - "For loan products: use loan_type (KPR/KKB/KTA/None)."
+  - "For age analysis: always filter WHERE umur > 0 to exclude records with missing age data."
+  - "If a question is broad, return a practical preview query with LIMIT 20 applied."
 
 # -----------------------------------------------------------------------------
 # 10. Agent System Prompts — semua prompt agent dikonfigurasi di sini
