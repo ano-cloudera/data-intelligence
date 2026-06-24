@@ -22,6 +22,13 @@ from pathlib import Path
 # Allow running from backend/ without pip install -e
 sys.path.insert(0, str(Path(__file__).parent))
 
+# SQLite patch for CAI/Workbench environments with older SQLite (<3.35.0)
+try:
+    import pysqlite3  # type: ignore
+    sys.modules["sqlite3"] = pysqlite3
+except ImportError:
+    pass
+
 os.environ.setdefault("CHROMA_ENABLED", "true")
 
 from app.core.config import get_settings          # noqa: E402

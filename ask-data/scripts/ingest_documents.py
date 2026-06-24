@@ -21,7 +21,7 @@ except ImportError:
 from app.core.config import get_settings
 from app.services.rag_client import ChromaRagClient, RagClientError
 
-COLLECTION_NAME = "bankjatim_docs"
+COLLECTION_NAME = "bank_jatim_knowledge"
 DOCUMENTS_DIR = Path(__file__).parent.parent / "data" / "documents"
 
 
