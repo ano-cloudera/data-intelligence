@@ -1123,6 +1123,11 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
         sources=response_payload.get("sources", []),
         metadata=response_payload.get("metadata", {}),
         visualization=response_payload.get("visualization"),
+        columns=response_payload.get("columns", []),
+        rows=response_payload.get("rows", []),
+        row_count=response_payload.get("row_count", 0),
+        truncated=response_payload.get("truncated", False),
+        limit_applied=response_payload.get("limit_applied", False),
     )
 
 

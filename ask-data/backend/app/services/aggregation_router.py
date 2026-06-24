@@ -120,20 +120,5 @@ def format_aggregation_answer(tool: str, result: dict) -> str:
         return "Tidak ada data ditemukan untuk pertanyaan ini."
 
     row_count = result.get("row_count", len(rows))
-    cols = list(rows[0].keys())
-
-    # Build short narrative summary — table is rendered by frontend
-    summary_parts = []
-    for row in rows[:5]:
-        parts = []
-        for col in cols:
-            val = row.get(col, "")
-            if isinstance(val, float) and val > 1000:
-                val = f"{val:,.0f}"
-            parts.append(f"{col}: {val}")
-        summary_parts.append(" | ".join(parts))
-
-    header = f"Ditemukan **{row_count} baris data**. Berikut ringkasannya:\n"
-    lines = "\n".join(f"- {s}" for s in summary_parts)
-    suffix = f"\n\n_(+{row_count - 5} baris lainnya tersedia di tabel)_" if row_count > 5 else ""
-    return header + lines + suffix
+    suffix = f" (+{row_count - 5} baris lainnya)" if row_count > 5 else ""
+    return f"Ditemukan **{row_count} baris data**{suffix}. Lihat tabel di bawah untuk detail lengkap."

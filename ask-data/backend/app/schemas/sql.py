@@ -53,6 +53,11 @@ class ChatAnswerResponse(BaseModel):
     sources: list[AnswerSource] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
     visualization: VisualizationSpec | None = None
+    columns: list[str] = Field(default_factory=list)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    row_count: int = 0
+    truncated: bool = False
+    limit_applied: bool = False
 
 
 class SQLExecutionResponse(BaseModel):
