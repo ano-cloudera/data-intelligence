@@ -20,11 +20,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 
 def resolve_port() -> int:
-    raw = os.getenv("CDSW_APP_PORT") or os.getenv("PORT") or "9000"
-    try:
-        return int(raw)
-    except ValueError:
-        return 9000
+    # CAI pre-binds CDSW_APP_PORT as a reverse proxy — do NOT listen on it.
+    # Listen on a fixed internal port instead; CAI forwards traffic to it.
+    # Log all port-related env vars for debugging.
+    for var in ["CDSW_APP_PORT", "PORT", "CDSW_PUBLIC_PORT", "CDSW_READONLY_PORT"]:
+        logging.info("ENV %s = %s", var, os.getenv(var, "(not set)"))
+    return 8080
 
 
 def resolve_data_path() -> str:
