@@ -602,28 +602,35 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
             "visualization": visualization_payload,
         }
 
-    # If the question is clearly about documents/SOPs and RAG is not active, guide the user
-    if is_document_request(payload.question) and rag_client is None:
-        answer = build_rag_unavailable_answer(payload.question)
-        if payload.session_id:
-            memory_store.append_user_message(payload.session_id, payload.question)
-            memory_store.append_assistant_message(payload.session_id, answer)
-            memory_store.set_last_answer(payload.session_id, answer)
-            memory_store.set_last_intent(payload.session_id, "rag_unavailable")
-        return {
-            "session_id": payload.session_id,
-            "original_question": payload.question,
-            "answer": answer,
-            "generated_sql": "",
-            "executed_sql": "",
-            "columns": [],
-            "rows": [],
-            "row_count": 0,
-            "truncated": False,
-            "limit_applied": False,
-            "metadata": {},
-            "visualization": None,
-        }
+    # If the question is clearly about documents/SOPs — route to RAG if available
+    if is_document_request(payload.question):
+        if rag_client is None:
+            answer = build_rag_unavailable_answer(payload.question)
+            if payload.session_id:
+                memory_store.append_user_message(payload.session_id, payload.question)
+                memory_store.append_assistant_message(payload.session_id, answer)
+                memory_store.set_last_answer(payload.session_id, answer)
+                memory_store.set_last_intent(payload.session_id, "rag_unavailable")
+            return {
+                "session_id": payload.session_id,
+                "original_question": payload.question,
+                "answer": answer,
+                "generated_sql": "",
+                "executed_sql": "",
+                "columns": [],
+                "rows": [],
+                "row_count": 0,
+                "truncated": False,
+                "limit_applied": False,
+                "metadata": {},
+                "visualization": None,
+            }
+        # RAG is available — route directly to RAG flow
+        try:
+            rag_response = _run_rag_chat_flow(payload)
+            return rag_response
+        except RagClientError as exc:
+            logger.warning("[RAG] document request failed, falling through to SQL: %s", exc)
 
     session_memory = None
     if payload.session_id:
@@ -832,6 +839,9 @@ def _run_rag_chat_flow(
     if rag_config is not None and rag_config.enabled and rag_config.collection_name:
         collection_name = rag_config.collection_name
         top_k = rag_config.top_k
+    if not collection_name:
+        # Fallback to default collection from settings
+        collection_name = settings.chroma_collection or "bank_jatim_knowledge"
     if not collection_name:
         raise RagClientError("RAG is not enabled or collection is not set for this session.")
 
