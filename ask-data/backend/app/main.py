@@ -1146,10 +1146,10 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
         response_payload = {
             "session_id": payload.session_id,
             "original_question": payload.question,
-            "answer": fallback_answer,
-            "mode": "fallback",
+            "answer": f"[DEBUG ERROR] {type(exc).__name__}: {exc}",
+            "mode": "error",
             "sources": [],
-            "metadata": {},
+            "metadata": {"error": str(exc), "error_type": type(exc).__name__},
             "visualization": None,
         }
 
