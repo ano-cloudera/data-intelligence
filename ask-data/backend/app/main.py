@@ -1090,10 +1090,14 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
             and rag_client is not None
             and is_document_request(payload.question)
         )
+        logger.info("[RAG-DEBUG] rag_explicitly_enabled=%s rag_auto_eligible=%s rag_client=%s",
+                    rag_explicitly_enabled, rag_auto_eligible, rag_client is not None)
         if rag_explicitly_enabled:
             response_payload = _run_rag_chat_flow(payload)
         elif rag_auto_eligible:
-            response_payload = _run_rag_chat_flow(payload, override_collection=_resolve_default_rag_collection())
+            default_col = _resolve_default_rag_collection()
+            logger.info("[RAG-DEBUG] auto-routing to RAG, collection=%s", default_col)
+            response_payload = _run_rag_chat_flow(payload, override_collection=default_col)
         else:
             response_payload = _run_chat_flow(payload)
     except (ValueError, SQLValidationError, SQLExecutionError, GuardrailsServiceError):
