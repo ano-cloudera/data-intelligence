@@ -164,6 +164,22 @@ def ensure_rag_collection(backend_dir: Path, env: dict[str, str]) -> None:
         logging.warning("RAG: auto-ingest failed (non-fatal): %s", exc)
 
 
+def _prewarm_embedding_model(backend_dir: Path, env: dict[str, str]) -> None:
+    """Pre-load SentenceTransformer embedding model so first RAG query doesn't timeout."""
+    chroma_enabled = env.get("CHROMA_ENABLED", "").lower() == "true"
+    if not chroma_enabled:
+        return
+    try:
+        sys.path.insert(0, str(backend_dir))
+        logging.info("RAG: pre-warming embedding model...")
+        from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction  # type: ignore
+        ef = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+        ef(["warmup"])
+        logging.info("RAG: embedding model ready.")
+    except Exception as exc:
+        logging.warning("RAG: pre-warm failed (non-fatal): %s", exc)
+
+
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -192,6 +208,7 @@ def main() -> None:
 
     ensure_runtime_dependencies(backend_dir, env)
     ensure_rag_collection(backend_dir, env)
+    _prewarm_embedding_model(backend_dir, env)
 
     cmd = [
         sys.executable,
