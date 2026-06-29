@@ -1037,9 +1037,8 @@ export default function HomePage() {
       onMenuClick={() => setMobileSidebarOpen(true)}
       left={
         <>
-          <span className="meta-kicker hidden sm:block">Data Intelligence</span>
           <h2 className="font-headline text-base font-bold text-[var(--color-ink-strong)] sm:text-lg">
-            Ask the Data
+            Data Intelligence Assistant
           </h2>
           <span className="hidden items-center gap-1.5 text-xs text-[var(--color-ink-subtle)] sm:inline-flex">
             <span className={`inline-block h-1.5 w-1.5 rounded-full ${dbDot}`} />

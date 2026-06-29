@@ -39,12 +39,12 @@ export function BrandLogo({ compact = false }: BrandLogoProps) {
 
       {/* App title block — centered */}
       <div className="w-full text-center">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#8f94ff]">
+        <h1 className="font-headline text-[1.05rem] font-extrabold leading-tight tracking-[-0.01em] text-white">
           Data Intelligence
-        </p>
-        <h1 className="mt-1.5 font-headline text-[1.05rem] font-extrabold leading-tight tracking-[-0.01em] text-white">
-          Ask the Data
         </h1>
+        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#8f94ff]">
+          Assistant
+        </p>
       </div>
     </div>
   );
