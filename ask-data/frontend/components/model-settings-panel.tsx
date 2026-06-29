@@ -318,7 +318,7 @@ export function ModelSettingsPanel({
           {/* Model + MCP + RAG */}
           <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-5">
-            {/* Model section */}
+            {/* Model section — LEFT COLUMN */}
             <section className="rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-ink-subtle)]">
                 {tr("modelSection", lang)}
@@ -693,6 +693,133 @@ export function ModelSettingsPanel({
                   </div>
                 </div>
               )}
+            </section>
+          </div>
+
+          {/* RIGHT COLUMN — System overview */}
+          <div className="space-y-5">
+            {/* Architecture overview */}
+            <section className="rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-ink-subtle)]">
+                {lang === "id" ? "Arsitektur Sistem" : "System Architecture"}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-[var(--color-ink-muted)]">
+                {lang === "id"
+                  ? "Semua komponen berjalan on-premises di Cloudera AI. Tidak ada data yang keluar dari infrastruktur bank."
+                  : "All components run on-premises inside Cloudera AI. No data leaves the bank infrastructure."}
+              </p>
+              <div className="mt-4 space-y-2">
+                {[
+                  {
+                    label: "LLM",
+                    value: "Qwen 2.5 · 14B Instruct AWQ",
+                    badge: "vLLM",
+                    color: "#5c63f2",
+                    bg: "rgba(92,99,242,0.07)",
+                  },
+                  {
+                    label: lang === "id" ? "Database" : "Database",
+                    value: "Impala CDW · customer_dormant_segment",
+                    badge: "SQL",
+                    color: "#059669",
+                    bg: "rgba(5,150,105,0.06)",
+                  },
+                  {
+                    label: lang === "id" ? "Knowledge Base" : "Knowledge Base",
+                    value: "ChromaDB · 57 chunks · 5 PDFs",
+                    badge: "RAG",
+                    color: "#7c3aed",
+                    bg: "rgba(124,58,237,0.06)",
+                  },
+                  {
+                    label: lang === "id" ? "Analytics Tools" : "Analytics Tools",
+                    value: "MCP Aggregation · 16 tools",
+                    badge: "MCP",
+                    color: "#d97706",
+                    bg: "rgba(217,119,6,0.06)",
+                  },
+                ].map((row) => (
+                  <div
+                    key={row.label}
+                    className="flex items-start gap-3 rounded-[14px] border border-[var(--color-border-soft)] px-3 py-2.5"
+                    style={{ background: row.bg }}
+                  >
+                    <span
+                      className="mt-0.5 shrink-0 rounded-[8px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest"
+                      style={{ color: row.color, background: `${row.color}18`, border: `1px solid ${row.color}30` }}
+                    >
+                      {row.badge}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-ink-subtle)]">{row.label}</p>
+                      <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-ink-strong)]">{row.value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Routing logic */}
+            <section className="rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-ink-subtle)]">
+                {lang === "id" ? "Logika Routing AI" : "AI Routing Logic"}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-[var(--color-ink-muted)]">
+                {lang === "id"
+                  ? "Model secara otomatis memilih mode terbaik berdasarkan jenis pertanyaan."
+                  : "The model automatically selects the best mode based on your question type."}
+              </p>
+              <div className="mt-3 space-y-2">
+                {[
+                  {
+                    trigger: lang === "id" ? "Pertanyaan data / angka" : "Data / number questions",
+                    mode: "SQL",
+                    classes: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                  },
+                  {
+                    trigger: lang === "id" ? "Pertanyaan dokumen / kebijakan" : "Document / policy questions",
+                    mode: "RAG",
+                    classes: "bg-indigo-50 text-indigo-700 border-indigo-200",
+                  },
+                  {
+                    trigger: lang === "id" ? "Analitik segmentasi / campaign" : "Segmentation / campaign analytics",
+                    mode: "MCP",
+                    classes: "bg-orange-50 text-orange-700 border-orange-200",
+                  },
+                  {
+                    trigger: lang === "id" ? "Pertanyaan umum / percakapan" : "General / conversational",
+                    mode: "LLM",
+                    classes: "bg-slate-100 text-slate-500 border-slate-200",
+                  },
+                ].map((row) => (
+                  <div key={row.mode} className="flex items-center justify-between gap-2">
+                    <p className="min-w-0 text-xs text-[var(--color-ink-muted)] truncate">{row.trigger}</p>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${row.classes}`}>
+                      {row.mode}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Data governance */}
+            <section className="rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-ink-subtle)]">
+                {lang === "id" ? "Tata Kelola Data" : "Data Governance"}
+              </p>
+              <div className="mt-3 space-y-2">
+                {[
+                  lang === "id" ? "Data nasabah tidak pernah meninggalkan infrastruktur Cloudera" : "Customer data never leaves Cloudera infrastructure",
+                  lang === "id" ? "PII (nama, nomor rekening) disamarkan otomatis di output" : "PII (names, account numbers) are masked in all outputs",
+                  lang === "id" ? "Guardrails aktif — query PII langsung diblokir" : "Guardrails active — raw PII queries are blocked",
+                  lang === "id" ? "Semua query di-log untuk audit trail" : "All queries logged for audit trail",
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                    <p className="text-xs leading-5 text-[var(--color-ink-muted)]">{item}</p>
+                  </div>
+                ))}
+              </div>
             </section>
           </div>
           </div>{/* end inner grid */}

@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import SmartToyIcon from "@mui/icons-material/SmartToy";
-import ArticleIcon from "@mui/icons-material/Article";
 
 import type { AnswerSource } from "@/lib/api";
 import { PdfViewerModal } from "./pdf-viewer-modal";
@@ -232,20 +230,17 @@ export function AnswerCard({ answer, sources = [], mode, timestamp, lang = "en" 
     <section className="w-full max-w-[56rem] rounded-[var(--radius-panel)] border border-[var(--color-border-soft)] bg-[var(--color-surface)] shadow-panel">
       <div className="flex items-center justify-between gap-2 border-b border-[var(--color-border-soft)] px-5 py-3">
         <div className="flex items-center gap-2">
-          <span className="icon-box h-7 w-7 rounded-full">
-            <SmartToyIcon sx={{ fontSize: 16 }} />
-          </span>
           <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-ink-subtle)]">
-              Analyst Response
+            <span className="text-[11px] font-semibold text-[var(--color-ink-subtle)]">
+              {lang === "id" ? "Jawaban" : "Answer"}
             </span>
             {timeLabel ? (
-              <p className="text-[10px] text-[var(--color-ink-subtle)] opacity-60">{timeLabel}</p>
+              <span className="ml-2 text-[10px] text-[var(--color-ink-subtle)] opacity-50">{timeLabel}</span>
             ) : null}
           </div>
         </div>
         {badge ? (
-          <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest ${badge.classes}`}>
+          <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${badge.classes}`}>
             {badge.label}
           </span>
         ) : null}
@@ -268,7 +263,13 @@ export function AnswerCard({ answer, sources = [], mode, timestamp, lang = "en" 
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(255,107,0,0.1)] text-[var(--color-brand-orange)]">
-                        <ArticleIcon sx={{ fontSize: 15 }} />
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                          <polyline points="14 2 14 8 20 8"/>
+                          <line x1="16" y1="13" x2="8" y2="13"/>
+                          <line x1="16" y1="17" x2="8" y2="17"/>
+                          <polyline points="10 9 9 9 8 9"/>
+                        </svg>
                       </span>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-[var(--color-ink-strong)]">

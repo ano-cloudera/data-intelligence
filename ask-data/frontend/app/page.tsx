@@ -1101,44 +1101,51 @@ export default function HomePage() {
 
                     {/* Headline */}
                     <h3 className="font-headline text-3xl font-bold tracking-tight text-[var(--color-ink-strong)]">
-                      {lang === "id" ? "Halo, saya " : "Hello, I'm "}
+                      {lang === "id" ? "Tanya apa saja tentang data nasabah " : "Ask anything about "}
                       <span style={{ background: "linear-gradient(135deg,#FF6B00,#f59e0b)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                        {lang === "id" ? "Asisten Analitik" : "Analytics Assistant"}
+                        {lang === "id" ? "Bank XYZ." : "Bank XYZ data."}
                       </span>
-                      {lang === "id" ? " Bank XYZ." : " Bank XYZ."}
                     </h3>
 
                     {/* Description */}
                     <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-[var(--color-ink-muted)]">
                       {lang === "id"
-                        ? "Analisis segmentasi nasabah, risiko dormant, rekomendasi campaign, dan distribusi saldo — cukup tanya dalam bahasa natural."
-                        : "Analyze customer segmentation, dormancy risk, campaign recommendations, and balance distribution — just ask in natural language."}
+                        ? "Segmentasi, risiko dormant, rekomendasi kampanye, distribusi saldo — tulis pertanyaan seperti biasa, biarkan sistem yang cari datanya."
+                        : "Segmentation, dormancy risk, campaign recommendations, balance analysis — ask in plain language and let the system handle the rest."}
                     </p>
 
-                    {/* Capability chips */}
+                    {/* Capability chips — no emoji, professional tags */}
                     <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                       {[
-                        { icon: "📊", label: lang === "id" ? "Segmentasi Nasabah" : "Customer Segmentation" },
-                        { icon: "⚠️", label: lang === "id" ? "Risiko Dormant" : "Dormant Risk" },
-                        { icon: "📄", label: lang === "id" ? "Knowledge Base" : "Knowledge Base" },
+                        { label: lang === "id" ? "Segmentasi Nasabah" : "Customer Segmentation", color: "#059669", bg: "rgba(5,150,105,0.07)" },
+                        { label: lang === "id" ? "Risiko Dormant" : "Dormant Risk", color: "#dc2626", bg: "rgba(220,38,38,0.07)" },
+                        { label: lang === "id" ? "Kebijakan & Dokumen" : "Policy & Documents", color: "#7c3aed", bg: "rgba(124,58,237,0.07)" },
+                        { label: lang === "id" ? "Analitik Campaign" : "Campaign Analytics", color: "#d97706", bg: "rgba(217,119,6,0.07)" },
                       ].map((chip) => (
-                        <span key={chip.label} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-soft)] bg-white/80 px-3 py-1 text-xs font-medium text-[var(--color-ink-muted)] shadow-sm">
-                          <span>{chip.icon}</span>{chip.label}
+                        <span
+                          key={chip.label}
+                          className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold"
+                          style={{ color: chip.color, background: chip.bg, borderColor: `${chip.color}25` }}
+                        >
+                          {chip.label}
                         </span>
                       ))}
                     </div>
 
                     {/* Stats row */}
-                    <div className="mt-4 flex items-center justify-center gap-4">
+                    <div className="mt-4 flex items-center justify-center gap-1 text-[var(--color-ink-subtle)]">
                       {[
                         { value: "10K+", label: lang === "id" ? "Nasabah" : "Customers" },
                         { value: "7", label: lang === "id" ? "Segmen" : "Segments" },
                         { value: "57", label: lang === "id" ? "Dokumen" : "Documents" },
-                      ].map((stat) => (
-                        <div key={stat.label} className="flex items-baseline gap-1">
-                          <span className="font-headline text-base font-bold text-[var(--color-action-primary)]">{stat.value}</span>
-                          <span className="text-[11px] text-[var(--color-ink-subtle)]">{stat.label}</span>
-                        </div>
+                      ].map((stat, i) => (
+                        <>
+                          {i > 0 && <span key={`sep-${i}`} className="mx-2 opacity-30">·</span>}
+                          <div key={stat.label} className="flex items-baseline gap-1">
+                            <span className="font-headline text-sm font-bold text-[var(--color-ink-strong)]">{stat.value}</span>
+                            <span className="text-[11px]">{stat.label}</span>
+                          </div>
+                        </>
                       ))}
                     </div>
 
@@ -1228,18 +1235,18 @@ export default function HomePage() {
                   })}
 
                   {state.loading ? (
-                    <section className="w-full max-w-[56rem] rounded-[var(--radius-panel)] border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-5 shadow-panel">
+                    <section className="w-full max-w-[56rem] rounded-[var(--radius-panel)] border border-[var(--color-border-soft)] bg-[var(--color-surface)] px-5 py-4 shadow-panel">
                       <div className="flex items-center gap-3">
-                        <span className="inline-flex gap-1">
+                        <span className="inline-flex gap-[3px]">
                           {[0, 1, 2].map((i) => (
                             <span
                               key={i}
-                              className="inline-block h-2 w-2 animate-bounce rounded-full bg-[var(--color-action-primary)]"
-                              style={{ animationDelay: `${i * 0.15}s` }}
+                              className="inline-block h-1 w-5 rounded-full bg-[var(--color-border-strong)] animate-pulse"
+                              style={{ animationDelay: `${i * 0.2}s` }}
                             />
                           ))}
                         </span>
-                        <p key={loadingMsgIdx} className="text-sm text-[var(--color-ink-subtle)] transition-opacity duration-300">
+                        <p key={loadingMsgIdx} className="text-xs text-[var(--color-ink-subtle)]">
                           {LOADING_MESSAGES[loadingMsgIdx][lang]}
                         </p>
                       </div>

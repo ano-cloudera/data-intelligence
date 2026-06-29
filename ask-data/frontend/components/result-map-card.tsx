@@ -194,6 +194,19 @@ export default function ResultMapCard({ features, metric = "total" }: ResultMapC
             Avg Saldo: Rp ${f.avg_saldo.toLocaleString("id-ID")}
           </div>`
         );
+
+        // Permanent label above the marker — short name only
+        const shortName = f.cabang_name
+          .replace(/^cabang\s+/i, "")
+          .replace(/^kcp\s+/i, "")
+          .replace(/^bank xyz\s+/i, "")
+          .trim();
+        circle.bindTooltip(shortName, {
+          permanent: true,
+          direction: "top",
+          offset: [0, -(radius + 4)],
+          className: "map-label-tooltip",
+        });
       });
     })();
 

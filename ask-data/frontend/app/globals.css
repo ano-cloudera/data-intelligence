@@ -347,6 +347,25 @@ code, pre, .font-mono {
 ::-webkit-scrollbar-thumb { background: #1E3A5F; border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: #2D5A8F; }
 
+/* Map marker labels (Leaflet permanent tooltips) */
+.map-label-tooltip {
+  background: rgba(15, 18, 35, 0.82) !important;
+  border: none !important;
+  border-radius: 5px !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35) !important;
+  color: #f1f5f9 !important;
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  padding: 2px 6px !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
+.map-label-tooltip::before {
+  display: none !important;
+}
+
 .scrollbar-thin::-webkit-scrollbar { width: 4px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
