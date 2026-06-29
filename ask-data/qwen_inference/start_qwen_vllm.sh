@@ -25,12 +25,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_ARG=""
 if [ "${IS_QWEN3}" = true ]; then
   TEMPLATE_FILE="${SCRIPT_DIR}/qwen3_no_think_template.jinja"
-  if [ -f "${TEMPLATE_FILE}" ]; then
-    TEMPLATE_ARG="--chat-template ${TEMPLATE_FILE}"
-    echo "Qwen3: using no-think chat template → ${TEMPLATE_FILE}"
-  else
-    echo "WARNING: Qwen3 no-think template not found at ${TEMPLATE_FILE}"
-  fi
+else
+  TEMPLATE_FILE="${SCRIPT_DIR}/qwen25_crewai_template.jinja"
+fi
+
+if [ -f "${TEMPLATE_FILE}" ]; then
+  TEMPLATE_ARG="--chat-template ${TEMPLATE_FILE}"
+  echo "Using chat template: ${TEMPLATE_FILE}"
+else
+  echo "WARNING: chat template not found at ${TEMPLATE_FILE} — CrewAI loop risk"
 fi
 
 vllm serve "${QWEN_MODEL}" \

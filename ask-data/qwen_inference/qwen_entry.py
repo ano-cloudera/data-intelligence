@@ -170,18 +170,22 @@ def main() -> None:
         "--tool-call-parser", tool_call_parser,
     ]
 
-    # Qwen3 thinking mode causes CrewAI "Thoughts" loop — it keeps re-reading
-    # <think>...</think> tokens as intermediate state and re-prompts indefinitely.
-    # Fix: inject /no_think via a custom chat template that appends it to every
-    # generation prompt. vLLM 0.7.3 does not support --chat-template-kwargs so
-    # we use --chat-template with a pre-built jinja file instead.
+    # Inject chat template to fix CrewAI ReAct loop:
+    # - Qwen3: disable thinking tokens (/no_think) — otherwise CrewAI reads
+    #   <think>...</think> as intermediate state and re-prompts indefinitely
+    # - Qwen2.5: enforce strict ReAct format (Thought/Action/Final Answer) —
+    #   Qwen2.5 often paraphrases the format, causing CrewAI parser to miss
+    #   "Final Answer:" and retry the same task forever
     if is_qwen3:
         template_path = Path(__file__).parent / "qwen3_no_think_template.jinja"
-        if template_path.exists():
-            cmd += ["--chat-template", str(template_path)]
-            logging.info("Qwen3 detected — using no-think chat template: %s", template_path)
-        else:
-            logging.warning("Qwen3 no-think template not found at %s — thinking mode will be active", template_path)
+    else:
+        template_path = Path(__file__).parent / "qwen25_crewai_template.jinja"
+
+    if template_path.exists():
+        cmd += ["--chat-template", str(template_path)]
+        logging.info("Using chat template: %s", template_path)
+    else:
+        logging.warning("Chat template not found at %s — CrewAI loop risk", template_path)
 
     logging.info("Launching vLLM: %s", " ".join(cmd))
 
