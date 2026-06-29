@@ -104,7 +104,11 @@ sql_generator = SQLGeneratorService(
 sql_executor = SQLExecutorService(settings=settings)
 answer_generator = AnswerGeneratorService(llm_router=llm_router, settings=settings)
 conversation_generator = ConversationGeneratorService(llm_router=llm_router, settings=settings)
-rag_client = ChromaRagClient(settings=settings) if settings.is_rag_configured else None
+try:
+    rag_client = ChromaRagClient(settings=settings) if settings.is_rag_configured else None
+except Exception as _rag_init_exc:
+    logger.warning("RAG client init failed — RAG disabled: %s", _rag_init_exc)
+    rag_client = None
 guardrails_service = GuardrailsService(settings=settings)
 visualization_service = VisualizationService()
 
@@ -154,6 +158,7 @@ def health() -> dict[str, object]:
         "chroma_enabled": settings.chroma_enabled,
         "chroma_persist_dir": settings.chroma_persist_dir,
         "chroma_collection": settings.chroma_collection,
+        "rag_client_initialized": rag_client is not None,
     }
 
 
