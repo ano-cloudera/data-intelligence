@@ -22,8 +22,6 @@ import logging
 import os
 import subprocess
 import sys
-import threading
-import time
 from pathlib import Path
 
 
@@ -126,81 +124,35 @@ def ensure_deps_installed() -> None:
     )
 
 
-def wait_for_vllm(vllm_url: str, timeout: int = 300) -> bool:
-    """Block until vLLM is ready, max timeout seconds."""
-    import urllib.request
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        try:
-            urllib.request.urlopen(f"{vllm_url}/health", timeout=2)
-            return True
-        except Exception:
-            time.sleep(3)
-    return False
-
-
-def start_proxy(public_port: int, vllm_port: int, api_key: str) -> None:
-    """Launch uvicorn proxy in a background thread after vLLM is ready."""
-    vllm_url = f"http://127.0.0.1:{vllm_port}/v1"
-    logging.info("Waiting for vLLM to be ready at %s ...", vllm_url)
-
-    if not wait_for_vllm(f"http://127.0.0.1:{vllm_port}"):
-        logging.error("vLLM did not become ready in time — proxy will not start")
-        return
-
-    logging.info("vLLM ready. Starting proxy on port %d → vLLM port %d", public_port, vllm_port)
-
-    # Set env vars so qwen_proxy_app picks them up
-    os.environ["QWEN_BASE_URL"] = vllm_url
-    os.environ["QWEN_API_KEY"]  = api_key
-
-    proxy_dir = resolve_qwen_dir()
-    subprocess.Popen([
-        sys.executable, "-m", "uvicorn",
-        "qwen_proxy_app:app",
-        "--host", "0.0.0.0",
-        "--port", str(public_port),
-        "--log-level", "warning",
-    ], cwd=str(proxy_dir))
-
-    logging.info("Proxy running on 0.0.0.0:%d", public_port)
-
-
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
     )
 
-    logging.info("Starting Qwen LLM Application (vLLM + Proxy)")
+    logging.info("Starting Qwen LLM Application (vLLM)")
     logging.info("Working directory: %s", Path.cwd())
 
-    # public_port → exposed by CAI, used by proxy
-    # vllm_port   → internal only, never exposed (public_port + 1)
-    public_port = resolve_port()
-    vllm_port   = int(os.getenv("QWEN_VLLM_INTERNAL_PORT", str(public_port + 1)))
-
+    port                   = resolve_port()
     model                  = os.getenv("QWEN_MODEL",                    "Qwen/Qwen2.5-14B-Instruct-AWQ")
     api_key                = os.getenv("QWEN_API_KEY",                  "local-dev-token")
     max_model_len          = os.getenv("QWEN_MAX_MODEL_LEN",            "4096")
     gpu_memory_utilization = os.getenv("QWEN_GPU_MEMORY_UTILIZATION",   "0.90")
     tensor_parallel_size   = os.getenv("QWEN_TENSOR_PARALLEL_SIZE",     "1")
 
-    logging.info("Model       : %s", model)
-    logging.info("Public port : %d (proxy)", public_port)
-    logging.info("vLLM port   : %d (internal)", vllm_port)
+    logging.info("Model : %s", model)
+    logging.info("Port  : %d", port)
 
     ensure_deps_installed()
 
     is_qwen3 = "qwen3" in model.lower()
     tool_call_parser = "pythonic" if is_qwen3 else "hermes"
 
-    # vLLM binds to internal port only — proxy handles the public port
     cmd = [
         sys.executable, "-m", "vllm.entrypoints.openai.api_server",
         "--model", model,
-        "--host", "127.0.0.1",
-        "--port", str(vllm_port),
+        "--host", "0.0.0.0",
+        "--port", str(port),
         "--dtype", "auto",
         "--gpu-memory-utilization", gpu_memory_utilization,
         "--max-model-len", max_model_len,
@@ -231,15 +183,6 @@ def main() -> None:
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = f"{DEPS_DIR}:{existing_pythonpath}" if existing_pythonpath else str(DEPS_DIR)
 
-    # Start proxy in background thread — it waits for vLLM to be ready first
-    proxy_thread = threading.Thread(
-        target=start_proxy,
-        args=(public_port, vllm_port, api_key),
-        daemon=True,
-    )
-    proxy_thread.start()
-
-    # vLLM runs in foreground — keeps process alive
     process = subprocess.Popen(cmd, env=env)
     process.wait()
 
