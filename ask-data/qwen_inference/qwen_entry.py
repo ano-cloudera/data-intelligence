@@ -148,7 +148,8 @@ def main() -> None:
 
     # Select correct tool-call parser per model family:
     # Qwen3 → "pythonic"  |  Qwen2.5 → "hermes"
-    tool_call_parser = "pythonic" if "qwen3" in model.lower() else "hermes"
+    is_qwen3 = "qwen3" in model.lower()
+    tool_call_parser = "pythonic" if is_qwen3 else "hermes"
 
     cmd = [
         sys.executable, "-m", "vllm.entrypoints.openai.api_server",
@@ -168,6 +169,19 @@ def main() -> None:
         "--enable-auto-tool-choice",
         "--tool-call-parser", tool_call_parser,
     ]
+
+    # Qwen3 thinking mode causes CrewAI "Thoughts" loop — it keeps re-reading
+    # <think>...</think> tokens as intermediate state and re-prompts indefinitely.
+    # Fix: inject /no_think via a custom chat template that appends it to every
+    # generation prompt. vLLM 0.7.3 does not support --chat-template-kwargs so
+    # we use --chat-template with a pre-built jinja file instead.
+    if is_qwen3:
+        template_path = Path(__file__).parent / "qwen3_no_think_template.jinja"
+        if template_path.exists():
+            cmd += ["--chat-template", str(template_path)]
+            logging.info("Qwen3 detected — using no-think chat template: %s", template_path)
+        else:
+            logging.warning("Qwen3 no-think template not found at %s — thinking mode will be active", template_path)
 
     logging.info("Launching vLLM: %s", " ".join(cmd))
 
