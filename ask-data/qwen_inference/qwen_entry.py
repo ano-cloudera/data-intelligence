@@ -154,7 +154,7 @@ def start_proxy(public_port: int, vllm_port: int, api_key: str) -> None:
     os.environ["QWEN_BASE_URL"] = vllm_url
     os.environ["QWEN_API_KEY"]  = api_key
 
-    proxy_dir = Path(__file__).parent
+    proxy_dir = resolve_qwen_dir()
     subprocess.Popen([
         sys.executable, "-m", "uvicorn",
         "qwen_proxy_app:app",
@@ -213,7 +213,8 @@ def main() -> None:
         "--tool-call-parser", tool_call_parser,
     ]
 
-    template_path = Path(__file__).parent / (
+    qwen_dir = resolve_qwen_dir()
+    template_path = qwen_dir / (
         "qwen3_no_think_template.jinja" if is_qwen3 else "qwen25_crewai_template.jinja"
     )
     if template_path.exists():
