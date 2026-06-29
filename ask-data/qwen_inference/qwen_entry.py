@@ -176,9 +176,9 @@ def main() -> None:
     logging.info("Working directory: %s", Path.cwd())
 
     # public_port → exposed by CAI, used by proxy
-    # vllm_port   → internal only, never exposed
+    # vllm_port   → internal only, never exposed (public_port + 1)
     public_port = resolve_port()
-    vllm_port   = int(os.getenv("QWEN_VLLM_INTERNAL_PORT", "8001"))
+    vllm_port   = int(os.getenv("QWEN_VLLM_INTERNAL_PORT", str(public_port + 1)))
 
     model                  = os.getenv("QWEN_MODEL",                    "Qwen/Qwen2.5-14B-Instruct-AWQ")
     api_key                = os.getenv("QWEN_API_KEY",                  "local-dev-token")
