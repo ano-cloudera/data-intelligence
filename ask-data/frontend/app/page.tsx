@@ -1235,18 +1235,23 @@ export default function HomePage() {
                   })}
 
                   {state.loading ? (
-                    <section className="w-full max-w-[56rem] rounded-[var(--radius-panel)] border border-[var(--color-border-soft)] bg-[var(--color-surface)] px-5 py-4 shadow-panel">
+                    <section className="w-full max-w-[56rem] rounded-[var(--radius-panel)] border border-[#2d2f6e] bg-[#08004d] px-5 py-4 shadow-panel">
                       <div className="flex items-center gap-3">
-                        <span className="inline-flex gap-[3px]">
+                        <span className="inline-flex gap-[5px]">
                           {[0, 1, 2].map((i) => (
                             <span
                               key={i}
-                              className="inline-block h-1 w-5 rounded-full bg-[var(--color-border-strong)] animate-pulse"
-                              style={{ animationDelay: `${i * 0.2}s` }}
+                              className="inline-block h-[5px] w-6 rounded-full"
+                              style={{
+                                background: "linear-gradient(90deg, #6970ff, #a78bfa, #6970ff)",
+                                backgroundSize: "200% 100%",
+                                animation: `loading-bar-shimmer 1.4s ease-in-out infinite`,
+                                animationDelay: `${i * 0.22}s`,
+                              }}
                             />
                           ))}
                         </span>
-                        <p key={loadingMsgIdx} className="text-xs text-[var(--color-ink-subtle)]">
+                        <p key={loadingMsgIdx} className="text-xs text-[#8f94ff]">
                           {LOADING_MESSAGES[loadingMsgIdx][lang]}
                         </p>
                       </div>

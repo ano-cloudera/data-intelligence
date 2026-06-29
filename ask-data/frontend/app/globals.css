@@ -347,6 +347,13 @@ code, pre, .font-mono {
 ::-webkit-scrollbar-thumb { background: #1E3A5F; border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: #2D5A8F; }
 
+/* Loading bar shimmer animation */
+@keyframes loading-bar-shimmer {
+  0%   { background-position: 200% 0; opacity: 0.5; }
+  50%  { background-position: 0% 0;   opacity: 1; }
+  100% { background-position: -200% 0; opacity: 0.5; }
+}
+
 /* Map marker labels (Leaflet permanent tooltips) */
 .map-label-tooltip {
   background: rgba(15, 18, 35, 0.82) !important;
