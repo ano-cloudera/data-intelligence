@@ -57,6 +57,7 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   mode?: string;
+  timestamp?: string;
   sources?: AnswerSource[];
   metadata?: Record<string, unknown>;
   visualization?: VisualizationSpec | null;
@@ -242,6 +243,15 @@ const initialAnalyticsState: AnalyticsState = {
   error: "",
 };
 
+const LOADING_MESSAGES: { en: string; id: string }[] = [
+  { en: "Querying the database…", id: "Memuat data dari database…" },
+  { en: "Analyzing 10,000+ customer records…", id: "Menganalisis 10.000+ data nasabah…" },
+  { en: "Running segmentation logic…", id: "Menjalankan logika segmentasi…" },
+  { en: "Generating insights…", id: "Menyusun insight…" },
+  { en: "Consulting knowledge base…", id: "Memeriksa knowledge base…" },
+  { en: "Composing your answer…", id: "Menyusun jawaban…" },
+];
+
 const navItems = [
   {
     key: "guide",
@@ -318,6 +328,8 @@ export default function HomePage() {
   const submitInFlightRef = useRef(false);
   const [state, setState] = useState<ChatState>(initialChatState);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sessions, setSessions] = useState<SessionsState>(initialSessionsState);
   const [llmProviders, setLlmProviders] = useState<LLMProvidersState>(initialLlmProvidersState);
   const [analytics, setAnalytics] = useState<AnalyticsState>(initialAnalyticsState);
@@ -406,6 +418,17 @@ export default function HomePage() {
     void loadSavedTableLock(state.sessionId);
     void loadLlmProviders(state.sessionId);
   }, [state.sessionId]);
+
+  useEffect(() => {
+    if (!state.loading) { setLoadingMsgIdx(0); return; }
+    const iv = setInterval(() => setLoadingMsgIdx((i) => (i + 1) % LOADING_MESSAGES.length), 2500);
+    return () => clearInterval(iv);
+  }, [state.loading]);
+
+  useEffect(() => {
+    const iv = setInterval(() => void refreshHealth(), 30_000);
+    return () => clearInterval(iv);
+  }, []);
 
   const analyticsLoadedRef = useRef(false);
 
@@ -820,6 +843,7 @@ export default function HomePage() {
         role: "assistant",
         content: response.answer,
         mode: response.mode ?? undefined,
+        timestamp: new Date().toISOString(),
         sources: response.sources ?? [],
         metadata: response.metadata ?? {},
         visualization: response.visualization ?? null,
@@ -913,11 +937,14 @@ export default function HomePage() {
   const sidebar = (
     <AppSidebar
       brand={<BrandLogo />}
+      mobileOpen={mobileSidebarOpen}
+      onMobileClose={() => setMobileSidebarOpen(false)}
       items={navItems.map((item) => ({
         ...item,
         active: item.key === activeView,
         onSelect: () => {
           setActiveView(item.key as AppView);
+          setMobileSidebarOpen(false);
           if (item.key === "usage" && !analytics.summary && !analytics.loading) {
             void refreshAnalytics();
           }
@@ -984,6 +1011,38 @@ export default function HomePage() {
               <p className="text-[10px] text-white/40">Data Intelligence Platform</p>
             </div>
           </div>
+          <div className="relative mt-3">
+            <button
+              type="button"
+              onClick={() => setShowClearConfirm((v) => !v)}
+              className="w-full rounded-[12px] border border-white/10 py-1.5 text-[11px] font-semibold text-white/40 transition hover:border-rose-400/40 hover:text-rose-400"
+            >
+              {lang === "id" ? "Bersihkan Sesi" : "Clear Session"}
+            </button>
+            {showClearConfirm ? (
+              <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-[16px] border border-rose-200 bg-white p-3 shadow-lg">
+                <p className="mb-2.5 text-xs font-semibold text-[var(--color-ink-strong)]">
+                  {lang === "id" ? "Hapus semua chat?" : "Clear all messages?"}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowClearConfirm(false)}
+                    className="flex-1 rounded-[10px] border border-[var(--color-border-strong)] bg-white py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:bg-[var(--color-surface-muted)]"
+                  >
+                    {lang === "id" ? "Batal" : "Cancel"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handleClearSession(); setShowClearConfirm(false); }}
+                    className="flex-1 rounded-[10px] bg-rose-500 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-600"
+                  >
+                    {lang === "id" ? "Hapus" : "Clear"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       }
     />
@@ -1005,6 +1064,7 @@ export default function HomePage() {
 
   const header = (
     <AppTopHeader
+      onMenuClick={() => setMobileSidebarOpen(true)}
       left={
         <>
           <span className="meta-kicker hidden sm:block">Data Intelligence</span>
@@ -1035,45 +1095,6 @@ export default function HomePage() {
               ID
             </button>
           </div>
-          <button
-            type="button"
-            onClick={() => void refreshHealth()}
-            className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
-          >
-            {lang === "id" ? "Refresh status" : "Refresh status"}
-          </button>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowClearConfirm((v) => !v)}
-              className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-rose-400 hover:text-rose-500"
-            >
-              {lang === "id" ? "Bersihkan Sesi" : "Clear Session"}
-            </button>
-            {showClearConfirm ? (
-              <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-[16px] border border-rose-200 bg-white p-3 shadow-lg">
-                <p className="mb-2.5 text-xs font-semibold text-[var(--color-ink-strong)]">
-                  {lang === "id" ? "Hapus semua chat?" : "Clear all messages?"}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowClearConfirm(false)}
-                    className="flex-1 rounded-[10px] border border-[var(--color-border-strong)] bg-white py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:bg-[var(--color-surface-muted)]"
-                  >
-                    {lang === "id" ? "Batal" : "Cancel"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { handleClearSession(); setShowClearConfirm(false); }}
-                    className="flex-1 rounded-[10px] bg-rose-500 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-600"
-                  >
-                    {lang === "id" ? "Hapus" : "Clear"}
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </div>
         </div>
       }
     />
@@ -1090,41 +1111,81 @@ export default function HomePage() {
             >
               {state.messages.length === 0 ? (
                 <div className="mx-auto flex h-full max-w-4xl flex-col">
-                  <section className="rounded-[18px] border border-[var(--color-border-soft)] bg-[linear-gradient(180deg,#ffffff_0%,#f5f8ff_100%)] px-8 py-10 text-center">
-                    <div className="mx-auto mb-5 relative h-10 w-44">
-                      <Image
-                        src="/Cloudera_logo.svg.png"
-                        alt="Cloudera"
-                        fill
-                        className="object-contain"
-                        sizes="176px"
-                        priority
-                      />
+                  <section
+                    className="relative overflow-hidden rounded-[22px] border border-[var(--color-border-soft)] px-8 py-10 text-center"
+                    style={{
+                      background: "linear-gradient(145deg,#f8f9ff 0%,#eef2ff 50%,#fff7f0 100%)",
+                      backgroundImage: "linear-gradient(145deg,#f8f9ff 0%,#eef2ff 50%,#fff7f0 100%), radial-gradient(circle at 20% 80%, rgba(92,99,242,0.06) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,107,0,0.06) 0%, transparent 50%)",
+                    }}
+                  >
+                    {/* Decorative orbs */}
+                    <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-[rgba(92,99,242,0.07)] blur-2xl" />
+                    <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-[rgba(255,107,0,0.07)] blur-2xl" />
+
+                    {/* Logo */}
+                    <div className="relative mx-auto mb-5 inline-flex items-center justify-center rounded-[18px] border border-[var(--color-border-soft)] bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
+                      <div className="relative h-8 w-36">
+                        <Image src="/Cloudera_logo.svg.png" alt="Cloudera" fill className="object-contain" sizes="144px" priority />
+                      </div>
                     </div>
-                    <h3 className="font-headline text-2xl font-bold tracking-tight text-[var(--color-ink-strong)]">
-                      {lang === "id"
-                        ? "Halo, saya Asisten Analitik Bank XYZ."
-                        : "Hello, I am Bank XYZ Analytics Assistant."}
+
+                    {/* Headline */}
+                    <h3 className="font-headline text-3xl font-bold tracking-tight text-[var(--color-ink-strong)]">
+                      {lang === "id" ? "Halo, saya " : "Hello, I'm "}
+                      <span style={{ background: "linear-gradient(135deg,#FF6B00,#f59e0b)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                        {lang === "id" ? "Asisten Analitik" : "Analytics Assistant"}
+                      </span>
+                      {lang === "id" ? " Bank XYZ." : " Bank XYZ."}
                     </h3>
-                    <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[var(--color-ink-muted)]">
+
+                    {/* Description */}
+                    <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-[var(--color-ink-muted)]">
                       {lang === "id"
-                        ? "Saya siap membantu analisis segmentasi nasabah, risiko dormant, rekomendasi campaign, dan distribusi saldo menggunakan bahasa alami. Data bersumber dari tabel customer_dormant_segment."
-                        : "I can help you analyze customer segmentation, dormancy risk, campaign recommendations, and balance distribution in natural language. Data sourced from the customer_dormant_segment table."}
+                        ? "Analisis segmentasi nasabah, risiko dormant, rekomendasi campaign, dan distribusi saldo — cukup tanya dalam bahasa natural."
+                        : "Analyze customer segmentation, dormancy risk, campaign recommendations, and balance distribution — just ask in natural language."}
                     </p>
+
+                    {/* Capability chips */}
+                    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                      {[
+                        { icon: "📊", label: lang === "id" ? "Segmentasi Nasabah" : "Customer Segmentation" },
+                        { icon: "⚠️", label: lang === "id" ? "Risiko Dormant" : "Dormant Risk" },
+                        { icon: "📄", label: lang === "id" ? "Knowledge Base" : "Knowledge Base" },
+                      ].map((chip) => (
+                        <span key={chip.label} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-soft)] bg-white/80 px-3 py-1 text-xs font-medium text-[var(--color-ink-muted)] shadow-sm">
+                          <span>{chip.icon}</span>{chip.label}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="mt-4 flex items-center justify-center gap-4">
+                      {[
+                        { value: "10K+", label: lang === "id" ? "Nasabah" : "Customers" },
+                        { value: "7", label: lang === "id" ? "Segmen" : "Segments" },
+                        { value: "57", label: lang === "id" ? "Dokumen" : "Documents" },
+                      ].map((stat) => (
+                        <div key={stat.label} className="flex items-baseline gap-1">
+                          <span className="font-headline text-base font-bold text-[var(--color-action-primary)]">{stat.value}</span>
+                          <span className="text-[11px] text-[var(--color-ink-subtle)]">{stat.label}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* CTA buttons */}
                     <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                       <button
                         type="button"
                         onClick={() => openGuideView("use-case")}
-                        className="rounded-[var(--radius-pill)] bg-[var(--color-action-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-action-primary-hover)]"
+                        className="rounded-[var(--radius-pill)] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(255,107,0,0.3)] transition hover:brightness-110"
+                        style={{ background: "linear-gradient(135deg,#FF6B00 0%,#E54E00 100%)" }}
                       >
                         {lang === "id" ? "Buka Demo Guide" : "Open Demo Guide"}
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          setActiveView("settings");
-                        }}
-                        className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-white px-4 py-2 text-sm font-semibold text-[var(--color-ink-muted)] transition hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
+                        onClick={() => setActiveView("settings")}
+                        className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--color-ink-muted)] transition hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
                       >
                         {lang === "id" ? "Lihat Pengaturan" : "Review Settings"}
                       </button>
@@ -1158,7 +1219,7 @@ export default function HomePage() {
                       <UserMessageCard key={message.id} content={message.content} />
                     ) : (
                       <div key={message.id} className="flex w-full flex-col items-start gap-4">
-                        <AnswerCard answer={message.content} sources={message.sources} mode={message.mode} />
+                        <AnswerCard answer={message.content} sources={message.sources} mode={message.mode} timestamp={message.timestamp} lang={lang} />
                         {guardrailsNotice ? (
                           <div className="w-full max-w-[56rem]">
                             <NoticePanel
@@ -1208,8 +1269,8 @@ export default function HomePage() {
                             />
                           ))}
                         </span>
-                        <p className="text-sm text-[var(--color-ink-subtle)]">
-                          Data Analyst Assistant is composing an answer…
+                        <p key={loadingMsgIdx} className="text-sm text-[var(--color-ink-subtle)] transition-opacity duration-300">
+                          {LOADING_MESSAGES[loadingMsgIdx][lang]}
                         </p>
                       </div>
                     </section>

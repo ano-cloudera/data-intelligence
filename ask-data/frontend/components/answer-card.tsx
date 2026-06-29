@@ -11,6 +11,8 @@ interface AnswerCardProps {
   answer: string;
   sources?: AnswerSource[];
   mode?: string | null;
+  timestamp?: string;
+  lang?: "en" | "id";
 }
 
 interface ModeBadge {
@@ -211,10 +213,13 @@ function renderBlock(block: ContentBlock, index: number): ReactNode {
   );
 }
 
-export function AnswerCard({ answer, sources = [], mode }: AnswerCardProps) {
+export function AnswerCard({ answer, sources = [], mode, timestamp, lang = "en" }: AnswerCardProps) {
   const blocks = parseAnswerBlocks(answer);
   const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null);
   const badge = getModeBadge(mode);
+  const timeLabel = timestamp
+    ? new Date(timestamp).toLocaleTimeString(lang === "id" ? "id-ID" : "en-US", { hour: "2-digit", minute: "2-digit" })
+    : null;
 
   return (
     <>
@@ -230,9 +235,14 @@ export function AnswerCard({ answer, sources = [], mode }: AnswerCardProps) {
           <span className="icon-box h-7 w-7 rounded-full">
             <SmartToyIcon sx={{ fontSize: 16 }} />
           </span>
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-ink-subtle)]">
-            Analyst Response
-          </span>
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-ink-subtle)]">
+              Analyst Response
+            </span>
+            {timeLabel ? (
+              <p className="text-[10px] text-[var(--color-ink-subtle)] opacity-60">{timeLabel}</p>
+            ) : null}
+          </div>
         </div>
         {badge ? (
           <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest ${badge.classes}`}>
@@ -246,7 +256,7 @@ export function AnswerCard({ answer, sources = [], mode }: AnswerCardProps) {
         {sources.length > 0 ? (
           <div className="mt-5 border-t border-[var(--color-border-soft)] pt-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-ink-subtle)]">
-              Relevant Documents ({sources.length})
+              {lang === "id" ? `Dokumen Relevan (${sources.length})` : `Relevant Documents (${sources.length})`}
             </p>
             <div className="grid gap-3">
               {sources.map((source, index) => (
@@ -281,7 +291,7 @@ export function AnswerCard({ answer, sources = [], mode }: AnswerCardProps) {
                           onClick={() => setPdfModal({ url: source.preview_url!, title: source.title ?? "Dokumen" })}
                           className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
                         >
-                          Buka PDF
+                          {lang === "id" ? "Buka PDF" : "Open PDF"}
                         </button>
                       ) : null}
                       {source.download_url ? (
@@ -290,12 +300,12 @@ export function AnswerCard({ answer, sources = [], mode }: AnswerCardProps) {
                           download
                           className="rounded-[12px] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-[#5c63f2] hover:text-[#5c63f2]"
                         >
-                          Unduh
+                          {lang === "id" ? "Unduh" : "Download"}
                         </a>
                       ) : null}
                       {!source.preview_url && !source.download_url ? (
                         <span className="rounded-[12px] border border-[var(--color-border-soft)] bg-white/50 px-3 py-1.5 text-xs font-medium text-[var(--color-ink-subtle)]">
-                          Link tidak tersedia
+                          {lang === "id" ? "Link tidak tersedia" : "Link unavailable"}
                         </span>
                       ) : null}
                     </div>

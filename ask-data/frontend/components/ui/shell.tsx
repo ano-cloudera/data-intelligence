@@ -2,6 +2,25 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 
+function MenuIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 export type ShellNavItem = {
   key: string;
   label: string;
@@ -53,17 +72,9 @@ export function SidebarNavButton({
   );
 }
 
-export function AppSidebar({
-  brand,
-  items,
-  footer,
-}: {
-  brand: ReactNode;
-  items: ShellNavItem[];
-  footer?: ReactNode;
-}) {
+function SidebarContent({ brand, items, footer }: { brand: ReactNode; items: ShellNavItem[]; footer?: ReactNode }) {
   return (
-    <aside className="app-sidebar hidden lg:fixed lg:left-0 lg:top-0 lg:z-50 lg:flex lg:h-full lg:w-[var(--shell-sidebar-w)] lg:flex-col lg:overflow-hidden lg:py-7 lg:shadow-2xl">
+    <>
       <div className="px-5 pb-2">{brand}</div>
       <nav className="nav-group mt-6 flex-1">
         {items.map((item) => (
@@ -77,22 +88,76 @@ export function AppSidebar({
         ))}
       </nav>
       {footer ? <div className="mt-auto px-2">{footer}</div> : null}
-    </aside>
+    </>
+  );
+}
+
+export function AppSidebar({
+  brand,
+  items,
+  footer,
+  mobileOpen,
+  onMobileClose,
+}: {
+  brand: ReactNode;
+  items: ShellNavItem[];
+  footer?: ReactNode;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}) {
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="app-sidebar hidden lg:fixed lg:left-0 lg:top-0 lg:z-50 lg:flex lg:h-full lg:w-[var(--shell-sidebar-w)] lg:flex-col lg:overflow-hidden lg:py-7 lg:shadow-2xl">
+        <SidebarContent brand={brand} items={items} footer={footer} />
+      </aside>
+
+      {/* Mobile overlay drawer */}
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-[60] lg:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={onMobileClose} />
+          <aside className="app-sidebar absolute left-0 top-0 flex h-full w-72 flex-col overflow-hidden py-7 shadow-2xl transition-transform">
+            <button
+              type="button"
+              onClick={onMobileClose}
+              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-white/50 hover:bg-white/10 hover:text-white"
+            >
+              <XIcon />
+            </button>
+            <SidebarContent brand={brand} items={items} footer={footer} />
+          </aside>
+        </div>
+      ) : null}
+    </>
   );
 }
 
 export function AppTopHeader({
   left,
   right,
+  onMenuClick,
 }: {
   left: ReactNode;
   right?: ReactNode;
+  onMenuClick?: () => void;
 }) {
   return (
     <header className="app-topbar sticky left-0 right-0 top-0 z-40 border-b border-[var(--color-border-soft)] shadow-[0_8px_24px_rgba(15,23,42,0.04)] lg:left-[var(--shell-sidebar-w)]">
       <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#5F67F6]" />
       <div className="relative flex min-h-[var(--shell-header-h)] w-full flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-0">
-        <div className="topbar-meta min-w-0">{left}</div>
+        <div className="topbar-meta min-w-0 flex items-center gap-2">
+          {onMenuClick ? (
+            <button
+              type="button"
+              onClick={onMenuClick}
+              className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] text-[var(--color-ink-muted)] transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink-strong)] lg:hidden"
+              aria-label="Open menu"
+            >
+              <MenuIcon />
+            </button>
+          ) : null}
+          {left}
+        </div>
         {right ? <div className="flex w-full flex-wrap items-center gap-3 lg:ml-6 lg:w-auto lg:shrink-0 lg:justify-end">{right}</div> : null}
       </div>
     </header>
