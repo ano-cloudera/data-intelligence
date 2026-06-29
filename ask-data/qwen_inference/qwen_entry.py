@@ -1,22 +1,29 @@
 """
-CAI Application entry point for Qwen2.5 LLM served via vLLM.
+CAI Application entry point for Qwen2.5/Qwen3 LLM served via vLLM.
 
-This script is the Application script for the Qwen LLM CAI Application.
-It launches vLLM as an OpenAI-compatible inference server.
+Architecture:
+  Internet → [CAI public port] → [Proxy :public_port] → [vLLM :vllm_port]
+
+The proxy sits in front of vLLM and normalizes all requests so ANY app
+(Agent Studio, Ask-Data, custom apps) can use it as a drop-in OpenAI
+replacement without Qwen-specific client code.
 
 Required env vars (set in CAI Application):
   QWEN_MODEL                  HuggingFace model ID (default: Qwen/Qwen2.5-14B-Instruct-AWQ)
   QWEN_API_KEY                API key for authentication (default: local-dev-token)
-  QWEN_MAX_MODEL_LEN          Max context length in tokens (default: 8192)
+  QWEN_MAX_MODEL_LEN          Max context length in tokens (default: 4096)
   QWEN_GPU_MEMORY_UTILIZATION Fraction of GPU VRAM to use (default: 0.90)
   QWEN_TENSOR_PARALLEL_SIZE   Number of GPUs for tensor parallelism (default: 1)
-  CDSW_APP_PORT / PORT        Port assigned by CAI (auto-detected)
+  QWEN_VLLM_INTERNAL_PORT     Internal vLLM port, default 8001 (not exposed)
+  CDSW_APP_PORT / PORT        Public port assigned by CAI (proxy listens here)
 """
 
 import logging
 import os
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 
@@ -119,43 +126,81 @@ def ensure_deps_installed() -> None:
     )
 
 
+def wait_for_vllm(vllm_url: str, timeout: int = 300) -> bool:
+    """Block until vLLM is ready, max timeout seconds."""
+    import urllib.request
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(f"{vllm_url}/health", timeout=2)
+            return True
+        except Exception:
+            time.sleep(3)
+    return False
+
+
+def start_proxy(public_port: int, vllm_port: int, api_key: str) -> None:
+    """Launch uvicorn proxy in a background thread after vLLM is ready."""
+    vllm_url = f"http://127.0.0.1:{vllm_port}/v1"
+    logging.info("Waiting for vLLM to be ready at %s ...", vllm_url)
+
+    if not wait_for_vllm(f"http://127.0.0.1:{vllm_port}"):
+        logging.error("vLLM did not become ready in time — proxy will not start")
+        return
+
+    logging.info("vLLM ready. Starting proxy on port %d → vLLM port %d", public_port, vllm_port)
+
+    # Set env vars so qwen_proxy_app picks them up
+    os.environ["QWEN_BASE_URL"] = vllm_url
+    os.environ["QWEN_API_KEY"]  = api_key
+
+    proxy_dir = Path(__file__).parent
+    subprocess.Popen([
+        sys.executable, "-m", "uvicorn",
+        "qwen_proxy_app:app",
+        "--host", "0.0.0.0",
+        "--port", str(public_port),
+        "--log-level", "warning",
+    ], cwd=str(proxy_dir))
+
+    logging.info("Proxy running on 0.0.0.0:%d", public_port)
+
+
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
     )
 
-    logging.info("Starting Qwen LLM Application (vLLM)")
+    logging.info("Starting Qwen LLM Application (vLLM + Proxy)")
     logging.info("Working directory: %s", Path.cwd())
 
-    port = resolve_port()
-    model = os.getenv("QWEN_MODEL", "Qwen/Qwen3-8B-AWQ")
-    api_key = os.getenv("QWEN_API_KEY", "local-dev-token")
-    max_model_len = os.getenv("QWEN_MAX_MODEL_LEN", "4096")
-    gpu_memory_utilization = os.getenv("QWEN_GPU_MEMORY_UTILIZATION", "0.90")
-    tensor_parallel_size = os.getenv("QWEN_TENSOR_PARALLEL_SIZE", "1")
+    # public_port → exposed by CAI, used by proxy
+    # vllm_port   → internal only, never exposed
+    public_port = resolve_port()
+    vllm_port   = int(os.getenv("QWEN_VLLM_INTERNAL_PORT", "8001"))
 
-    logging.info("Model: %s", model)
-    logging.info("Port: %s", port)
-    logging.info("Max model len: %s", max_model_len)
-    logging.info("GPU memory utilization: %s", gpu_memory_utilization)
-    logging.info("Tensor parallel size: %s", tensor_parallel_size)
+    model                  = os.getenv("QWEN_MODEL",                    "Qwen/Qwen2.5-14B-Instruct-AWQ")
+    api_key                = os.getenv("QWEN_API_KEY",                  "local-dev-token")
+    max_model_len          = os.getenv("QWEN_MAX_MODEL_LEN",            "4096")
+    gpu_memory_utilization = os.getenv("QWEN_GPU_MEMORY_UTILIZATION",   "0.90")
+    tensor_parallel_size   = os.getenv("QWEN_TENSOR_PARALLEL_SIZE",     "1")
+
+    logging.info("Model       : %s", model)
+    logging.info("Public port : %d (proxy)", public_port)
+    logging.info("vLLM port   : %d (internal)", vllm_port)
 
     ensure_deps_installed()
 
-    # Note: --chat-template-kwargs not supported in vLLM 0.7.3
-    # Thinking mode is controlled via /no_think in system prompt instead
-
-    # Select correct tool-call parser per model family:
-    # Qwen3 → "pythonic"  |  Qwen2.5 → "hermes"
     is_qwen3 = "qwen3" in model.lower()
     tool_call_parser = "pythonic" if is_qwen3 else "hermes"
 
+    # vLLM binds to internal port only — proxy handles the public port
     cmd = [
         sys.executable, "-m", "vllm.entrypoints.openai.api_server",
         "--model", model,
         "--host", "127.0.0.1",
-        "--port", str(port),
+        "--port", str(vllm_port),
         "--dtype", "auto",
         "--gpu-memory-utilization", gpu_memory_utilization,
         "--max-model-len", max_model_len,
@@ -164,42 +209,36 @@ def main() -> None:
         "--api-key", api_key,
         "--trust-remote-code",
         "--enforce-eager",
-        # Required for CrewAI / Agent Studio agentic tool calling — without these
-        # vLLM returns raw text instead of structured tool_calls, causing infinite loops
         "--enable-auto-tool-choice",
         "--tool-call-parser", tool_call_parser,
     ]
 
-    # Inject chat template to fix CrewAI ReAct loop:
-    # - Qwen3: disable thinking tokens (/no_think) — otherwise CrewAI reads
-    #   <think>...</think> as intermediate state and re-prompts indefinitely
-    # - Qwen2.5: enforce strict ReAct format (Thought/Action/Final Answer) —
-    #   Qwen2.5 often paraphrases the format, causing CrewAI parser to miss
-    #   "Final Answer:" and retry the same task forever
-    if is_qwen3:
-        template_path = Path(__file__).parent / "qwen3_no_think_template.jinja"
-    else:
-        template_path = Path(__file__).parent / "qwen25_crewai_template.jinja"
-
+    template_path = Path(__file__).parent / (
+        "qwen3_no_think_template.jinja" if is_qwen3 else "qwen25_crewai_template.jinja"
+    )
     if template_path.exists():
         cmd += ["--chat-template", str(template_path)]
-        logging.info("Using chat template: %s", template_path)
+        logging.info("Chat template: %s", template_path)
     else:
-        logging.warning("Chat template not found at %s — CrewAI loop risk", template_path)
+        logging.warning("Chat template not found at %s", template_path)
 
     logging.info("Launching vLLM: %s", " ".join(cmd))
 
     env = os.environ.copy()
-    # Disable flashinfer JIT compile — nvcc not available in CAI runtime
     env.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
-    # Suppress deprecation warnings
     env["PYTHONWARNINGS"] = "ignore::DeprecationWarning,ignore::UserWarning"
-    # Prepend isolated deps dir so pinned packages (transformers==4.51.3, vllm==0.7.3)
-    # take absolute priority over system /usr/local and ~/.local in all child processes.
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = f"{DEPS_DIR}:{existing_pythonpath}" if existing_pythonpath else str(DEPS_DIR)
-    logging.info("PYTHONPATH set to: %s", env["PYTHONPATH"])
 
+    # Start proxy in background thread — it waits for vLLM to be ready first
+    proxy_thread = threading.Thread(
+        target=start_proxy,
+        args=(public_port, vllm_port, api_key),
+        daemon=True,
+    )
+    proxy_thread.start()
+
+    # vLLM runs in foreground — keeps process alive
     process = subprocess.Popen(cmd, env=env)
     process.wait()
 
