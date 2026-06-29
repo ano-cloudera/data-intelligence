@@ -56,6 +56,7 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  mode?: string;
   sources?: AnswerSource[];
   metadata?: Record<string, unknown>;
   visualization?: VisualizationSpec | null;
@@ -316,6 +317,7 @@ const demoBriefingSections = [
 export default function HomePage() {
   const submitInFlightRef = useRef(false);
   const [state, setState] = useState<ChatState>(initialChatState);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [sessions, setSessions] = useState<SessionsState>(initialSessionsState);
   const [llmProviders, setLlmProviders] = useState<LLMProvidersState>(initialLlmProvidersState);
   const [analytics, setAnalytics] = useState<AnalyticsState>(initialAnalyticsState);
@@ -817,6 +819,7 @@ export default function HomePage() {
         id: `assistant-${Date.now()}`,
         role: "assistant",
         content: response.answer,
+        mode: response.mode ?? undefined,
         sources: response.sources ?? [],
         metadata: response.metadata ?? {},
         visualization: response.visualization ?? null,
@@ -1039,13 +1042,38 @@ export default function HomePage() {
           >
             {lang === "id" ? "Refresh status" : "Refresh status"}
           </button>
-          <button
-            type="button"
-            onClick={handleClearSession}
-            className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-rose-400 hover:text-rose-500"
-          >
-            {lang === "id" ? "Bersihkan Sesi" : "Clear Session"}
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowClearConfirm((v) => !v)}
+              className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:border-rose-400 hover:text-rose-500"
+            >
+              {lang === "id" ? "Bersihkan Sesi" : "Clear Session"}
+            </button>
+            {showClearConfirm ? (
+              <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-[16px] border border-rose-200 bg-white p-3 shadow-lg">
+                <p className="mb-2.5 text-xs font-semibold text-[var(--color-ink-strong)]">
+                  {lang === "id" ? "Hapus semua chat?" : "Clear all messages?"}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowClearConfirm(false)}
+                    className="flex-1 rounded-[10px] border border-[var(--color-border-strong)] bg-white py-1.5 text-xs font-semibold text-[var(--color-ink-muted)] transition hover:bg-[var(--color-surface-muted)]"
+                  >
+                    {lang === "id" ? "Batal" : "Cancel"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handleClearSession(); setShowClearConfirm(false); }}
+                    className="flex-1 rounded-[10px] bg-rose-500 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-600"
+                  >
+                    {lang === "id" ? "Hapus" : "Clear"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       }
     />
@@ -1130,7 +1158,7 @@ export default function HomePage() {
                       <UserMessageCard key={message.id} content={message.content} />
                     ) : (
                       <div key={message.id} className="flex w-full flex-col items-start gap-4">
-                        <AnswerCard answer={message.content} sources={message.sources} />
+                        <AnswerCard answer={message.content} sources={message.sources} mode={message.mode} />
                         {guardrailsNotice ? (
                           <div className="w-full max-w-[56rem]">
                             <NoticePanel

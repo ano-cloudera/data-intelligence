@@ -314,8 +314,9 @@ export function ModelSettingsPanel({
           </div>
         ) : null}
 
-        <div className="mt-6 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-          {/* Left: Model + RAG */}
+        <div className="mt-6 space-y-5">
+          {/* Model + MCP + RAG */}
+          <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-5">
             {/* Model section */}
             <section className="rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5">
@@ -694,28 +695,10 @@ export function ModelSettingsPanel({
               )}
             </section>
           </div>
+          </div>{/* end inner grid */}
 
-          {/* Right: Disclaimer + Data Table Preview */}
-          <div className="min-w-0 space-y-5 overflow-hidden">
-            {/* Disclaimer */}
-            <div className="rounded-[20px] border border-[var(--color-border-soft)] bg-[linear-gradient(180deg,#fbfcff_0%,#eef4ff_100%)] p-5 shadow-panel">
-              <div className="flex items-start gap-3">
-                <div className="icon-box h-11 w-11 shrink-0 rounded-[14px]">
-                  <InfoIcon sx={{ fontSize: 20 }} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#4968cf]">
-                    {tr("disclaimerTitle", lang)}
-                  </p>
-                  <p className="mt-2 text-sm leading-7 text-[var(--color-ink-muted)]">
-                    {tr("disclaimerBody", lang)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Data Table Preview */}
-            <div className="min-w-0 overflow-hidden rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5 shadow-panel">
+          {/* Data Table Preview — full width, bottom */}
+          <div className="min-w-0 overflow-hidden rounded-[20px] border border-[var(--color-border-soft)] bg-white p-5 shadow-panel">
               <div className="flex items-center gap-2 mb-3">
                 <div className="icon-box h-8 w-8 shrink-0 rounded-[12px]">
                   <TableChartIcon sx={{ fontSize: 16 }} />
@@ -846,7 +829,6 @@ export function ModelSettingsPanel({
               )}
             </div>
           </div>
-        </div>
       </section>
 
       {/* PDF Upload → CAI Job */}

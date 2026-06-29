@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import SendIcon from "@mui/icons-material/Send";
 
 interface ChatInputPanelProps {
@@ -19,6 +20,15 @@ export function ChatInputPanel({
   onStarterSelect,
   onSubmit,
 }: ChatInputPanelProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 160) + "px";
+  }, [question]);
+
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey) return;
     event.preventDefault();
@@ -35,12 +45,14 @@ export function ChatInputPanel({
         style={{ padding: "var(--space-4)" }}
       >
         <textarea
+          ref={textareaRef}
           value={question}
           onChange={(e) => onQuestionChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          rows={4}
+          rows={2}
           placeholder="Tanyakan tentang segmentasi nasabah, credit risk, churn probability, atau analitik cabang Bank XYZ."
-          className="w-full resize-none bg-transparent px-1 py-1 text-sm leading-6 text-[var(--color-ink-strong)] outline-none placeholder:text-[var(--color-ink-subtle)]"
+          className="w-full overflow-hidden bg-transparent px-1 py-1 text-sm leading-6 text-[var(--color-ink-strong)] outline-none placeholder:text-[var(--color-ink-subtle)]"
+          style={{ resize: "none" }}
         />
 
         <div

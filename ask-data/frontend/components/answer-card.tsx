@@ -10,6 +10,23 @@ import { PdfViewerModal } from "./pdf-viewer-modal";
 interface AnswerCardProps {
   answer: string;
   sources?: AnswerSource[];
+  mode?: string | null;
+}
+
+interface ModeBadge {
+  label: string;
+  classes: string;
+}
+
+function getModeBadge(mode: string | null | undefined): ModeBadge | null {
+  if (!mode) return null;
+  const m = mode.toLowerCase();
+  if (m === "rag") return { label: "RAG · Dokumen", classes: "bg-indigo-50 text-indigo-700 border-indigo-200" };
+  if (m === "sql") return { label: "SQL · Database", classes: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+  if (m === "aggregation" || m === "mcp") return { label: "MCP · Analytics", classes: "bg-orange-50 text-orange-700 border-orange-200" };
+  if (m === "fallback") return { label: "LLM · Fallback", classes: "bg-slate-100 text-slate-500 border-slate-200" };
+  if (m === "error") return { label: "Error", classes: "bg-rose-50 text-rose-600 border-rose-200" };
+  return null;
 }
 
 type ContentBlock =
@@ -194,9 +211,10 @@ function renderBlock(block: ContentBlock, index: number): ReactNode {
   );
 }
 
-export function AnswerCard({ answer, sources = [] }: AnswerCardProps) {
+export function AnswerCard({ answer, sources = [], mode }: AnswerCardProps) {
   const blocks = parseAnswerBlocks(answer);
   const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null);
+  const badge = getModeBadge(mode);
 
   return (
     <>
@@ -207,13 +225,20 @@ export function AnswerCard({ answer, sources = [] }: AnswerCardProps) {
       onClose={() => setPdfModal(null)}
     />
     <section className="w-full max-w-[56rem] rounded-[var(--radius-panel)] border border-[var(--color-border-soft)] bg-[var(--color-surface)] shadow-panel">
-      <div className="flex items-center gap-2 border-b border-[var(--color-border-soft)] px-5 py-3">
-        <span className="icon-box h-7 w-7 rounded-full">
-          <SmartToyIcon sx={{ fontSize: 16 }} />
-        </span>
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-ink-subtle)]">
-          Analyst Response
-        </span>
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--color-border-soft)] px-5 py-3">
+        <div className="flex items-center gap-2">
+          <span className="icon-box h-7 w-7 rounded-full">
+            <SmartToyIcon sx={{ fontSize: 16 }} />
+          </span>
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-ink-subtle)]">
+            Analyst Response
+          </span>
+        </div>
+        {badge ? (
+          <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest ${badge.classes}`}>
+            {badge.label}
+          </span>
+        ) : null}
       </div>
       <div className="space-y-4 px-5 py-4">
         {blocks.map((block, index) => renderBlock(block, index))}
