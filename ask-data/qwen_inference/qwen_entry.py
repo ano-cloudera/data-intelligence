@@ -146,6 +146,10 @@ def main() -> None:
     # Note: --chat-template-kwargs not supported in vLLM 0.7.3
     # Thinking mode is controlled via /no_think in system prompt instead
 
+    # Select correct tool-call parser per model family:
+    # Qwen3 → "pythonic"  |  Qwen2.5 → "hermes"
+    tool_call_parser = "pythonic" if "qwen3" in model.lower() else "hermes"
+
     cmd = [
         sys.executable, "-m", "vllm.entrypoints.openai.api_server",
         "--model", model,
@@ -159,6 +163,10 @@ def main() -> None:
         "--api-key", api_key,
         "--trust-remote-code",
         "--enforce-eager",
+        # Required for CrewAI / Agent Studio agentic tool calling — without these
+        # vLLM returns raw text instead of structured tool_calls, causing infinite loops
+        "--enable-auto-tool-choice",
+        "--tool-call-parser", tool_call_parser,
     ]
 
     logging.info("Launching vLLM: %s", " ".join(cmd))

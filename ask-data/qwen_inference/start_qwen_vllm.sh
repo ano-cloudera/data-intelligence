@@ -11,6 +11,14 @@ echo "Starting vLLM OpenAI-compatible server"
 echo "Model: ${QWEN_MODEL}"
 echo "Port : ${QWEN_PORT}"
 
+# Select tool-call parser: Qwen3 uses "pythonic", Qwen2.5 uses "hermes"
+if echo "${QWEN_MODEL}" | grep -qi "qwen3"; then
+  TOOL_CALL_PARSER="pythonic"
+else
+  TOOL_CALL_PARSER="hermes"
+fi
+echo "Tool-call parser: ${TOOL_CALL_PARSER}"
+
 vllm serve "${QWEN_MODEL}" \
   --host 0.0.0.0 \
   --port "${QWEN_PORT}" \
@@ -18,4 +26,6 @@ vllm serve "${QWEN_MODEL}" \
   --gpu-memory-utilization "${QWEN_GPU_MEMORY_UTILIZATION}" \
   --max-model-len "${QWEN_MAX_MODEL_LEN}" \
   --served-model-name "${QWEN_MODEL}" \
-  --api-key "${QWEN_API_KEY}"
+  --api-key "${QWEN_API_KEY}" \
+  --enable-auto-tool-choice \
+  --tool-call-parser "${TOOL_CALL_PARSER}"
