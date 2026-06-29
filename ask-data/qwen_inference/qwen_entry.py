@@ -1,21 +1,16 @@
 """
-CAI Application entry point for Qwen2.5/Qwen3 LLM served via vLLM.
+CAI Application entry point for Qwen2.5 LLM served via vLLM.
 
-Architecture:
-  Internet → [CAI public port] → [Proxy :public_port] → [vLLM :vllm_port]
-
-The proxy sits in front of vLLM and normalizes all requests so ANY app
-(Agent Studio, Ask-Data, custom apps) can use it as a drop-in OpenAI
-replacement without Qwen-specific client code.
+This script is the Application script for the Qwen LLM CAI Application.
+It launches vLLM as an OpenAI-compatible inference server.
 
 Required env vars (set in CAI Application):
   QWEN_MODEL                  HuggingFace model ID (default: Qwen/Qwen2.5-14B-Instruct-AWQ)
   QWEN_API_KEY                API key for authentication (default: local-dev-token)
-  QWEN_MAX_MODEL_LEN          Max context length in tokens (default: 4096)
+  QWEN_MAX_MODEL_LEN          Max context length in tokens (default: 8192)
   QWEN_GPU_MEMORY_UTILIZATION Fraction of GPU VRAM to use (default: 0.90)
   QWEN_TENSOR_PARALLEL_SIZE   Number of GPUs for tensor parallelism (default: 1)
-  QWEN_VLLM_INTERNAL_PORT     Internal vLLM port, default 8001 (not exposed)
-  CDSW_APP_PORT / PORT        Public port assigned by CAI (proxy listens here)
+  CDSW_APP_PORT / PORT        Port assigned by CAI (auto-detected)
 """
 
 import logging
@@ -133,20 +128,27 @@ def main() -> None:
     logging.info("Starting Qwen LLM Application (vLLM)")
     logging.info("Working directory: %s", Path.cwd())
 
-    port                   = resolve_port()
-    model                  = os.getenv("QWEN_MODEL",                    "Qwen/Qwen2.5-14B-Instruct-AWQ")
-    api_key                = os.getenv("QWEN_API_KEY",                  "local-dev-token")
-    max_model_len          = os.getenv("QWEN_MAX_MODEL_LEN",            "4096")
-    gpu_memory_utilization = os.getenv("QWEN_GPU_MEMORY_UTILIZATION",   "0.90")
-    tensor_parallel_size   = os.getenv("QWEN_TENSOR_PARALLEL_SIZE",     "1")
+    port = resolve_port()
+    model = os.getenv("QWEN_MODEL", "Qwen/Qwen3-8B-AWQ")
+    api_key = os.getenv("QWEN_API_KEY", "local-dev-token")
+    max_model_len = os.getenv("QWEN_MAX_MODEL_LEN", "4096")
+    gpu_memory_utilization = os.getenv("QWEN_GPU_MEMORY_UTILIZATION", "0.90")
+    tensor_parallel_size = os.getenv("QWEN_TENSOR_PARALLEL_SIZE", "1")
 
-    logging.info("Model : %s", model)
-    logging.info("Port  : %d", port)
+    logging.info("Model: %s", model)
+    logging.info("Port: %s", port)
+    logging.info("Max model len: %s", max_model_len)
+    logging.info("GPU memory utilization: %s", gpu_memory_utilization)
+    logging.info("Tensor parallel size: %s", tensor_parallel_size)
 
     ensure_deps_installed()
 
-    is_qwen3 = "qwen3" in model.lower()
-    tool_call_parser = "pythonic" if is_qwen3 else "hermes"
+    # Note: --chat-template-kwargs not supported in vLLM 0.7.3
+    # Thinking mode is controlled via /no_think in system prompt instead
+
+    # Select correct tool-call parser per model family:
+    # Qwen3 → "pythonic"  |  Qwen2.5 → "hermes"
+    tool_call_parser = "pythonic" if "qwen3" in model.lower() else "hermes"
 
     cmd = [
         sys.executable, "-m", "vllm.entrypoints.openai.api_server",
@@ -161,27 +163,24 @@ def main() -> None:
         "--api-key", api_key,
         "--trust-remote-code",
         "--enforce-eager",
+        # Required for CrewAI / Agent Studio agentic tool calling — without these
+        # vLLM returns raw text instead of structured tool_calls, causing infinite loops
         "--enable-auto-tool-choice",
         "--tool-call-parser", tool_call_parser,
     ]
 
-    qwen_dir = resolve_qwen_dir()
-    template_path = qwen_dir / (
-        "qwen3_no_think_template.jinja" if is_qwen3 else "qwen25_crewai_template.jinja"
-    )
-    if template_path.exists():
-        cmd += ["--chat-template", str(template_path)]
-        logging.info("Chat template: %s", template_path)
-    else:
-        logging.warning("Chat template not found at %s", template_path)
-
     logging.info("Launching vLLM: %s", " ".join(cmd))
 
     env = os.environ.copy()
+    # Disable flashinfer JIT compile — nvcc not available in CAI runtime
     env.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
+    # Suppress deprecation warnings
     env["PYTHONWARNINGS"] = "ignore::DeprecationWarning,ignore::UserWarning"
+    # Prepend isolated deps dir so pinned packages (transformers==4.51.3, vllm==0.7.3)
+    # take absolute priority over system /usr/local and ~/.local in all child processes.
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = f"{DEPS_DIR}:{existing_pythonpath}" if existing_pythonpath else str(DEPS_DIR)
+    logging.info("PYTHONPATH set to: %s", env["PYTHONPATH"])
 
     process = subprocess.Popen(cmd, env=env)
     process.wait()
