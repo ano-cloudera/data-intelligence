@@ -119,6 +119,82 @@ def ensure_deps_installed() -> None:
     )
 
 
+def free_port(port: int) -> None:
+    """Kill any process holding the given TCP port before we try to bind it."""
+    import signal
+    import time
+
+    my_pid = os.getpid()
+    freed = False
+
+    # Method 1: fuser — most reliable on Linux
+    try:
+        result = subprocess.run(
+            ["fuser", f"{port}/tcp"],
+            capture_output=True, text=True, timeout=5,
+        )
+        pids = result.stdout.strip().split()
+        for pid_str in pids:
+            try:
+                pid = int(pid_str)
+                if pid != my_pid:
+                    os.kill(pid, signal.SIGKILL)
+                    logging.info("Killed PID %d holding port %d via fuser", pid, port)
+                    freed = True
+            except (ValueError, ProcessLookupError, PermissionError):
+                pass
+    except FileNotFoundError:
+        pass
+
+    # Method 2: read /proc/net/tcp to find PID holding the port
+    try:
+        hex_port = f"{port:04X}"
+        with open("/proc/net/tcp") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 10:
+                    continue
+                local_addr = parts[1]
+                if local_addr.split(":")[1].upper() == hex_port:
+                    inode = parts[9]
+                    # Find PID with this inode
+                    for pid_dir in Path("/proc").iterdir():
+                        if not pid_dir.name.isdigit():
+                            continue
+                        pid = int(pid_dir.name)
+                        if pid == my_pid:
+                            continue
+                        try:
+                            fd_dir = pid_dir / "fd"
+                            for fd in fd_dir.iterdir():
+                                if fd.is_symlink() and f"socket:[{inode}]" in str(fd.resolve()):
+                                    os.kill(pid, signal.SIGKILL)
+                                    logging.info("Killed PID %d holding port %d via /proc/net/tcp", pid, port)
+                                    freed = True
+                        except (PermissionError, FileNotFoundError):
+                            pass
+    except Exception:
+        pass
+
+    if freed:
+        time.sleep(2)
+        logging.info("Port %d cleared.", port)
+    else:
+        logging.info("Port %d — no conflicting process found.", port)
+
+
+def is_port_free(port: int) -> bool:
+    """Check if a TCP port is available to bind."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind(("0.0.0.0", port))
+            return True
+        except OSError:
+            return False
+
+
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -129,6 +205,21 @@ def main() -> None:
     logging.info("Working directory: %s", Path.cwd())
 
     port = resolve_port()
+    free_port(port)
+
+    # If port still occupied after kill attempt, find next free port
+    if not is_port_free(port):
+        original_port = port
+        for candidate in range(port + 1, port + 20):
+            if is_port_free(candidate):
+                logging.warning(
+                    "Port %d still occupied — using port %d instead.",
+                    original_port, candidate,
+                )
+                port = candidate
+                break
+        else:
+            raise RuntimeError(f"No free port found in range {original_port}–{original_port + 20}")
     model = os.getenv("QWEN_MODEL", "Qwen/Qwen3-8B-AWQ")
     api_key = os.getenv("QWEN_API_KEY", "local-dev-token")
     max_model_len = os.getenv("QWEN_MAX_MODEL_LEN", "4096")
