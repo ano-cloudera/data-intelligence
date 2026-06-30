@@ -206,20 +206,6 @@ def main() -> None:
 
     port = resolve_port()
     free_port(port)
-
-    # If port still occupied after kill attempt, find next free port
-    if not is_port_free(port):
-        original_port = port
-        for candidate in range(port + 1, port + 20):
-            if is_port_free(candidate):
-                logging.warning(
-                    "Port %d still occupied — using port %d instead.",
-                    original_port, candidate,
-                )
-                port = candidate
-                break
-        else:
-            raise RuntimeError(f"No free port found in range {original_port}–{original_port + 20}")
     model = os.getenv("QWEN_MODEL", "Qwen/Qwen3-8B-AWQ")
     api_key = os.getenv("QWEN_API_KEY", "local-dev-token")
     max_model_len = os.getenv("QWEN_MAX_MODEL_LEN", "4096")
