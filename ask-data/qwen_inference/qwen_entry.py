@@ -78,8 +78,8 @@ def ensure_deps_installed() -> None:
     DEPS_DIR.mkdir(parents=True, exist_ok=True)
     vllm_ver = _pkg_version("vllm")
     transformers_ver = _pkg_version("transformers")
-    vllm_ok = vllm_ver >= (0, 7, 3)
-    transformers_ok = transformers_ver >= (4, 47, 0)
+    vllm_ok = vllm_ver >= (0, 7, 3)  # supports 0.7.3+ and 0.24+
+    transformers_ok = transformers_ver >= (4, 47, 0)  # supports 4.x and 5.x
     logging.info(
         "vLLM in deps: %s — %s",
         ".".join(map(str, vllm_ver)),
