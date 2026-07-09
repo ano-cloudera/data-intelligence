@@ -79,7 +79,7 @@ def ensure_deps_installed() -> None:
     vllm_ver = _pkg_version("vllm")
     transformers_ver = _pkg_version("transformers")
     vllm_ok = vllm_ver >= (0, 7, 3)
-    transformers_ok = (4, 47, 0) <= transformers_ver < (5, 0, 0)
+    transformers_ok = transformers_ver >= (4, 47, 0)
     logging.info(
         "vLLM in deps: %s — %s",
         ".".join(map(str, vllm_ver)),
@@ -98,8 +98,8 @@ def ensure_deps_installed() -> None:
         "vLLM + transformers must be pre-installed in a Workbench session before starting this Application.\n"
         "Run in a Workbench terminal:\n\n"
         f"  PIP_USER=0 pip install --target {DEPS_DIR} \\\n"
-        "    vllm==0.7.3 torch==2.5.1 'transformers==4.51.3' \\\n"
-        "    'tokenizers>=0.19.0,<0.22' accelerate huggingface_hub -q\n\n"
+        "    'vllm>=0.19.0' 'transformers>=5.5.4' \\\n"
+        "    'tokenizers>=0.21.0' torch accelerate huggingface_hub -q\n\n"
         "Then restart this Application."
     )
 
