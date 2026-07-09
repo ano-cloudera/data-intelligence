@@ -441,7 +441,6 @@ def build_vllm_cmd(
         "--served-model-name", model,
         "--api-key", api_key,
         "--trust-remote-code",
-        "--enforce-eager",
         "--enable-auto-tool-choice",
         "--tool-call-parser", tool_call_parser,
     ]
