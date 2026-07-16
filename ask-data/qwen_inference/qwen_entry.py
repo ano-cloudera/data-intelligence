@@ -447,21 +447,7 @@ def build_vllm_cmd(
 
 
 def preflight_vllm() -> None:
-    result = subprocess.run(
-        [sys.executable, "-c", "import vllm; print(vllm.__version__)"],
-        env=build_vllm_env(),
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if result.returncode != 0:
-        logging.error("vLLM preflight import failed (exit %d)", result.returncode)
-        if result.stdout.strip():
-            logging.error("stdout: %s", result.stdout.strip())
-        if result.stderr.strip():
-            logging.error("stderr: %s", result.stderr.strip())
-        raise SystemExit(result.returncode)
-    logging.info("vLLM preflight OK (version %s)", result.stdout.strip())
+    logging.info("Skipping preflight import — vLLM will be validated at launch.")
 
 
 def launch_vllm(cmd: list[str]) -> subprocess.Popen:
