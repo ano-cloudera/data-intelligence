@@ -44,10 +44,6 @@ TOXIC_PATTERNS = (
 EMAIL_PATTERN = re.compile(r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[A-Za-z]{2,}\b")
 PHONE_PATTERN = re.compile(r"(?<!\d)(?:\+?\d[\d\-\s()]{7,}\d)")
 LONG_ID_PATTERN = re.compile(r"(?<!\d)\d{10,}(?!\d)")
-ACCOUNT_LABEL_PATTERN = re.compile(
-    r"\b(account number|nomor rekening|phone number|nomor hp|nomor telepon|email address|alamat email|nik|npwp)\b",
-    re.IGNORECASE,
-)
 
 SENSITIVE_COLUMN_MARKERS = {
     "account_number",
@@ -189,9 +185,6 @@ class GuardrailsService:
                 message=sanitized,
                 metadata={"provider": "heuristic"},
             )
-
-        if ACCOUNT_LABEL_PATTERN.search(original):
-            return self._blocked("sensitive_result", question)
 
         return GuardrailsDecision(
             action="allow",
