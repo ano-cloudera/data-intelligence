@@ -9,12 +9,13 @@ export interface GraphNode {
   label: string;
   segment: string;
   churn_risk: number;
-  renewal_probability: number;
-  cross_sell_score: number;
+  churn_risk_label: string;
+  dormant_risk_level: string;
+  credit_score: number;
+  credit_risk_label: string;
   sw_amount: number;
-  province: string;
   city: string;
-  payment_status: string;
+  branch_name: string;
   is_root: boolean;
   risk_level: "critical" | "high" | "medium" | "low";
   contagion_score: number;
@@ -39,11 +40,15 @@ export interface GraphData {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const SEGMENT_COLOR: Record<string, string> = {
-  Premium:  "#f59e0b",
-  Growth:   "#10b981",
-  Standard: "#6366f1",
-  "At Risk": "#ef4444",
+  "Affluent Depositor": "#f59e0b",
+  "Digital Active":     "#10b981",
+  "Mass Retail":        "#6366f1",
+  "Payroll Customer":   "#0ea5e9",
+  "Credit Heavy":       "#8b5cf6",
+  "SME Owner":          "#d97706",
+  "Dormant Risk":       "#ef4444",
 };
+const DEFAULT_SEGMENT_COLOR = "#6366f1";
 
 const RISK_BORDER: Record<string, string> = {
   critical: "#dc2626",
@@ -146,17 +151,16 @@ function Tooltip({ node, x, y }: { node: GraphNode; x: number; y: number }) {
       className="pointer-events-none absolute z-50 rounded-xl border border-white/10 bg-[#0f172a]/95 px-4 py-3 shadow-2xl backdrop-blur-md"
       style={{ left: x + 16, top: y - 8, minWidth: 220 }}
     >
-      <p className="mb-1 text-xs font-bold text-white">{node.label}</p>
-      <p className="mb-2 text-[10px] text-slate-400">{node.id}</p>
+      <p className="mb-1 text-xs font-bold text-white">{node.id}</p>
+      <p className="mb-2 text-[10px] text-slate-400">{node.segment}</p>
       <div className="space-y-1">
         {[
-          ["Segment",       node.segment],
-          ["Churn Risk",    `${(node.churn_risk * 100).toFixed(0)}%`],
+          ["Churn Risk",    `${node.churn_risk_label} (${(node.churn_risk * 100).toFixed(0)}%)`],
+          ["Dormant Risk",  node.dormant_risk_level],
           ["Contagion",     `${(node.contagion_score * 100).toFixed(0)}%`],
-          ["Renewal Prob",  `${(node.renewal_probability * 100).toFixed(0)}%`],
-          ["SW Amount",     `Rp ${node.sw_amount.toLocaleString("id-ID")}`],
-          ["Location",      `${node.city}, ${node.province}`],
-          ["Payment",       node.payment_status],
+          ["Credit",        `${node.credit_risk_label} (${node.credit_score})`],
+          ["Deposit Balance", `Rp ${node.sw_amount.toLocaleString("id-ID")}`],
+          ["Location",      `${node.city} · ${node.branch_name}`],
         ].map(([k, v]) => (
           <div key={k} className="flex justify-between gap-4">
             <span className="text-[10px] text-slate-400">{k}</span>
@@ -280,7 +284,7 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
 
         {/* Nodes */}
         {simNodes.map((n) => {
-          const fill   = SEGMENT_COLOR[n.segment] ?? "#6366f1";
+          const fill   = SEGMENT_COLOR[n.segment] ?? DEFAULT_SEGMENT_COLOR;
           const border = RISK_BORDER[n.risk_level] ?? "#22c55e";
           const isRoot = n.is_root;
           const isSelected = selected?.id === n.id;
@@ -331,17 +335,17 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
         <div className="border-t border-white/8 bg-white/3 px-5 py-3">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">{selected.label}</p>
-              <p className="text-[10px] text-slate-400">{selected.id} · {selected.city}, {selected.province}</p>
+              <p className="text-sm font-semibold text-white">{selected.id}</p>
+              <p className="text-[10px] text-slate-400">{selected.segment} · {selected.city} · {selected.branch_name}</p>
             </div>
             <button onClick={() => setSelected(null)} className="text-slate-500 hover:text-white text-xs">✕</button>
           </div>
           <div className="mt-2 grid grid-cols-4 gap-3">
             {[
-              { label: "Segment",      value: selected.segment,                              color: SEGMENT_COLOR[selected.segment] },
-              { label: "Churn Risk",   value: `${(selected.churn_risk * 100).toFixed(0)}%`,  color: RISK_BORDER[selected.risk_level] },
+              { label: "Churn Risk",   value: selected.churn_risk_label,                     color: RISK_BORDER[selected.risk_level] ?? "#22c55e" },
+              { label: "Dormant Risk", value: selected.dormant_risk_level,                    color: "#eab308" },
               { label: "Contagion",    value: `${(selected.contagion_score * 100).toFixed(0)}%`, color: "#f97316" },
-              { label: "SW Amount",    value: `Rp ${(selected.sw_amount / 1000).toFixed(0)}K`, color: "#6366f1" },
+              { label: "Credit",       value: selected.credit_risk_label,                     color: "#6366f1" },
             ].map(({ label, value, color }) => (
               <div key={label} className="rounded-lg bg-white/5 px-3 py-2">
                 <p className="text-[9px] uppercase tracking-widest text-slate-400">{label}</p>
