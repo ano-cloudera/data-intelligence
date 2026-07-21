@@ -75,6 +75,10 @@ AGGREGATE_CUSTOMER_ALLOW_PATTERNS = (
     r"\b(tren|trend)\b.*\b(customer|customers|nasabah)\b",
     r"\b(mobile banking|digital banking|internet banking|adoption rate|adoption)\b",
     r"\b(credit score|churn|risk score|scoring)\b",
+    # cif is a non-PII synthetic identifier used to look up the risk propagation
+    # graph for a single customer — allow it only when paired with graph intent.
+    r"\bcif\b.*\b(jaringan|network|risiko|risk|propagasi|terhubung|connected|graph)\b",
+    r"\b(jaringan|network|risiko|risk|propagasi|terhubung|connected|graph)\b.*\bcif\b",
 )
 
 BLOCK_REASON_MESSAGES = {

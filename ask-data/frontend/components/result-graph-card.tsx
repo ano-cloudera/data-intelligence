@@ -40,15 +40,11 @@ export interface GraphData {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const SEGMENT_COLOR: Record<string, string> = {
-  "Affluent Depositor": "#f59e0b",
-  "Digital Active":     "#10b981",
-  "Mass Retail":        "#6366f1",
-  "Payroll Customer":   "#0ea5e9",
-  "Credit Heavy":       "#8b5cf6",
-  "SME Owner":          "#d97706",
-  "Dormant Risk":       "#ef4444",
+  "Silent Mature":             "#f59e0b",
+  "Young Syariah Digital":     "#10b981",
+  "Konvensional Produktif":    "#6366f1",
 };
-const DEFAULT_SEGMENT_COLOR = "#6366f1";
+const DEFAULT_SEGMENT_COLOR = "#8b5cf6";
 
 const RISK_BORDER: Record<string, string> = {
   critical: "#dc2626",
@@ -82,14 +78,17 @@ interface SimNode extends GraphNode {
   y: number;
   vx: number;
   vy: number;
+  nodeNumber: number;
 }
 
 function initPositions(nodes: GraphNode[], rootId: string): SimNode[] {
+  let counter = 0;
   return nodes.map((n, i) => {
-    if (n.id === rootId) return { ...n, x: W / 2, y: H / 2, vx: 0, vy: 0 };
+    const nodeNumber = n.id === rootId ? 0 : ++counter;
+    if (n.id === rootId) return { ...n, x: W / 2, y: H / 2, vx: 0, vy: 0, nodeNumber };
     const angle = (2 * Math.PI * i) / nodes.length;
     const r = 160 + Math.random() * 60;
-    return { ...n, x: W / 2 + r * Math.cos(angle), y: H / 2 + r * Math.sin(angle), vx: 0, vy: 0 };
+    return { ...n, x: W / 2 + r * Math.cos(angle), y: H / 2 + r * Math.sin(angle), vx: 0, vy: 0, nodeNumber };
   });
 }
 
@@ -175,24 +174,29 @@ function Tooltip({ node, x, y }: { node: GraphNode; x: number; y: number }) {
 
 function Legend() {
   return (
-    <div className="flex flex-wrap gap-x-5 gap-y-2 px-1 pt-3">
-      <div className="flex items-center gap-3">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Segment</span>
-        {Object.entries(SEGMENT_COLOR).map(([k, c]) => (
-          <span key={k} className="flex items-center gap-1">
-            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: c }} />
-            <span className="text-[10px] text-slate-300">{k}</span>
-          </span>
-        ))}
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Relation</span>
-        {Object.entries(REL_COLOR).map(([k, c]) => (
-          <span key={k} className="flex items-center gap-1.5">
-            <span className="inline-block h-0.5 w-5 rounded" style={{ background: c }} />
-            <span className="text-[10px] text-slate-300">{REL_LABEL[k]}</span>
-          </span>
-        ))}
+    <div className="flex flex-col gap-2 px-1 pt-3">
+      <p className="text-[10px] leading-4 text-slate-400">
+        Angka di dalam lingkaran = <span className="font-semibold text-slate-200">persentase risiko churn</span> nasabah tersebut.
+      </p>
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Segmen</span>
+          {Object.entries(SEGMENT_COLOR).map(([k, c]) => (
+            <span key={k} className="flex items-center gap-1">
+              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: c }} />
+              <span className="text-[10px] text-slate-300">{k}</span>
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Relasi</span>
+          {Object.entries(REL_COLOR).map(([k, c]) => (
+            <span key={k} className="flex items-center gap-1.5">
+              <span className="inline-block h-0.5 w-5 rounded" style={{ background: c }} />
+              <span className="text-[10px] text-slate-300">{REL_LABEL[k]}</span>
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -204,7 +208,7 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [simNodes, setSimNodes] = useState<SimNode[]>([]);
   const [hovered, setHovered] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
-  const [selected, setSelected] = useState<GraphNode | null>(null);
+  const [selected, setSelected] = useState<SimNode | null>(null);
 
   useEffect(() => {
     if (!data?.nodes?.length) return;
@@ -228,15 +232,25 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
       style={{ boxShadow: "0 0 40px rgba(99,102,241,0.08)" }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/8 px-5 py-3">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-rose-500/20 text-sm">⚠️</span>
-          <span className="text-sm font-semibold text-white">Risk Propagation Network</span>
-          <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">
-            {data.node_count} nodes · {data.edge_count} edges · {data.hop_depth} hops
-          </span>
+      <div className="border-b border-white/8 px-5 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-rose-500/20 text-sm">⚠️</span>
+            <span className="text-sm font-semibold text-white">Jaringan Risiko Nasabah</span>
+          </div>
+          <span className="text-[10px] text-slate-500">Nasabah Utama · {(data.node_count - 1)} koneksi ditemukan</span>
         </div>
-        <span className="text-[10px] text-slate-500">Root: {data.root_customer_id}</span>
+        <p className="mt-2 text-[12px] leading-5 text-slate-300">
+          Nasabah utama terhubung ke <span className="font-semibold text-white">{data.node_count - 1} nasabah lain</span> lewat{" "}
+          {Object.entries(
+            data.edges.reduce<Record<string, number>>((acc, e) => {
+              acc[e.relationship_type] = (acc[e.relationship_type] ?? 0) + 1;
+              return acc;
+            }, {}),
+          )
+            .map(([type, count]) => `${count} ${REL_LABEL[type] ?? type}`)
+            .join(", ")}. Jika nasabah ini gagal bayar, risiko berpotensi menyebar ke seluruh jaringan ini.
+        </p>
       </div>
 
       {/* Graph SVG */}
@@ -310,16 +324,19 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
               {/* Root star label */}
               {isRoot && (
                 <text x={n.x} y={n.y - r - 8} textAnchor="middle" fontSize={9} fill="#fff" fontWeight="700">
-                  ★ ROOT
+                  ★ NASABAH UTAMA
                 </text>
               )}
               {/* Churn % inside node */}
-              <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize={10} fill="#fff" fontWeight="600" pointerEvents="none">
+              <text x={n.x} y={n.y - 2} textAnchor="middle" fontSize={11} fill="#fff" fontWeight="700" pointerEvents="none">
                 {Math.round(n.churn_risk * 100)}%
               </text>
-              {/* Short ID below node */}
+              <text x={n.x} y={n.y + 9} textAnchor="middle" fontSize={6.5} fill="rgba(255,255,255,0.75)" fontWeight="600" pointerEvents="none">
+                CHURN
+              </text>
+              {/* Node index label below (readable, not the raw scrambled id) */}
               <text x={n.x} y={n.y + r + 13} textAnchor="middle" fontSize={8} fill="#94a3b8" pointerEvents="none">
-                {n.id.replace("CUST", "")}
+                {isRoot ? "Root" : `Nasabah ${n.nodeNumber}`}
               </text>
             </g>
           );
@@ -334,7 +351,9 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
         <div className="border-t border-white/8 bg-white/3 px-5 py-3">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">{selected.id}</p>
+              <p className="text-sm font-semibold text-white">
+                {selected.is_root ? "Nasabah Utama" : `Nasabah ${selected.nodeNumber}`}
+              </p>
               <p className="text-[10px] text-slate-400">{selected.segment} · {selected.city} · {selected.branch_name}</p>
             </div>
             <button onClick={() => setSelected(null)} className="text-slate-500 hover:text-white text-xs">✕</button>

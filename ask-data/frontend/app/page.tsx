@@ -847,12 +847,15 @@ export default function HomePage() {
     }));
 
     try {
-      // Detect graph/risk network request — accepts CUST###### ids or free-form
-      // cif tokens (e.g. "5&(FDyJM") introduced after "cif"/"customer"/"nasabah".
+      // Detect graph/risk network request — accepts CUST###### ids or a cif
+      // token (e.g. "5&(FDyJM") explicitly introduced by the word "cif".
+      // Requires the captured token to contain at least one digit or symbol
+      // so ordinary words ("dengan", "customer") never get mistaken for a cif.
       const hasGraphKeyword = /jaringan|network|risiko|risk|propagasi|terhubung|connected|graph/i.test(trimmed);
       const custIdMatch = trimmed.match(/\b(CUST\d{6,})\b/i);
-      const cifMatch = trimmed.match(/\b(?:cif|customer|nasabah)\b[^\w]*([A-Za-z0-9!@#$%^&*()<>]{6,12})\b/i);
-      const graphMatch = custIdMatch ?? cifMatch;
+      const cifMatch = trimmed.match(/\bcif\b[^\w]*([A-Za-z0-9!@#$%^&*()<>]{6,12})\b/i);
+      const cifLooksValid = cifMatch ? /[0-9!@#$%^&*()<>]/.test(cifMatch[1]) : false;
+      const graphMatch = custIdMatch ?? (cifLooksValid ? cifMatch : null);
       const isGraphRequest = Boolean(graphMatch) && hasGraphKeyword;
 
       const connectedMcpUrls = mcpServers
