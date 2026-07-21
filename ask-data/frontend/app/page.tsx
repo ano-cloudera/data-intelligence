@@ -344,6 +344,7 @@ const demoStages: readonly DemoStageContent[] = [
 
 export default function HomePage() {
   const submitInFlightRef = useRef(false);
+  const lastMentionedCifRef = useRef<string | null>(null);
   const [state, setState] = useState<ChatState>(initialChatState);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
@@ -855,8 +856,14 @@ export default function HomePage() {
       const custIdMatch = trimmed.match(/\b(CUST\d{6,})\b/i);
       const cifMatch = trimmed.match(/\bcif\b[^\w]*([A-Za-z0-9!@#$%^&*()<>]{6,12})\b/i);
       const cifLooksValid = cifMatch ? /[0-9!@#$%^&*()<>]/.test(cifMatch[1]) : false;
-      const graphMatch = custIdMatch ?? (cifLooksValid ? cifMatch : null);
-      const isGraphRequest = Boolean(graphMatch) && hasGraphKeyword;
+      const explicitMatch = custIdMatch ?? (cifLooksValid ? cifMatch : null);
+
+      // Follow-up phrasing ("nasabah ini/tersebut/tadi") without a fresh id —
+      // fall back to the last cif mentioned in this session, if any.
+      const referencesPriorCustomer = /nasabah (ini|tersebut|tadi)|customer (this|that)|\bthis customer\b/i.test(trimmed);
+      const fallbackId = !explicitMatch && referencesPriorCustomer ? lastMentionedCifRef.current : null;
+
+      const isGraphRequest = hasGraphKeyword && Boolean(explicitMatch ?? fallbackId);
 
       const connectedMcpUrls = mcpServers
         .filter((s) => s.status === "connected")
@@ -867,15 +874,30 @@ export default function HomePage() {
         mcp_server_urls: connectedMcpUrls.length > 0 ? connectedMcpUrls : undefined,
       });
 
+      // Track the most specific customer id mentioned so a later follow-up
+      // ("jaringan risiko untuk nasabah ini") can resolve without repeating it.
+      if (explicitMatch) {
+        lastMentionedCifRef.current = custIdMatch ? explicitMatch[1].toUpperCase() : explicitMatch[1];
+      } else if (response.rows && response.rows.length > 0) {
+        const cifColumn = response.columns?.find((c) => c.toLowerCase() === "cif" || c.toLowerCase() === "customer_id");
+        const cifValue = cifColumn ? response.rows[0]?.[cifColumn] : undefined;
+        if (typeof cifValue === "string" && cifValue.trim()) {
+          lastMentionedCifRef.current = cifValue.trim();
+        }
+      }
+
       // Fetch graph data if graph request detected
       let graphData: GraphData | null = null;
-      if (isGraphRequest && graphMatch) {
-        try {
-          const rawId = graphMatch[1];
-          const targetId = custIdMatch ? rawId.toUpperCase() : rawId;
-          graphData = (await apiClient.getRiskNetwork(targetId, 2)) as GraphData;
-        } catch {
-          // graph fetch failure is non-fatal
+      if (isGraphRequest) {
+        const targetId = explicitMatch
+          ? (custIdMatch ? explicitMatch[1].toUpperCase() : explicitMatch[1])
+          : fallbackId;
+        if (targetId) {
+          try {
+            graphData = (await apiClient.getRiskNetwork(targetId, 2)) as GraphData;
+          } catch {
+            // graph fetch failure is non-fatal
+          }
         }
       }
 
