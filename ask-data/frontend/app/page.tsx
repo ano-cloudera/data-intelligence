@@ -802,7 +802,7 @@ export default function HomePage() {
 
     try {
       // Detect graph/risk network request
-      const graphMatch = trimmed.match(/\b(CUST\d{6})\b/i);
+      const graphMatch = trimmed.match(/\b(CUST\d{6,})\b/i);
       const isGraphRequest = graphMatch && /jaringan|network|risiko|risk|propagasi|terhubung|connected|graph/i.test(trimmed);
 
       const connectedMcpUrls = mcpServers
