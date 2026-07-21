@@ -398,4 +398,6 @@ export const apiClient = {
       body: JSON.stringify(payload),
     }),
   getBaseUrl: getApiBaseUrl,
+  getRiskNetwork: (customerId: string, hopDepth = 2) =>
+    request<unknown>(`/graph/network?customer_id=${encodeURIComponent(customerId)}&hop_depth=${hopDepth}`),
 };

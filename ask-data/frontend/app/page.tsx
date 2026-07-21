@@ -15,6 +15,8 @@ import { DemoGuidePanel } from "@/components/demo-guide-panel";
 import { ModelSettingsPanel, type McpServer } from "@/components/model-settings-panel";
 import { NoticePanel } from "@/components/notice-panel";
 import { ResultChartCard } from "@/components/result-chart-card";
+import { ResultGraphCard } from "@/components/result-graph-card";
+import type { GraphData } from "@/components/result-graph-card";
 import { ResultTableCard } from "@/components/result-table-card";
 import { StarterCard, type StarterCardVariant } from "@/components/starter-card";
 import dynamic from "next/dynamic";
@@ -61,6 +63,7 @@ interface ChatMessage {
   sources?: AnswerSource[];
   metadata?: Record<string, unknown>;
   visualization?: VisualizationSpec | null;
+  graphData?: GraphData | null;
   rows?: Array<Record<string, unknown>>;
   columns?: string[];
   row_count?: number;
@@ -799,6 +802,10 @@ export default function HomePage() {
     }));
 
     try {
+      // Detect graph/risk network request
+      const graphMatch = trimmed.match(/\b(CUST\d{6})\b/i);
+      const isGraphRequest = graphMatch && /jaringan|network|risiko|risk|propagasi|terhubung|connected|graph/i.test(trimmed);
+
       const connectedMcpUrls = mcpServers
         .filter((s) => s.status === "connected")
         .map((s) => s.url);
@@ -807,6 +814,16 @@ export default function HomePage() {
         session_id: sessionId,
         mcp_server_urls: connectedMcpUrls.length > 0 ? connectedMcpUrls : undefined,
       });
+
+      // Fetch graph data if graph request detected
+      let graphData: GraphData | null = null;
+      if (isGraphRequest && graphMatch) {
+        try {
+          graphData = (await apiClient.getRiskNetwork(graphMatch[1].toUpperCase(), 2)) as GraphData;
+        } catch {
+          // graph fetch failure is non-fatal
+        }
+      }
 
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
@@ -817,6 +834,7 @@ export default function HomePage() {
         sources: response.sources ?? [],
         metadata: response.metadata ?? {},
         visualization: response.visualization ?? null,
+        graphData: graphData,
         rows: response.rows ?? [],
         columns: response.columns ?? [],
         row_count: response.row_count ?? 0,
@@ -1218,6 +1236,11 @@ export default function HomePage() {
                         ) : message.visualization?.type ? (
                           <ResultChartCard visualization={message.visualization} />
                         ) : null}
+                        {message.graphData && (
+                          <div className="w-full max-w-[56rem]">
+                            <ResultGraphCard data={message.graphData} />
+                          </div>
+                        )}
                         {!message.visualization?.type && (message.rows?.length ?? 0) > 0 && (message.columns?.length ?? 0) > 0 ? (
                           <div className="w-full max-w-[56rem]">
                             <ResultTableCard
