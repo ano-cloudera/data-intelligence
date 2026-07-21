@@ -180,7 +180,7 @@ function Legend() {
       </p>
       <div className="flex flex-wrap gap-x-5 gap-y-2.5">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Segmen</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-white">Segmen</span>
           {Object.entries(SEGMENT_COLOR).map(([k, c]) => (
             <span key={k} className="flex items-center gap-1.5">
               <span className="inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-white/20" style={{ background: c }} />
@@ -189,7 +189,7 @@ function Legend() {
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Relasi</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-white">Relasi</span>
           {Object.entries(REL_COLOR).map(([k, c]) => (
             <span key={k} className="flex items-center gap-1.5">
               <span className="inline-block h-1 w-5 shrink-0 rounded-full" style={{ background: c }} />
