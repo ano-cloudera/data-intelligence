@@ -175,7 +175,7 @@ function Tooltip({ node, x, y }: { node: GraphNode; x: number; y: number }) {
 function Legend() {
   return (
     <div className="flex flex-col gap-2 px-1 pt-3">
-      <p className="text-[11px] leading-4 text-slate-300">
+      <p className="text-[11px] leading-4 text-white/90">
         Angka di dalam lingkaran = <span className="font-semibold text-white">persentase risiko churn</span> nasabah tersebut.
       </p>
       <div className="flex flex-wrap gap-x-5 gap-y-2.5">
@@ -246,15 +246,15 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
       style={{ boxShadow: "0 0 40px rgba(99,102,241,0.08)" }}
     >
       {/* Header */}
-      <div className="border-b border-white/8 px-5 py-3">
+      <div className="border-b border-white/8 bg-[#131c33] px-5 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="flex h-6 w-6 items-center justify-center rounded-md bg-rose-500/20 text-sm">⚠️</span>
             <span className="text-sm font-semibold text-white">Jaringan Risiko Nasabah</span>
           </div>
-          <span className="text-[10px] text-slate-500">Nasabah Utama · {(data.node_count - 1)} koneksi ditemukan</span>
+          <span className="text-[10px] font-medium text-slate-300">Nasabah Utama · {(data.node_count - 1)} koneksi ditemukan</span>
         </div>
-        <p className="mt-2 text-[12px] leading-5 text-slate-300">
+        <p className="mt-2 text-[12px] leading-5 text-slate-100" style={{ opacity: 1 }}>
           Nasabah utama terhubung ke <span className="font-semibold text-white">{data.node_count - 1} nasabah lain</span> lewat{" "}
           {Object.entries(
             data.edges.reduce<Record<string, number>>((acc, e) => {
