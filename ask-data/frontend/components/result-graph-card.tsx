@@ -206,9 +206,12 @@ function Legend() {
 
 export function ResultGraphCard({ data }: { data: GraphData }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [simNodes, setSimNodes] = useState<SimNode[]>([]);
   const [hovered, setHovered] = useState<{ node: GraphNode; x: number; y: number } | null>(null);
   const [selected, setSelected] = useState<SimNode | null>(null);
+  const draggedIdRef = useRef<string | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!data?.nodes?.length) return;
@@ -221,6 +224,40 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     setHovered({ node, x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }, []);
+
+  // Convert a mouse event's client coordinates into SVG viewBox coordinates,
+  // so dragging stays accurate regardless of how the SVG is scaled on screen.
+  function toSvgPoint(e: { clientX: number; clientY: number }): { x: number; y: number } | null {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * W,
+      y: ((e.clientY - rect.top) / rect.height) * H,
+    };
+  }
+
+  const handleNodeMouseDown = useCallback((e: React.MouseEvent<SVGCircleElement>, nodeId: string) => {
+    e.stopPropagation();
+    draggedIdRef.current = nodeId;
+    setDraggedId(nodeId);
+    setHovered(null);
+  }, []);
+
+  const handleSvgMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    const id = draggedIdRef.current;
+    if (!id) return;
+    const point = toSvgPoint(e);
+    if (!point) return;
+    const clampedX = Math.max(NODE_R + 4, Math.min(W - NODE_R - 4, point.x));
+    const clampedY = Math.max(NODE_R + 4, Math.min(H - NODE_R - 4, point.y));
+    setSimNodes((cur) => cur.map((n) => (n.id === id ? { ...n, x: clampedX, y: clampedY, vx: 0, vy: 0 } : n)));
+  }, []);
+
+  const stopDragging = useCallback(() => {
+    draggedIdRef.current = null;
+    setDraggedId(null);
   }, []);
 
   const nodeById = new Map(simNodes.map((n) => [n.id, n]));
@@ -254,7 +291,7 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
           </div>
           <span className="text-[10px] font-medium text-slate-300">Nasabah Utama · {(data.node_count - 1)} koneksi ditemukan</span>
         </div>
-        <p className="mt-2 text-[12px] leading-5 text-slate-100" style={{ opacity: 1 }}>
+        <p className="mt-2 text-[12px] leading-5 text-white">
           Nasabah utama terhubung ke <span className="font-semibold text-white">{data.node_count - 1} nasabah lain</span> lewat{" "}
           {Object.entries(
             data.edges.reduce<Record<string, number>>((acc, e) => {
@@ -268,7 +305,15 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
       </div>
 
       {/* Graph SVG */}
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="block">
+      <svg
+        ref={svgRef}
+        width="100%"
+        viewBox={`0 0 ${W} ${H}`}
+        className="block select-none"
+        onMouseMove={handleSvgMouseMove}
+        onMouseUp={stopDragging}
+        onMouseLeave={stopDragging}
+      >
         <defs>
           {/* Glow filter for root node */}
           <filter id="glow">
@@ -317,8 +362,10 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
           const isSelected = selected?.id === n.id;
           const r = isRoot ? NODE_R + 6 : NODE_R;
 
+          const isDragging = draggedId === n.id;
+
           return (
-            <g key={n.id} style={{ cursor: "pointer" }}>
+            <g key={n.id} style={{ cursor: isDragging ? "grabbing" : "grab" }}>
               {/* Pulse ring for high-risk nodes */}
               {(n.risk_level === "critical" || n.risk_level === "high") && (
                 <circle cx={n.x} cy={n.y} r={r + 6} fill="none" stroke={border} strokeWidth={1} opacity={0.3} />
@@ -331,8 +378,9 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
                 stroke={isRoot ? "#ffffff" : border}
                 strokeWidth={isRoot ? 3 : isSelected ? 2.5 : 1.5}
                 filter={isRoot ? "url(#glow)" : undefined}
-                onMouseMove={(e) => handleMouseMove(e, n)}
-                onMouseLeave={() => setHovered(null)}
+                onMouseDown={(e) => handleNodeMouseDown(e, n.id)}
+                onMouseMove={(e) => !draggedId && handleMouseMove(e, n)}
+                onMouseLeave={() => !draggedId && setHovered(null)}
                 onClick={() => setSelected(selected?.id === n.id ? null : n)}
               />
               {/* Root star label */}
