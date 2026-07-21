@@ -75,10 +75,14 @@ AGGREGATE_CUSTOMER_ALLOW_PATTERNS = (
     r"\b(tren|trend)\b.*\b(customer|customers|nasabah)\b",
     r"\b(mobile banking|digital banking|internet banking|adoption rate|adoption)\b",
     r"\b(credit score|churn|risk score|scoring)\b",
-    # cif is a non-PII synthetic identifier used to look up the risk propagation
-    # graph for a single customer — allow it only when paired with graph intent.
-    r"\bcif\b.*\b(jaringan|network|risiko|risk|propagasi|terhubung|connected|graph)\b",
-    r"\b(jaringan|network|risiko|risk|propagasi|terhubung|connected|graph)\b.*\bcif\b",
+    # cif is a non-PII synthetic identifier (not real customer PII). Once the
+    # user names a specific cif value, they already have the identifier — this
+    # allows lookups/profile/graph questions about that one customer. The
+    # lookahead requires a digit/symbol in the captured token so a generic
+    # word like "nasabah" (which also fits the length range) never qualifies.
+    # Requests to dump/list many customers' cif values are still caught by
+    # SENSITIVE_DATA_PATTERNS below (no single cif token named).
+    r"\bcif\b\s*[:\-]?\s*(?=[A-Za-z0-9!@#$%^&*()<>]*[0-9!@#$%^&*()<>])[A-Za-z0-9!@#$%^&*()<>]{6,12}\b",
 )
 
 BLOCK_REASON_MESSAGES = {
