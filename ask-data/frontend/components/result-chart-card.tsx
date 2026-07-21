@@ -69,6 +69,11 @@ function formatAxisLabel(label: string): string {
   return label;
 }
 
+function truncateBarLabel(label: string, maxLength = 14): string {
+  if (label.length <= maxLength) return label;
+  return `${label.slice(0, maxLength - 1)}…`;
+}
+
 function isNumericLike(value: unknown): boolean {
   return typeof value === "number" || (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value)));
 }
@@ -218,15 +223,26 @@ export function ResultChartCard({ visualization }: ResultChartCardProps) {
       {activeView === "chart" && kind === "bar" ? (
         <div className="h-72 rounded-[18px] border border-[var(--color-border-soft)] bg-white/80 px-3 py-4">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={boundedPoints} margin={{ top: 8, right: 18, bottom: 8, left: 12 }}>
+            <BarChart
+              data={boundedPoints}
+              margin={{
+                top: 8,
+                right: 18,
+                bottom: boundedPoints.length > 5 ? 46 : 8,
+                left: 12,
+              }}
+            >
               <CartesianGrid stroke="#e3e8f4" strokeDasharray="4 4" vertical={false} />
               <XAxis
                 dataKey="label"
                 tick={{ fill: "#747887", fontSize: 11, fontWeight: 600 }}
-                tickFormatter={formatAxisLabel}
+                tickFormatter={(label) => truncateBarLabel(formatAxisLabel(String(label)))}
                 tickLine={false}
                 axisLine={{ stroke: "#dfe5f3" }}
                 interval={0}
+                angle={boundedPoints.length > 5 ? -35 : 0}
+                textAnchor={boundedPoints.length > 5 ? "end" : "middle"}
+                height={boundedPoints.length > 5 ? 56 : 30}
               />
               <YAxis
                 tick={{ fill: "#747887", fontSize: 11, fontWeight: 600 }}

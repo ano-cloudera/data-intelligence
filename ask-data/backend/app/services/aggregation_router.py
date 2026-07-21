@@ -23,13 +23,13 @@ def resolve_aggregation_tool(question: str) -> tuple[str, dict]:
     if is_map_request(q):
         metric = "total"
         limit = 50
-        if "dormant" in q:
+        if "risk" in q or "risiko" in q or "persen" in q or "%" in q:
+            metric = "pct_dormant"
+        elif "dormant" in q:
             metric = "dormant"
         elif "saldo" in q or "deposit" in q or "balance" in q:
             metric = "avg_saldo"
-        elif "persen" in q or "%" in q:
-            metric = "pct_dormant"
-        m = re.search(r"top\s*(\d+)", q)
+        m = re.search(r"(?:top|teratas|tertinggi)?\s*(\d+)\s*(?:customer|nasabah|cabang)?", q)
         if m:
             limit = int(m.group(1))
         return "cabang_map", {"metric": metric, "limit": limit}
