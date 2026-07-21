@@ -1,6 +1,6 @@
 "use client";
 
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import CampaignIcon from "@mui/icons-material/Campaign";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
@@ -10,42 +10,14 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 export type StarterCardVariant = "segment" | "risk" | "balance" | "campaign" | "city" | "digital" | "default";
 
-const variantStyles: Record<StarterCardVariant, { icon: React.ReactNode; hover: string; iconBg: string }> = {
-  segment: {
-    icon: <BarChartIcon sx={{ fontSize: 18 }} />,
-    hover: "hover:border-[#5c63f2] hover:shadow-[0_22px_48px_rgba(92,99,242,0.13)]",
-    iconBg: "bg-[rgba(92,99,242,0.1)] text-[#4953d3]",
-  },
-  risk: {
-    icon: <WarningAmberIcon sx={{ fontSize: 18 }} />,
-    hover: "hover:border-rose-400 hover:shadow-[0_22px_48px_rgba(244,63,94,0.12)]",
-    iconBg: "bg-rose-50 text-rose-600",
-  },
-  balance: {
-    icon: <SavingsIcon sx={{ fontSize: 18 }} />,
-    hover: "hover:border-emerald-400 hover:shadow-[0_22px_48px_rgba(16,185,129,0.12)]",
-    iconBg: "bg-emerald-50 text-emerald-600",
-  },
-  campaign: {
-    icon: <CampaignIcon sx={{ fontSize: 18 }} />,
-    hover: "hover:border-orange-400 hover:shadow-[0_22px_48px_rgba(251,146,60,0.13)]",
-    iconBg: "bg-orange-50 text-orange-600",
-  },
-  city: {
-    icon: <LocationOnIcon sx={{ fontSize: 18 }} />,
-    hover: "hover:border-sky-400 hover:shadow-[0_22px_48px_rgba(14,165,233,0.12)]",
-    iconBg: "bg-sky-50 text-sky-600",
-  },
-  digital: {
-    icon: <PhoneAndroidIcon sx={{ fontSize: 18 }} />,
-    hover: "hover:border-violet-400 hover:shadow-[0_22px_48px_rgba(139,92,246,0.12)]",
-    iconBg: "bg-violet-50 text-violet-600",
-  },
-  default: {
-    icon: <AutoAwesomeIcon sx={{ fontSize: 18 }} />,
-    hover: "hover:border-[var(--color-action-primary)] hover:shadow-[0_22px_48px_rgba(255,107,0,0.12)]",
-    iconBg: "bg-[rgba(255,107,0,0.08)] text-[var(--color-action-primary)]",
-  },
+const variantIcon: Record<StarterCardVariant, React.ReactNode> = {
+  segment: <BarChartIcon sx={{ fontSize: 16 }} />,
+  risk: <WarningAmberIcon sx={{ fontSize: 16 }} />,
+  balance: <SavingsIcon sx={{ fontSize: 16 }} />,
+  campaign: <CampaignIcon sx={{ fontSize: 16 }} />,
+  city: <LocationOnIcon sx={{ fontSize: 16 }} />,
+  digital: <PhoneAndroidIcon sx={{ fontSize: 16 }} />,
+  default: <BarChartIcon sx={{ fontSize: 16 }} />,
 };
 
 interface StarterCardProps {
@@ -55,19 +27,28 @@ interface StarterCardProps {
   variant?: StarterCardVariant;
 }
 
+/**
+ * Compact work-shortcut row — not a promotional card.
+ * Used in a vertical stack under the composer on the empty-state workspace.
+ */
 export function StarterCard({ title, description, onClick, variant = "default" }: StarterCardProps) {
-  const { icon, hover, iconBg } = variantStyles[variant];
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`group rounded-[var(--radius-panel)] border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-5 text-left shadow-panel transition hover:-translate-y-0.5 ${hover}`}
+      className="group flex w-full items-center gap-3 rounded-[12px] border border-transparent px-3 py-2.5 text-left transition-colors hover:border-[var(--color-border-soft)] hover:bg-[var(--color-surface-muted)]"
     >
-      <div className={`mb-4 flex h-9 w-9 items-center justify-center rounded-[12px] ${iconBg}`}>
-        {icon}
-      </div>
-      <h3 className="font-headline text-sm font-semibold text-[var(--color-ink-strong)]">{title}</h3>
-      <p className="mt-1.5 text-xs leading-5 text-[var(--color-ink-subtle)]">{description}</p>
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-[var(--color-surface-muted)] text-[var(--color-ink-subtle)] transition-colors group-hover:bg-[var(--color-action-soft)] group-hover:text-[var(--color-action-primary)]">
+        {variantIcon[variant]}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-medium text-[var(--color-ink-strong)]">{title}</span>
+        <span className="block truncate text-[12px] text-[var(--color-ink-subtle)]">{description}</span>
+      </span>
+      <ArrowForwardIcon
+        sx={{ fontSize: 15 }}
+        className="shrink-0 text-[var(--color-ink-subtle)] opacity-0 transition-opacity group-hover:opacity-100"
+      />
     </button>
   );
 }

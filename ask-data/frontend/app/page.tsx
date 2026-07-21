@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import AutoStoriesIcon from "@mui/icons-material/AutoStories";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
@@ -1091,112 +1090,72 @@ export default function HomePage() {
     <AppShell sidebar={sidebar} header={header}>
       <PageCanvas>
         {activeView === "assistant" ? (
-          <div className="flex min-h-[calc(100vh-var(--space-page-y)*2-6rem)] flex-col gap-4">
+          <div className="flex min-h-[calc(100vh-var(--space-page-y)*2-6rem)] flex-col">
             <div
-              className="flex-1 overflow-y-auto rounded-[var(--radius-panel)] border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-6 shadow-panel"
+              className="flex-1 overflow-y-auto"
               style={{ minHeight: "400px" }}
             >
               {state.messages.length === 0 ? (
-                <div className="mx-auto flex h-full max-w-4xl flex-col">
-                  <section
-                    className="relative overflow-hidden rounded-[22px] border border-[var(--color-border-soft)] px-8 py-10 text-center"
-                    style={{
-                      background: "linear-gradient(145deg,#f8f9ff 0%,#eef2ff 50%,#fff7f0 100%)",
-                      backgroundImage: "linear-gradient(145deg,#f8f9ff 0%,#eef2ff 50%,#fff7f0 100%), radial-gradient(circle at 20% 80%, rgba(92,99,242,0.06) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,107,0,0.06) 0%, transparent 50%)",
-                    }}
-                  >
-                    {/* Decorative orbs */}
-                    <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-[rgba(92,99,242,0.07)] blur-2xl" />
-                    <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-[rgba(255,107,0,0.07)] blur-2xl" />
+                <div className="workspace-fade-in mx-auto flex h-full max-w-[820px] flex-col justify-center py-12">
+                  {/* Workspace label */}
+                  <p className="text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-subtle)]">
+                    {lang === "id" ? "Ruang Kerja Analis" : "Analyst Workspace"}
+                  </p>
 
-                    {/* Logo */}
-                    <div className="relative mx-auto mb-5 inline-flex items-center justify-center rounded-[18px] border border-[var(--color-border-soft)] bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
-                      <div className="relative h-8 w-36">
-                        <Image src="/Cloudera_logo.svg.png" alt="Cloudera" fill className="object-contain" sizes="144px" priority />
-                      </div>
+                  {/* Short natural heading */}
+                  <h1 className="mt-2 text-center font-headline text-[26px] font-bold leading-tight tracking-tight text-[var(--color-ink-strong)]">
+                    {lang === "id" ? "Apa yang ingin Anda periksa hari ini?" : "What would you like to explore?"}
+                  </h1>
+                  <p className="mt-1.5 text-center text-[13px] text-[var(--color-ink-subtle)]">
+                    {lang === "id"
+                      ? "Tanyakan tentang nasabah, transaksi, segmen, atau dokumen kebijakan."
+                      : "Ask about customers, transactions, segments, or policy documents."}
+                  </p>
+
+                  {/* Composer — focal point */}
+                  <div className="mt-7">
+                    <ChatInputPanel
+                      question={state.question}
+                      loading={state.loading}
+                      starterPrompts={starterPrompts.map((item) => item.prompt[lang])}
+                      onQuestionChange={(question) => setState((cur) => ({ ...cur, question, error: "" }))}
+                      onStarterSelect={(prompt) => submitQuestion(prompt)}
+                      onSubmit={() => submitQuestion(state.question)}
+                      placeholder={lang === "id" ? "Ajukan pertanyaan tentang data nasabah Anda..." : "Ask a question about your customer data..."}
+                    />
+                    <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-[var(--color-ink-subtle)]">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      {lang === "id" ? "Terhubung ke data warehouse Bank XYZ" : "Connected to Bank XYZ data warehouse"}
                     </div>
-
-                    {/* Headline */}
-                    <h3 className="font-headline text-3xl font-bold tracking-tight text-[var(--color-ink-strong)]">
-                      {lang === "id" ? "Tanya apa saja tentang data nasabah " : "Ask anything about "}
-                      <span style={{ background: "linear-gradient(135deg,#FF6B00,#f59e0b)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                        {lang === "id" ? "Bank XYZ." : "Bank XYZ data."}
-                      </span>
-                    </h3>
-
-                    {/* Description */}
-                    <p className="mx-auto mt-3 max-w-lg text-sm leading-7 text-[var(--color-ink-muted)]">
-                      {lang === "id"
-                        ? "Segmentasi, risiko dormant, rekomendasi kampanye, distribusi saldo — tulis pertanyaan seperti biasa, biarkan sistem yang cari datanya."
-                        : "Segmentation, dormancy risk, campaign recommendations, balance analysis — ask in plain language and let the system handle the rest."}
-                    </p>
-
-                    {/* Capability chips — no emoji, professional tags */}
-                    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                      {[
-                        { label: lang === "id" ? "Segmentasi Nasabah" : "Customer Segmentation", color: "#059669", bg: "rgba(5,150,105,0.07)" },
-                        { label: lang === "id" ? "Risiko Dormant" : "Dormant Risk", color: "#dc2626", bg: "rgba(220,38,38,0.07)" },
-                        { label: lang === "id" ? "Kebijakan & Dokumen" : "Policy & Documents", color: "#7c3aed", bg: "rgba(124,58,237,0.07)" },
-                        { label: lang === "id" ? "Analitik Campaign" : "Campaign Analytics", color: "#d97706", bg: "rgba(217,119,6,0.07)" },
-                      ].map((chip) => (
-                        <span
-                          key={chip.label}
-                          className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold"
-                          style={{ color: chip.color, background: chip.bg, borderColor: `${chip.color}25` }}
-                        >
-                          {chip.label}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Stats row */}
-                    <div className="mt-4 flex items-center justify-center gap-1 text-[var(--color-ink-subtle)]">
-                      {[
-                        { value: "10K+", label: lang === "id" ? "Nasabah" : "Customers" },
-                        { value: "7", label: lang === "id" ? "Segmen" : "Segments" },
-                        { value: "57", label: lang === "id" ? "Dokumen" : "Documents" },
-                      ].map((stat, i) => (
-                        <>
-                          {i > 0 && <span key={`sep-${i}`} className="mx-2 opacity-30">·</span>}
-                          <div key={stat.label} className="flex items-baseline gap-1">
-                            <span className="font-headline text-sm font-bold text-[var(--color-ink-strong)]">{stat.value}</span>
-                            <span className="text-[11px]">{stat.label}</span>
-                          </div>
-                        </>
-                      ))}
-                    </div>
-
-                    {/* CTA buttons */}
-                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => openGuideView("use-case")}
-                        className="rounded-[var(--radius-pill)] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(255,107,0,0.3)] transition hover:brightness-110"
-                        style={{ background: "linear-gradient(135deg,#FF6B00 0%,#E54E00 100%)" }}
-                      >
-                        {lang === "id" ? "Buka Demo Guide" : "Open Demo Guide"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveView("settings")}
-                        className="rounded-[var(--radius-pill)] border border-[var(--color-border-strong)] bg-white px-5 py-2.5 text-sm font-semibold text-[var(--color-ink-muted)] transition hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)]"
-                      >
-                        {lang === "id" ? "Lihat Pengaturan" : "Review Settings"}
-                      </button>
-                    </div>
-                  </section>
-
-                  <div className="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-3">
-                    {starterPrompts.map((item) => (
-                      <StarterCard
-                        key={item.title.en}
-                        title={item.title[lang]}
-                        description={item.description[lang]}
-                        onClick={() => submitQuestion(item.prompt[lang])}
-                        variant={item.variant}
-                      />
-                    ))}
                   </div>
+
+                  {/* Suggested questions — compact shortcut list, not promo cards */}
+                  <div className="mt-8 rounded-[14px] border border-[var(--color-border-soft)] bg-[var(--color-surface)]">
+                    <p className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-ink-subtle)]">
+                      {lang === "id" ? "Pertanyaan yang Disarankan" : "Suggested Questions"}
+                    </p>
+                    <div className="divide-y divide-[var(--color-border-soft)] px-1 pb-1">
+                      {starterPrompts.map((item) => (
+                        <StarterCard
+                          key={item.title.en}
+                          title={item.title[lang]}
+                          description={item.description[lang]}
+                          onClick={() => submitQuestion(item.prompt[lang])}
+                          variant={item.variant}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Data scope — small, not a KPI card */}
+                  <p className="mt-4 text-center text-[11px] text-[var(--color-ink-subtle)]">
+                    {lang === "id" ? "Cakupan data: " : "Available data: "}
+                    <span className="font-medium text-[var(--color-ink-muted)]">10K+ {lang === "id" ? "nasabah" : "customers"}</span>
+                    {" · "}
+                    <span className="font-medium text-[var(--color-ink-muted)]">7 {lang === "id" ? "segmen" : "segments"}</span>
+                    {" · "}
+                    <span className="font-medium text-[var(--color-ink-muted)]">57 {lang === "id" ? "dokumen" : "documents"}</span>
+                  </p>
 
                   {state.error ? (
                     <div className="mt-5">
@@ -1205,7 +1164,7 @@ export default function HomePage() {
                   ) : null}
                 </div>
               ) : (
-                <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+                <div className="workspace-fade-in mx-auto flex w-full max-w-5xl flex-col gap-5 px-1 py-5">
                   {state.messages.map((message) => {
                     const guardrailsNotice = getGuardrailsNotice(message.metadata);
 
@@ -1257,27 +1216,20 @@ export default function HomePage() {
                   })}
 
                   {state.loading ? (
-                    <section className="w-full max-w-[56rem] rounded-[var(--radius-panel)] border border-[#2d2f6e] bg-[#08004d] px-5 py-4 shadow-panel">
-                      <div className="flex items-center gap-3">
-                        <span className="inline-flex gap-[5px]">
-                          {[0, 1, 2].map((i) => (
-                            <span
-                              key={i}
-                              className="inline-block h-[5px] w-6 rounded-full"
-                              style={{
-                                background: "linear-gradient(90deg, #6970ff, #a78bfa, #6970ff)",
-                                backgroundSize: "200% 100%",
-                                animation: `loading-bar-shimmer 1.4s ease-in-out infinite`,
-                                animationDelay: `${i * 0.22}s`,
-                              }}
-                            />
-                          ))}
-                        </span>
-                        <p key={loadingMsgIdx} className="text-xs text-[#8f94ff]">
-                          {LOADING_MESSAGES[loadingMsgIdx][lang]}
-                        </p>
-                      </div>
-                    </section>
+                    <div className="flex w-full max-w-[56rem] items-center gap-2.5 px-1">
+                      <span className="inline-flex gap-1">
+                        {[0, 1, 2].map((i) => (
+                          <span
+                            key={i}
+                            className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-action-primary)]"
+                            style={{ animation: `pulse-dot 1.2s ease-in-out infinite`, animationDelay: `${i * 0.15}s` }}
+                          />
+                        ))}
+                      </span>
+                      <p key={loadingMsgIdx} className="text-[13px] text-[var(--color-ink-subtle)]">
+                        {LOADING_MESSAGES[loadingMsgIdx][lang]}
+                      </p>
+                    </div>
                   ) : null}
 
                   {state.error ? (
@@ -1287,14 +1239,19 @@ export default function HomePage() {
               )}
             </div>
 
-            <ChatInputPanel
-              question={state.question}
-              loading={state.loading}
-              starterPrompts={starterPrompts.map((item) => item.prompt[lang])}
-              onQuestionChange={(question) => setState((cur) => ({ ...cur, question, error: "" }))}
-              onStarterSelect={(prompt) => submitQuestion(prompt)}
-              onSubmit={() => submitQuestion(state.question)}
-            />
+            {state.messages.length > 0 ? (
+              <div className="sticky bottom-0 mx-auto w-full max-w-5xl border-t border-[var(--color-border-soft)] bg-[var(--color-page-bg)] px-1 pb-4 pt-3">
+                <ChatInputPanel
+                  question={state.question}
+                  loading={state.loading}
+                  starterPrompts={starterPrompts.map((item) => item.prompt[lang])}
+                  onQuestionChange={(question) => setState((cur) => ({ ...cur, question, error: "" }))}
+                  onStarterSelect={(prompt) => submitQuestion(prompt)}
+                  onSubmit={() => submitQuestion(state.question)}
+                  placeholder={lang === "id" ? "Ajukan pertanyaan lanjutan..." : "Ask a follow-up question..."}
+                />
+              </div>
+            ) : null}
           </div>
         ) : null}
 
