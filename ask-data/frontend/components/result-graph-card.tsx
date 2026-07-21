@@ -175,25 +175,25 @@ function Tooltip({ node, x, y }: { node: GraphNode; x: number; y: number }) {
 function Legend() {
   return (
     <div className="flex flex-col gap-2 px-1 pt-3">
-      <p className="text-[10px] leading-4 text-slate-400">
-        Angka di dalam lingkaran = <span className="font-semibold text-slate-200">persentase risiko churn</span> nasabah tersebut.
+      <p className="text-[11px] leading-4 text-slate-300">
+        Angka di dalam lingkaran = <span className="font-semibold text-white">persentase risiko churn</span> nasabah tersebut.
       </p>
-      <div className="flex flex-wrap gap-x-5 gap-y-2">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Segmen</span>
+      <div className="flex flex-wrap gap-x-5 gap-y-2.5">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Segmen</span>
           {Object.entries(SEGMENT_COLOR).map(([k, c]) => (
-            <span key={k} className="flex items-center gap-1">
-              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: c }} />
-              <span className="text-[10px] text-slate-300">{k}</span>
+            <span key={k} className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-white/20" style={{ background: c }} />
+              <span className="text-[11px] font-medium text-white">{k}</span>
             </span>
           ))}
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Relasi</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Relasi</span>
           {Object.entries(REL_COLOR).map(([k, c]) => (
             <span key={k} className="flex items-center gap-1.5">
-              <span className="inline-block h-0.5 w-5 rounded" style={{ background: c }} />
-              <span className="text-[10px] text-slate-300">{REL_LABEL[k]}</span>
+              <span className="inline-block h-1 w-5 shrink-0 rounded-full" style={{ background: c }} />
+              <span className="text-[11px] font-medium text-white">{REL_LABEL[k]}</span>
             </span>
           ))}
         </div>
@@ -224,6 +224,20 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
   }, []);
 
   const nodeById = new Map(simNodes.map((n) => [n.id, n]));
+
+  // Direct relationship label to the root, for nodes one hop away.
+  const directRelationToRoot = new Map<string, string>();
+  for (const e of data.edges) {
+    if (e.source === data.root_customer_id) directRelationToRoot.set(e.target, e.relationship_type);
+    if (e.target === data.root_customer_id) directRelationToRoot.set(e.source, e.relationship_type);
+  }
+
+  function nodeSubLabel(n: SimNode): string {
+    if (n.is_root) return "Root";
+    const relation = directRelationToRoot.get(n.id);
+    if (relation) return `${n.city} · ${REL_LABEL[relation] ?? relation}`;
+    return n.city || `Nasabah ${n.nodeNumber}`;
+  }
 
   return (
     <div
@@ -334,9 +348,9 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
               <text x={n.x} y={n.y + 9} textAnchor="middle" fontSize={6.5} fill="rgba(255,255,255,0.75)" fontWeight="600" pointerEvents="none">
                 CHURN
               </text>
-              {/* Node index label below (readable, not the raw scrambled id) */}
-              <text x={n.x} y={n.y + r + 13} textAnchor="middle" fontSize={8} fill="#94a3b8" pointerEvents="none">
-                {isRoot ? "Root" : `Nasabah ${n.nodeNumber}`}
+              {/* Readable sub-label: city + relation to root (not the raw scrambled cif) */}
+              <text x={n.x} y={n.y + r + 13} textAnchor="middle" fontSize={8} fill="#cbd5e1" pointerEvents="none">
+                {nodeSubLabel(n)}
               </text>
             </g>
           );
@@ -375,7 +389,7 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
       )}
 
       {/* Legend */}
-      <div className="border-t border-white/8 px-5 pb-4">
+      <div className="border-t border-white/8 bg-black/25 px-5 pb-4 pt-1">
         <Legend />
       </div>
     </div>
