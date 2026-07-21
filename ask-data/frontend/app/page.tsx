@@ -10,7 +10,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import { AnswerCard } from "@/components/answer-card";
 import { BrandLogo } from "@/components/brand-logo";
 import { ChatInputPanel } from "@/components/chat-input-panel";
-import { DemoGuidePanel } from "@/components/demo-guide-panel";
+import { DemoGuidePanel, type DemoStageContent } from "@/components/demo-guide-panel";
 import { ModelSettingsPanel, type McpServer } from "@/components/model-settings-panel";
 import { NoticePanel } from "@/components/notice-panel";
 import { ResultChartCard } from "@/components/result-chart-card";
@@ -247,52 +247,98 @@ const navItems = [
   },
 ];
 
-const demoBriefingSections = [
+const demoStages: readonly DemoStageContent[] = [
   {
-    id: "use-case",
-    label: "Use Cases",
-    labelId: "Use Cases",
-    title: "Customer Segmentation & Dormancy Intelligence",
-    titleId: "Segmentasi Nasabah & Kecerdasan Risiko Dormant",
-    body:
-      "Ask the Data enables relationship and portfolio teams to explore customer segmentation data in natural language — understanding dormancy risk, segment distribution, and campaign opportunities without writing a single query.",
-    bodyId:
-      "Ask the Data memungkinkan tim relationship dan portfolio untuk mengeksplorasi data segmentasi nasabah dalam bahasa alami — memahami risiko dormant, distribusi segmen, dan peluang kampanye tanpa menulis satu baris query.",
-    bullets: [
-      "Segment distribution — instantly see how customers are distributed across risk segments and identify concentration areas.",
-      "Dormancy risk analysis — surface high-risk dormant customers by balance, segment, or product type in real time.",
-      "Campaign targeting — identify which segments have the highest reactivation potential based on balance and activity patterns.",
-      "Governance — sensitive individual customer data is automatically blocked; all answers are aggregate, defensible, and audit-ready.",
-    ],
-    bulletsId: [
-      "Distribusi segmen — lihat seketika bagaimana nasabah terdistribusi di seluruh segmen risiko dan identifikasi area konsentrasi.",
-      "Analisis risiko dormant — temukan nasabah dormant berisiko tinggi berdasarkan saldo, segmen, atau jenis produk secara real time.",
-      "Targeting kampanye — identifikasi segmen dengan potensi reaktivasi tertinggi berdasarkan pola saldo dan aktivitas.",
-      "Tata kelola — data nasabah individu yang sensitif diblokir otomatis; semua jawaban bersifat agregat, dapat dipertahankan, dan siap audit.",
-    ],
+    id: "context",
+    label: { en: "Context", id: "Konteks" },
+    stageTitle: { en: "Set the scene", id: "Bangun konteks" },
+    say: {
+      en: "Today we're looking at how a portfolio team can go from a broad question to a governed, auditable answer — in one conversation.",
+      id: "Hari ini kita akan lihat bagaimana tim portfolio bisa mulai dari pertanyaan luas sampai jawaban yang aman dan bisa diaudit — dalam satu percakapan.",
+    },
+    ask: "Berapa jumlah nasabah per cluster segmentasi?",
+    highlight: {
+      en: "Natural-language question routed straight to governed SQL — no separate BI tool, no analyst hand-off.",
+      id: "Pertanyaan bahasa natural langsung dirutekan ke SQL yang terkelola — tanpa tool BI terpisah, tanpa serah terima ke analis.",
+    },
+    transition: {
+      en: "Now let's narrow from the whole portfolio down to the customers who actually need attention.",
+      id: "Sekarang kita persempit dari seluruh portofolio ke nasabah yang benar-benar perlu perhatian.",
+    },
+    checklist: {
+      en: ["Keep the opening under 30 seconds", "Frame this as a live conversation, not a report", "Name the audience pain point before asking"],
+      id: ["Jaga pembukaan di bawah 30 detik", "Framing sebagai percakapan langsung, bukan laporan", "Sebutkan pain point audiens sebelum bertanya"],
+    },
+    focusNote: { en: "Establish the portfolio baseline.", id: "Bangun baseline portofolio." },
   },
   {
-    id: "business-impact",
-    label: "Business Impact",
-    labelId: "Dampak Bisnis",
-    title: "Faster Decisions, Safer Portfolios",
-    titleId: "Keputusan Lebih Cepat, Portofolio Lebih Aman",
-    body:
-      "By eliminating the lag between a business question and a management-ready answer, Ask the Data compresses insight cycles from days to seconds — directly improving the quality and speed of portfolio decisions.",
-    bodyId:
-      "Dengan menghilangkan jeda antara pertanyaan bisnis dan jawaban siap manajemen, Ask the Data mempersingkat siklus insight dari hari menjadi detik — langsung meningkatkan kualitas dan kecepatan keputusan portofolio.",
-    bullets: [
-      "Reduce insight lag from days to seconds — answer board-level dormancy questions live, without waiting for the next reporting cycle.",
-      "Enable real-time hypothesis testing — management can explore 'what if' segment scenarios during the meeting itself.",
-      "Lower compliance risk — SQL generation is governed, every answer is traceable, and PII is protected by automated guardrails.",
-      "Scale self-service analytics — business, risk, and relationship teams share the same governed experience without separate tooling.",
-    ],
-    bulletsId: [
-      "Kurangi jeda insight dari hari menjadi detik — jawab pertanyaan dormant level direksi secara langsung, tanpa menunggu siklus pelaporan berikutnya.",
-      "Aktifkan pengujian hipotesis real time — manajemen dapat mengeksplorasi skenario segmen 'bagaimana jika' selama rapat berlangsung.",
-      "Turunkan risiko kepatuhan — pembuatan SQL diatur dengan tata kelola, setiap jawaban dapat dilacak, dan PII dilindungi oleh guardrail otomatis.",
-      "Skalakan analitik swalayan — tim bisnis, risiko, dan relationship berbagi pengalaman yang sama tanpa tooling terpisah.",
-    ],
+    id: "explore",
+    label: { en: "Explore", id: "Eksplorasi" },
+    stageTitle: { en: "Explore the risk", id: "Eksplorasi risiko" },
+    say: {
+      en: "Let's move from distribution to risk — who are the customers driving exposure right now?",
+      id: "Mari beralih dari distribusi ke risiko — nasabah mana yang mendorong eksposur saat ini?",
+    },
+    ask: "Tampilkan nasabah dengan churn risk HIGH dan credit risk BAD",
+    highlight: {
+      en: "Compound filters generated automatically — the model composes the WHERE clause from plain language.",
+      id: "Filter majemuk dibuat otomatis — model menyusun klausa WHERE dari bahasa biasa.",
+    },
+    transition: {
+      en: "One of these customers stands out. Let's look closer at their profile.",
+      id: "Salah satu nasabah ini menonjol. Mari lihat lebih dekat profilnya.",
+    },
+    checklist: {
+      en: ["Pause on the result table", "Pick one customer to carry forward", "Connect the filter logic to a real risk policy"],
+      id: ["Jeda pada tabel hasil", "Pilih satu nasabah untuk dibawa ke tahap berikutnya", "Kaitkan logika filter dengan kebijakan risiko nyata"],
+    },
+    focusNote: { en: "Narrow the portfolio to actionable risk.", id: "Persempit portofolio ke risiko yang bisa ditindaklanjuti." },
+  },
+  {
+    id: "investigate",
+    label: { en: "Investigate", id: "Investigasi" },
+    stageTitle: { en: "Investigate the network", id: "Investigasi jaringan" },
+    say: {
+      en: "This is where it gets interesting — this customer's risk doesn't exist in isolation. Let's see who else is connected.",
+      id: "Di sinilah menariknya — risiko nasabah ini tidak berdiri sendiri. Mari lihat siapa lagi yang terhubung.",
+    },
+    ask: "Tampilkan jaringan risiko untuk cif 5&(FDyJM",
+    highlight: {
+      en: "Graph analytics surfaces co-borrowers, guarantors, and branch clusters — contagion risk a table alone can't show.",
+      id: "Graph analytics menampilkan co-borrower, guarantor, dan klaster cabang — risiko menular yang tidak terlihat dari tabel biasa.",
+    },
+    transition: {
+      en: "Now that we see the exposure, let's find out what policy says we should do about it.",
+      id: "Setelah melihat eksposurnya, mari cari tahu apa yang direkomendasikan kebijakan.",
+    },
+    checklist: {
+      en: ["Let the graph render before narrating", "Point out contagion score, not just node count", "Tie this back to real portfolio risk"],
+      id: ["Biarkan graph selesai render sebelum narasi", "Soroti contagion score, bukan cuma jumlah node", "Kaitkan kembali ke risiko portofolio nyata"],
+    },
+    focusNote: { en: "Show risk that only graph analytics can surface.", id: "Tunjukkan risiko yang hanya bisa dilihat lewat graph analytics." },
+  },
+  {
+    id: "close",
+    label: { en: "Close", id: "Penutup" },
+    stageTitle: { en: "Close with action", id: "Tutup dengan aksi" },
+    say: {
+      en: "We've found the risk and understood its network — now let's turn that into a concrete next step.",
+      id: "Kita sudah menemukan risiko dan memahami jaringannya — sekarang mari ubah menjadi langkah konkret.",
+    },
+    ask: "Kampanye apa yang paling cocok dijalankan untuk nasabah-nasabah ini?",
+    highlight: {
+      en: "From question to recommended campaign in one flow — no separate tooling, fully auditable end to end.",
+      id: "Dari pertanyaan ke rekomendasi kampanye dalam satu alur — tanpa tooling terpisah, sepenuhnya bisa diaudit.",
+    },
+    transition: {
+      en: "That's the full loop — explore, investigate, and act, all in one governed conversation.",
+      id: "Itu satu putaran penuh — eksplorasi, investigasi, dan aksi, semua dalam satu percakapan yang terkelola.",
+    },
+    checklist: {
+      en: ["Land on a business action, not a chart", "Recap the loop in one sentence", "Open the floor for audience questions"],
+      id: ["Berhenti di aksi bisnis, bukan grafik", "Rangkum satu putaran dalam satu kalimat", "Buka sesi tanya jawab audiens"],
+    },
+    focusNote: { en: "End on a decision, not a dataset.", id: "Akhiri dengan keputusan, bukan dataset." },
   },
 ] as const;
 
@@ -309,7 +355,7 @@ export default function HomePage() {
   const [draftProvider, setDraftProvider] = useState("local_qwen");
   const [draftModelId, setDraftModelId] = useState("");
   const [savingModelSettings, setSavingModelSettings] = useState(false);
-  const [activeBriefingSection, setActiveBriefingSection] = useState<string>("use-case");
+  const [activeBriefingSection, setActiveBriefingSection] = useState<string>("context");
   const [lang, setLang] = useState<"en" | "id">("en");
   const [health, setHealth] = useState<HealthState>({
     loading: true,
@@ -1263,9 +1309,9 @@ export default function HomePage() {
 
         {activeView === "guide" ? (
           <DemoGuidePanel
-            sections={[...demoBriefingSections]}
-            activeSectionId={activeBriefingSection}
-            onSelectSection={setActiveBriefingSection}
+            stages={demoStages}
+            activeStageId={activeBriefingSection}
+            onSelectStage={setActiveBriefingSection}
             lang={lang}
           />
         ) : null}
