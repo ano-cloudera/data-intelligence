@@ -73,6 +73,7 @@ from app.services.sql_executor import SQLExecutionError, SQLExecutorService
 from app.services.sql_generator import SQLGeneratorService
 from app.services.sql_guardrails import SQLValidationError
 from app.services.guardrails_service import GuardrailsDecision, GuardrailsService, GuardrailsServiceError
+from app.services.graph_service import get_risk_network
 from app.services.visualization_service import VisualizationService
 
 settings = get_settings()
@@ -1367,3 +1368,18 @@ def aggregation_debug():
     result["quick_stats"] = call_aggregation_tool("quick_stats", {}, settings)
     result["cluster_summary"] = call_aggregation_tool("cluster_summary", {}, settings)
     return result
+
+
+# ── Graph / Risk Network ───────────────────────────────────────────────────────
+
+@app.get("/graph/network")
+def graph_network(customer_id: str, hop_depth: int = 2):
+    """
+    Return risk propagation graph for a given customer.
+    Traverses customer_relationships up to hop_depth hops.
+    Response: { root_customer_id, node_count, edge_count, nodes[], edges[] }
+    """
+    try:
+        return get_risk_network(customer_id=customer_id, hop_depth=min(hop_depth, 3))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
