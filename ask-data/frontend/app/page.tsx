@@ -801,9 +801,13 @@ export default function HomePage() {
     }));
 
     try {
-      // Detect graph/risk network request
-      const graphMatch = trimmed.match(/\b(CUST\d{6,})\b/i);
-      const isGraphRequest = graphMatch && /jaringan|network|risiko|risk|propagasi|terhubung|connected|graph/i.test(trimmed);
+      // Detect graph/risk network request — accepts CUST###### ids or free-form
+      // cif tokens (e.g. "5&(FDyJM") introduced after "cif"/"customer"/"nasabah".
+      const hasGraphKeyword = /jaringan|network|risiko|risk|propagasi|terhubung|connected|graph/i.test(trimmed);
+      const custIdMatch = trimmed.match(/\b(CUST\d{6,})\b/i);
+      const cifMatch = trimmed.match(/\b(?:cif|customer|nasabah)\b[^\w]*([A-Za-z0-9!@#$%^&*()<>]{6,12})\b/i);
+      const graphMatch = custIdMatch ?? cifMatch;
+      const isGraphRequest = Boolean(graphMatch) && hasGraphKeyword;
 
       const connectedMcpUrls = mcpServers
         .filter((s) => s.status === "connected")
@@ -818,7 +822,9 @@ export default function HomePage() {
       let graphData: GraphData | null = null;
       if (isGraphRequest && graphMatch) {
         try {
-          graphData = (await apiClient.getRiskNetwork(graphMatch[1].toUpperCase(), 2)) as GraphData;
+          const rawId = graphMatch[1];
+          const targetId = custIdMatch ? rawId.toUpperCase() : rawId;
+          graphData = (await apiClient.getRiskNetwork(targetId, 2)) as GraphData;
         } catch {
           // graph fetch failure is non-fatal
         }

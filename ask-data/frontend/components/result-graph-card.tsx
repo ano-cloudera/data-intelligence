@@ -156,10 +156,9 @@ function Tooltip({ node, x, y }: { node: GraphNode; x: number; y: number }) {
       <div className="space-y-1">
         {[
           ["Churn Risk",    `${node.churn_risk_label} (${(node.churn_risk * 100).toFixed(0)}%)`],
-          ["Dormant Risk",  node.dormant_risk_level],
-          ["Contagion",     `${(node.contagion_score * 100).toFixed(0)}%`],
           ["Credit",        `${node.credit_risk_label} (${node.credit_score})`],
-          ["Deposit Balance", `Rp ${node.sw_amount.toLocaleString("id-ID")}`],
+          ["Contagion",     `${(node.contagion_score * 100).toFixed(0)}%`],
+          ["Balance",       `Rp ${node.sw_amount.toLocaleString("id-ID")}`],
           ["Location",      `${node.city} · ${node.branch_name}`],
         ].map(([k, v]) => (
           <div key={k} className="flex justify-between gap-4">
@@ -343,9 +342,9 @@ export function ResultGraphCard({ data }: { data: GraphData }) {
           <div className="mt-2 grid grid-cols-4 gap-3">
             {[
               { label: "Churn Risk",   value: selected.churn_risk_label,                     color: RISK_BORDER[selected.risk_level] ?? "#22c55e" },
-              { label: "Dormant Risk", value: selected.dormant_risk_level,                    color: "#eab308" },
+              { label: "Credit",       value: selected.credit_risk_label,                     color: "#eab308" },
               { label: "Contagion",    value: `${(selected.contagion_score * 100).toFixed(0)}%`, color: "#f97316" },
-              { label: "Credit",       value: selected.credit_risk_label,                     color: "#6366f1" },
+              { label: "Balance",      value: `Rp ${(selected.sw_amount / 1_000_000).toFixed(1)}Jt`, color: "#6366f1" },
             ].map(({ label, value, color }) => (
               <div key={label} className="rounded-lg bg-white/5 px-3 py-2">
                 <p className="text-[9px] uppercase tracking-widest text-slate-400">{label}</p>

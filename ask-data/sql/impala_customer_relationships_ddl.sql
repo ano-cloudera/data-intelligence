@@ -1,21 +1,24 @@
 -- =============================================================
 -- customer_relationships — Impala External Table DDL
--- Jasa Raharja Agent Demo — Risk Propagation Graph Edges
--- Generated: 2026-07-16
+-- Bank XYZ Demo — Risk Propagation Graph Edges
+-- Regenerated: 2026-07-21
 --
 -- Graph edges antar nasabah untuk fraud/delinquency propagation demo.
+-- IDs (customer_id / related_customer_id) are `cif` values from
+-- customer_segments_staging — same table domain_config.yaml points to,
+-- so the graph endpoint can join back for credit_score/churn/lat/lng.
 -- Relationship types:
 --   co_borrower    : joint policy / shared loan (risk_weight 0.70–0.95)
 --   guarantor      : one customer guarantees another (risk_weight 0.80–0.99)
---   same_employer  : same employer, layoff risk cluster (risk_weight 0.30–0.60)
+--   same_employer  : same branch + age group proxy (risk_weight 0.30–0.60)
 --   same_branch    : same branch registration (risk_weight 0.10–0.35)
 -- =============================================================
 
 DROP TABLE IF EXISTS cai_sdx_se_indonesia.customer_relationships;
 
 CREATE EXTERNAL TABLE cai_sdx_se_indonesia.customer_relationships (
-    customer_id             STRING      COMMENT 'Source customer. FK to customer_360_agent_studio.customer_id',
-    related_customer_id     STRING      COMMENT 'Target customer. FK to customer_360_agent_studio.customer_id',
+    customer_id             STRING      COMMENT 'Source customer cif. FK to customer_segments_staging.cif',
+    related_customer_id     STRING      COMMENT 'Target customer cif. FK to customer_segments_staging.cif',
     relationship_type       STRING      COMMENT 'co_borrower / guarantor / same_employer / same_branch',
     risk_weight             DOUBLE      COMMENT 'Risk propagation strength. Range 0–1. Higher = stronger contagion',
     is_active               STRING      COMMENT 'true / false — whether the relationship is currently active'

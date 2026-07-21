@@ -4,12 +4,12 @@ from app.db.connection import run_query
 
 _SCHEMA = "cai_sdx_se_indonesia"
 _REL_TABLE = f"{_SCHEMA}.customer_relationships"
-_CUST_TABLE = f"{_SCHEMA}.customer_dormant_segment"
+_CUST_TABLE = f"{_SCHEMA}.customer_segments_staging"
 
 
 def get_risk_network(customer_id: str, hop_depth: int = 2) -> dict:
     """
-    BFS traversal up to hop_depth hops from customer_id.
+    BFS traversal up to hop_depth hops from customer_id (cif).
     Returns nodes (customers) and edges (relationships).
     """
     visited: set[str] = {customer_id}
@@ -54,29 +54,31 @@ def get_risk_network(customer_id: str, hop_depth: int = 2) -> dict:
     node_ids_sql = ", ".join(f"'{cid}'" for cid in visited)
     customer_rows = run_query(f"""
         SELECT
-            customer_id, customer_segment, churn_probability, churn_risk_label,
-            dormant_risk_level, credit_score, credit_risk_label,
-            total_deposit_balance, city, branch_name, dormant_flag
+            cif, cluster_label, churn_probability, churn_risk_label,
+            credit_score, credit_risk_label, saldo_t0, kota, cabang_name,
+            lat, lng
         FROM {_CUST_TABLE}
-        WHERE customer_id IN ({node_ids_sql})
+        WHERE cif IN ({node_ids_sql})
     """)
 
     nodes = []
     for c in customer_rows:
         churn = float(c["churn_probability"]) if c["churn_probability"] else 0.0
         nodes.append({
-            "id":                   c["customer_id"],
-            "label":                c["customer_id"],
-            "segment":              c["customer_segment"],
+            "id":                   c["cif"],
+            "label":                c["cif"],
+            "segment":              c["cluster_label"],
             "churn_risk":           churn,
             "churn_risk_label":     c["churn_risk_label"],
-            "dormant_risk_level":   c["dormant_risk_level"],
+            "dormant_risk_level":   c["churn_risk_label"],
             "credit_score":         int(c["credit_score"]) if c["credit_score"] else 0,
             "credit_risk_label":    c["credit_risk_label"],
-            "sw_amount":            int(c["total_deposit_balance"]) if c["total_deposit_balance"] else 0,
-            "city":                 c["city"],
-            "branch_name":          c["branch_name"],
-            "is_root":              c["customer_id"] == customer_id,
+            "sw_amount":            int(float(c["saldo_t0"])) if c["saldo_t0"] else 0,
+            "city":                 c["kota"],
+            "branch_name":          c["cabang_name"],
+            "lat":                  float(c["lat"]) if c["lat"] else None,
+            "lng":                  float(c["lng"]) if c["lng"] else None,
+            "is_root":              c["cif"] == customer_id,
             "risk_level":           _risk_level(churn),
         })
 
