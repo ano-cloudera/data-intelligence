@@ -98,6 +98,11 @@ class Settings(BaseSettings):
     llm_provider: str = Field(default="local_qwen", alias="LLM_PROVIDER")
     qwen_base_url: str = Field(default="http://localhost:8000/v1", alias="QWEN_BASE_URL")
     qwen_model: str = Field(default="Qwen/Qwen3-8B-AWQ", alias="QWEN_MODEL")
+    # Must match VLLM_MAX_MODEL_LEN configured on the vLLM Application —
+    # there is no live discovery of it, so keep these two in sync manually.
+    # Used only as a safety margin to trim prompts before they are sent,
+    # never to change what the model can actually accept.
+    qwen_max_model_len: int = Field(default=16384, alias="QWEN_MAX_MODEL_LEN_HINT")
     chroma_persist_dir: str = Field(default="./chroma_db", alias="CHROMA_PERSIST_DIR")
     chroma_enabled: bool = Field(default=False, alias="CHROMA_ENABLED")
     chroma_collection: str = Field(default="", alias="CHROMA_COLLECTION")
