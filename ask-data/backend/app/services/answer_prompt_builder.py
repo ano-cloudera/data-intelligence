@@ -54,7 +54,12 @@ def build_answer_messages(
     row_count: int,
     truncated: bool,
     limit_applied: bool,
+    rows_already_capped: bool = False,
 ) -> list[dict[str, str]]:
+    """rows_already_capped: set by the caller when `rows` was already
+    proactively trimmed (e.g. AnswerGeneratorService's row cap) before
+    reaching this function, so the model is told it's seeing a sample
+    even when no further reactive trim happens here."""
     system_prompt = build_answer_system_prompt()
     max_output_tokens = int(os.getenv("QWEN_MAX_TOKENS_ANSWER", "1200"))
     max_model_len = get_settings().qwen_max_model_len
@@ -74,7 +79,7 @@ def build_answer_messages(
             "truncated": truncated,
             "limit_applied": limit_applied,
         }
-        row_preview_truncated_for_prompt = len(sliced_rows) < len(rows)
+        row_preview_truncated_for_prompt = rows_already_capped or len(sliced_rows) < len(rows)
         messages = _build_messages(
             system_prompt,
             original_question,

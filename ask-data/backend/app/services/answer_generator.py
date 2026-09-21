@@ -37,19 +37,33 @@ class AnswerGeneratorService:
                 fallback = "No matching records were found for this request in the current data."
             return LLMChatResult(content=fallback, reasoning=None)
 
+        # Proactive cap: only send up to llm_max_rows_for_narration rows to
+        # the LLM regardless of context window size — the model doesn't
+        # need to see every row to produce a correct, grounded narrative,
+        # and capping here keeps prompts small and predictable by default.
+        # build_answer_messages' own token-budget trim is only a reactive
+        # safety net for whatever still doesn't fit after this cap.
+        narration_cap = self.settings.llm_max_rows_for_narration
+        rows_for_narration = rows[:narration_cap] if len(rows) > narration_cap else rows
+        capped_for_narration = len(rows_for_narration) < len(rows)
+        # If we capped, the answer must still reflect the true row_count —
+        # never let the model think fewer rows exist than actually matched.
+        effective_truncated = truncated or capped_for_narration
+
         messages = build_answer_messages(
             original_question=original_question,
             executed_sql=executed_sql,
             columns=columns,
-            rows=rows,
+            rows=rows_for_narration,
             row_count=row_count,
-            truncated=truncated,
+            truncated=effective_truncated,
             limit_applied=limit_applied,
+            rows_already_capped=capped_for_narration,
         )
         result = self.llm_router.get_client(memory).chat(messages=messages, temperature=0.2)
         answer = result.content
 
-        if truncated and "preview" not in answer.lower():
+        if effective_truncated and "preview" not in answer.lower():
             suffix = (
                 " Hanya preview data yang ditampilkan di sini."
                 if is_indonesian_text(original_question)

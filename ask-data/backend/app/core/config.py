@@ -91,6 +91,17 @@ class Settings(BaseSettings):
     memory_max_history: int = Field(default=10, alias="MEMORY_MAX_HISTORY")
     sql_default_limit: int = Field(default=100, alias="SQL_DEFAULT_LIMIT")
     sql_max_preview_rows: int = Field(default=100, alias="SQL_MAX_PREVIEW_ROWS")
+    # Proactive cap on how many rows go INTO the LLM prompt for narration —
+    # separate from sql_max_preview_rows, which governs the table shown in
+    # the UI. The UI can show more rows than the model needs to see to
+    # produce a correct, grounded narrative. Capping here (source) keeps
+    # prompts small and predictable by default; token_budget.py's trim is
+    # only a reactive safety net for whatever still doesn't fit.
+    llm_max_rows_for_narration: int = Field(default=80, alias="LLM_MAX_ROWS_FOR_NARRATION")
+    # Same idea for conversation history sent to the SQL generator: cap the
+    # number of recent turns considered up front, not just when a budget
+    # check fails.
+    llm_max_history_turns: int = Field(default=8, alias="LLM_MAX_HISTORY_TURNS")
     sql_allowed_tables: str = Field(
         default="customer_segments_staging",
         alias="SQL_ALLOWED_TABLES",

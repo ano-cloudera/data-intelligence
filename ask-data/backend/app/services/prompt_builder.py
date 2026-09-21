@@ -116,6 +116,12 @@ def build_text_to_sql_messages(
     system_prompt = build_composed_system_prompt(active_settings)
     max_output_tokens = int(os.getenv("QWEN_MAX_TOKENS_SQL", "1024"))
 
+    # Proactive cap: never consider more than llm_max_history_turns recent
+    # messages in the first place, regardless of context window size —
+    # keeps prompts small and predictable by default rather than relying
+    # only on the reactive trim below to catch an unbounded history.
+    proactive_window = min(4, active_settings.llm_max_history_turns)
+
     # Conversation history/extras are the only safe-to-shrink part of this
     # prompt (system prompt + schema context define correctness and must
     # not be trimmed). Try progressively less context — fewer recent
@@ -123,7 +129,7 @@ def build_text_to_sql_messages(
     # memory context at all — until the estimated prompt fits the
     # server's context window with room left for the SQL output.
     trim_steps = [
-        (4, True),
+        (proactive_window, True),
         (2, True),
         (1, True),
         (1, False),
