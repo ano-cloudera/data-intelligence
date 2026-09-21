@@ -7,6 +7,7 @@ from app.schemas.session import SessionMemoryState
 from app.services.answer_prompt_builder import build_answer_messages
 from app.services.chat_router import is_indonesian_text
 from app.services.llm_router import LLMRouter
+from llm.qwen_client import LLMChatResult
 
 
 class AnswerGeneratorService:
@@ -28,11 +29,13 @@ class AnswerGeneratorService:
         truncated: bool,
         limit_applied: bool,
         memory: SessionMemoryState | None = None,
-    ) -> str:
+    ) -> LLMChatResult:
         if not rows:
             if is_indonesian_text(original_question):
-                return "Tidak ada data yang cocok untuk pertanyaan ini pada hasil saat ini."
-            return "No matching records were found for this request in the current data."
+                fallback = "Tidak ada data yang cocok untuk pertanyaan ini pada hasil saat ini."
+            else:
+                fallback = "No matching records were found for this request in the current data."
+            return LLMChatResult(content=fallback, reasoning=None)
 
         messages = build_answer_messages(
             original_question=original_question,
@@ -43,7 +46,8 @@ class AnswerGeneratorService:
             truncated=truncated,
             limit_applied=limit_applied,
         )
-        answer = self.llm_router.get_client(memory).chat(messages=messages, temperature=0.2)
+        result = self.llm_router.get_client(memory).chat(messages=messages, temperature=0.2)
+        answer = result.content
 
         if truncated and "preview" not in answer.lower():
             suffix = (
@@ -53,4 +57,4 @@ class AnswerGeneratorService:
             )
             answer = f"{answer}{suffix}"
 
-        return answer.strip()
+        return LLMChatResult(content=answer.strip(), reasoning=result.reasoning)

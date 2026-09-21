@@ -53,6 +53,7 @@ export interface ChatQueryResponse {
   session_id: string | null;
   original_question: string;
   answer: string;
+  reasoning?: string | null;
   generated_sql: string;
   executed_sql: string;
   columns: string[];
@@ -68,6 +69,7 @@ export interface ChatAnswerResponse {
   session_id: string | null;
   original_question: string;
   answer: string;
+  reasoning?: string | null;
   mode?: string | null;
   sources?: AnswerSource[];
   metadata?: Record<string, unknown>;
@@ -196,6 +198,9 @@ export interface LLMProviderOptionsResponse {
   active_model_id?: string | null;
   active_model_name?: string | null;
   options: LLMProviderOption[];
+  // Read-only runtime state mirroring the CAI Application env var
+  // VLLM_ENABLE_THINKING. Not settable from this API.
+  thinking_enabled?: boolean;
 }
 
 export interface LLMProviderSelectionResponse {
@@ -326,6 +331,101 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
+/**
+ * Consumes the backend's SSE stream at /chat/answer/stream, dispatching
+ * `event: reasoning` and `event: content` payloads to separate callbacks
+ * so a caller never has to split combined text itself — the backend
+ * already sends reasoning and the final answer as distinct events.
+ */
+async function streamChatAnswer(
+  payload: { question: string; session_id?: string; mcp_server_urls?: string[] },
+  handlers: {
+    onReasoning?: (content: string) => void;
+    onContent?: (data: ChatAnswerResponse) => void;
+    onDone?: () => void;
+    onError?: (error: Error) => void;
+  },
+): Promise<void> {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/chat/answer/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE frames are separated by a blank line.
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary !== -1) {
+        const rawFrame = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+
+        let eventName = "message";
+        let dataLine = "";
+        for (const line of rawFrame.split("\n")) {
+          if (line.startsWith("event:")) {
+            eventName = line.slice("event:".length).trim();
+          } else if (line.startsWith("data:")) {
+            dataLine += line.slice("data:".length).trim();
+          }
+        }
+
+        if (dataLine) {
+          let parsed: Record<string, unknown> = {};
+          try {
+            parsed = JSON.parse(dataLine) as Record<string, unknown>;
+          } catch {
+            parsed = {};
+          }
+
+          if (eventName === "reasoning" && typeof parsed.content === "string") {
+            handlers.onReasoning?.(parsed.content);
+          } else if (eventName === "content") {
+            handlers.onContent?.({
+              session_id: (parsed.session_id as string | null) ?? null,
+              original_question: payload.question,
+              answer: (parsed.content as string) ?? "",
+              mode: (parsed.mode as string | null) ?? undefined,
+              sources: (parsed.sources as AnswerSource[]) ?? [],
+              metadata: (parsed.metadata as Record<string, unknown>) ?? {},
+              visualization: (parsed.visualization as VisualizationSpec | null) ?? null,
+              columns: (parsed.columns as string[]) ?? [],
+              rows: (parsed.rows as Array<Record<string, unknown>>) ?? [],
+              row_count: (parsed.row_count as number) ?? 0,
+              truncated: (parsed.truncated as boolean) ?? false,
+              limit_applied: (parsed.limit_applied as boolean) ?? false,
+            });
+          } else if (eventName === "done") {
+            handlers.onDone?.();
+          }
+        }
+
+        boundary = buffer.indexOf("\n\n");
+      }
+    }
+  } catch (error) {
+    const normalized = error instanceof Error ? error : new Error(String(error));
+    handlers.onError?.(normalized);
+    // Always propagate to the caller too — onError is a side-channel for
+    // callers that want to react inline, not a substitute for the
+    // rejected promise callers already await.
+    throw normalized;
+  }
+}
+
 export const apiClient = {
   health: () => request<HealthResponse>("/health"),
   healthDb: () => request<HealthResponse>("/health/db"),
@@ -344,6 +444,15 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  chatAnswerStream: (
+    payload: { question: string; session_id?: string; mcp_server_urls?: string[] },
+    handlers: {
+      onReasoning?: (content: string) => void;
+      onContent?: (data: ChatAnswerResponse) => void;
+      onDone?: () => void;
+      onError?: (error: Error) => void;
+    },
+  ) => streamChatAnswer(payload, handlers),
   chatAnswer: (payload: { question: string; session_id?: string; mcp_server_urls?: string[] }) =>
     request<ChatAnswerResponse>("/chat/answer", {
       method: "POST",

@@ -32,6 +32,7 @@ import {
 import {
   apiClient,
   type AnswerSource,
+  type ChatAnswerResponse,
   type HealthResponse,
   type AnalyticsEventRecord,
   type AnalyticsSummaryResponse,
@@ -68,6 +69,12 @@ interface ChatMessage {
   row_count?: number;
   truncated?: boolean;
   limit_applied?: boolean;
+  // Thinking/reasoning shown separately from the final answer — only
+  // populated when the backend's VLLM_ENABLE_THINKING is on and the
+  // model actually returned a reasoning block for this turn.
+  reasoning?: string;
+  reasoningDurationMs?: number;
+  reasoningStreaming?: boolean;
 }
 
 interface ChatState {
@@ -96,6 +103,7 @@ interface LLMProvidersState {
   options: LLMProviderOption[];
   activeProvider: string;
   activeModelName: string;
+  thinkingEnabled: boolean;
   error: string;
 }
 
@@ -205,6 +213,7 @@ const initialLlmProvidersState: LLMProvidersState = {
   options: [],
   activeProvider: "local_qwen",
   activeModelName: "",
+  thinkingEnabled: false,
   error: "",
 };
 
@@ -581,6 +590,7 @@ export default function HomePage() {
         options: response.options,
         activeProvider: response.active_provider,
         activeModelName: response.active_model_name || "",
+        thinkingEnabled: response.thinking_enabled ?? false,
         error: "",
       });
       setDraftProvider(preferredProvider);
@@ -591,6 +601,7 @@ export default function HomePage() {
         options: [],
         activeProvider: "local_qwen",
         activeModelName: "",
+        thinkingEnabled: false,
         error: error instanceof Error ? error.message : "Unable to load model providers.",
       });
       setDraftProvider("local_qwen");
@@ -868,11 +879,55 @@ export default function HomePage() {
       const connectedMcpUrls = mcpServers
         .filter((s) => s.status === "connected")
         .map((s) => s.url);
-      const response = await apiClient.chatAnswer({
-        question: trimmed,
-        session_id: sessionId,
-        mcp_server_urls: connectedMcpUrls.length > 0 ? connectedMcpUrls : undefined,
-      });
+
+      const assistantId = `assistant-${Date.now()}`;
+      let reasoningStartedAt: number | null = null;
+      let placeholderInserted = false;
+
+      const ensurePlaceholder = () => {
+        if (placeholderInserted) return;
+        placeholderInserted = true;
+        setState((cur) => ({
+          ...cur,
+          messages: [
+            ...cur.messages,
+            { id: assistantId, role: "assistant", content: "", reasoningStreaming: true },
+          ],
+        }));
+      };
+
+      let finalResponse: ChatAnswerResponse | null = null;
+
+      await apiClient.chatAnswerStream(
+        {
+          question: trimmed,
+          session_id: sessionId,
+          mcp_server_urls: connectedMcpUrls.length > 0 ? connectedMcpUrls : undefined,
+        },
+        {
+          onReasoning: (content) => {
+            reasoningStartedAt = reasoningStartedAt ?? Date.now();
+            ensurePlaceholder();
+            setState((cur) => ({
+              ...cur,
+              messages: cur.messages.map((m) =>
+                m.id === assistantId ? { ...m, reasoning: content, reasoningStreaming: true } : m,
+              ),
+            }));
+          },
+          onContent: (data) => {
+            finalResponse = data;
+          },
+          onDone: () => {
+            // handled after the stream resolves, once graph lookups (if any) finish
+          },
+        },
+      );
+
+      const response = finalResponse as ChatAnswerResponse | null;
+      if (!response) {
+        throw new Error("No response received from the assistant.");
+      }
 
       // Track the most specific customer id mentioned so a later follow-up
       // ("jaringan risiko untuk nasabah ini") can resolve without repeating it.
@@ -901,8 +956,9 @@ export default function HomePage() {
         }
       }
 
+      const reasoningDurationMs = reasoningStartedAt ? Date.now() - reasoningStartedAt : undefined;
       const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
+        id: assistantId,
         role: "assistant",
         content: response.answer,
         mode: response.mode ?? undefined,
@@ -916,12 +972,17 @@ export default function HomePage() {
         row_count: response.row_count ?? 0,
         truncated: response.truncated ?? false,
         limit_applied: response.limit_applied ?? false,
+        reasoning: response.reasoning ?? undefined,
+        reasoningDurationMs,
+        reasoningStreaming: false,
       };
       setState((cur) => ({
         ...cur,
         loading: false,
         sessionId,
-        messages: [...cur.messages, assistantMessage],
+        messages: placeholderInserted
+          ? cur.messages.map((m) => (m.id === assistantId ? assistantMessage : m))
+          : [...cur.messages, assistantMessage],
       }));
     } catch (error) {
       setState((cur) => ({
@@ -1249,7 +1310,16 @@ export default function HomePage() {
                       <UserMessageCard key={message.id} content={message.content} />
                     ) : (
                       <div key={message.id} className="flex w-full flex-col items-start gap-4">
-                        <AnswerCard answer={message.content} sources={message.sources} mode={message.mode} timestamp={message.timestamp} lang={lang} />
+                        <AnswerCard
+                          answer={message.content}
+                          sources={message.sources}
+                          mode={message.mode}
+                          timestamp={message.timestamp}
+                          lang={lang}
+                          reasoning={message.reasoning}
+                          reasoningDurationMs={message.reasoningDurationMs}
+                          reasoningStreaming={message.reasoningStreaming}
+                        />
                         {guardrailsNotice ? (
                           <div className="w-full max-w-[56rem]">
                             <NoticePanel
@@ -1361,6 +1431,7 @@ export default function HomePage() {
             options={llmProviders.options}
             activeProvider={llmProviders.activeProvider}
             activeModelName={llmProviders.activeModelName}
+            thinkingEnabled={llmProviders.thinkingEnabled}
             draftProvider={draftProvider}
             draftModelId={draftModelId}
             saving={savingModelSettings}

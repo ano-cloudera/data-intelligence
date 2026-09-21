@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { AnswerSource } from "@/lib/api";
 import { PdfViewerModal } from "./pdf-viewer-modal";
@@ -11,6 +11,12 @@ interface AnswerCardProps {
   mode?: string | null;
   timestamp?: string;
   lang?: "en" | "id";
+  // Thinking/reasoning, kept separate from `answer` — only present when
+  // the backend's VLLM_ENABLE_THINKING is on and the model returned a
+  // reasoning block for this turn. Never appended into `answer` itself.
+  reasoning?: string;
+  reasoningDurationMs?: number;
+  reasoningStreaming?: boolean;
 }
 
 interface ModeBadge {
@@ -211,7 +217,78 @@ function renderBlock(block: ContentBlock, index: number): ReactNode {
   );
 }
 
-export function AnswerCard({ answer, sources = [], mode, timestamp, lang = "en" }: AnswerCardProps) {
+function ReasoningPanel({
+  reasoning,
+  durationMs,
+  streaming,
+  lang,
+}: {
+  reasoning: string;
+  durationMs?: number;
+  streaming?: boolean;
+  lang: "en" | "id";
+}) {
+  // Auto-expanded while streaming so the user can watch it think; collapses
+  // by itself the moment streaming finishes (default collapsed after
+  // generation completes), but a manual toggle always overrides that.
+  const [expanded, setExpanded] = useState(Boolean(streaming));
+  const userToggledRef = useRef(false);
+  const wasStreamingRef = useRef(streaming);
+
+  useEffect(() => {
+    if (wasStreamingRef.current && !streaming && !userToggledRef.current) {
+      setExpanded(false);
+    }
+    wasStreamingRef.current = streaming;
+  }, [streaming]);
+
+  const label = streaming
+    ? lang === "id"
+      ? "Berpikir..."
+      : "Thinking..."
+    : durationMs !== undefined
+      ? lang === "id"
+        ? `Berpikir selama ${(durationMs / 1000).toFixed(1)}s`
+        : `Thought for ${(durationMs / 1000).toFixed(1)}s`
+      : lang === "id"
+        ? "Proses berpikir"
+        : "Thought process";
+
+  return (
+    <div className="rounded-[14px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]">
+      <button
+        type="button"
+        onClick={() => {
+          userToggledRef.current = true;
+          setExpanded((v) => !v);
+        }}
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-semibold text-[var(--color-ink-subtle)] transition hover:text-[var(--color-ink-muted)]"
+      >
+        <span className={`inline-block transition-transform ${expanded ? "rotate-90" : ""}`}>▸</span>
+        <span>{label}</span>
+        {streaming ? (
+          <span className="ml-1 inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-action-primary)]" />
+        ) : null}
+      </button>
+      {expanded ? (
+        <div className="border-t border-[var(--color-border-soft)] px-4 py-3">
+          <p className="whitespace-pre-wrap text-xs leading-6 text-[var(--color-ink-subtle)]">{reasoning}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function AnswerCard({
+  answer,
+  sources = [],
+  mode,
+  timestamp,
+  lang = "en",
+  reasoning,
+  reasoningDurationMs,
+  reasoningStreaming,
+}: AnswerCardProps) {
   const blocks = parseAnswerBlocks(answer);
   const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null);
   const badge = getModeBadge(mode);
@@ -246,6 +323,18 @@ export function AnswerCard({ answer, sources = [], mode, timestamp, lang = "en" 
         ) : null}
       </div>
       <div className="space-y-4 px-5 py-4">
+        {/* Thinking/reasoning is shown separately, above the final answer —
+            never merged into the answer blocks below. Only rendered when
+            thinking is enabled and produced content for this turn. */}
+        {reasoning || reasoningStreaming ? (
+          <ReasoningPanel
+            reasoning={reasoning ?? ""}
+            durationMs={reasoningDurationMs}
+            streaming={reasoningStreaming}
+            lang={lang}
+          />
+        ) : null}
+
         {blocks.map((block, index) => renderBlock(block, index))}
 
         {sources.length > 0 ? (

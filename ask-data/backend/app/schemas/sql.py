@@ -49,6 +49,7 @@ class ChatAnswerResponse(BaseModel):
     session_id: str | None = None
     original_question: str
     answer: str
+    reasoning: str | None = None
     mode: str | None = None
     sources: list[AnswerSource] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -83,6 +84,7 @@ class ChatQueryResponse(BaseModel):
     session_id: str | None = None
     original_question: str
     answer: str
+    reasoning: str | None = None
     generated_sql: str
     executed_sql: str
     columns: list[str] = Field(default_factory=list)

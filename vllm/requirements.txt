@@ -1,0 +1,6 @@
+vllm==0.29.0
+openai>=1.99.0
+fastapi
+uvicorn
+requests>=2.31.0
+huggingface_hub>=0.34.0

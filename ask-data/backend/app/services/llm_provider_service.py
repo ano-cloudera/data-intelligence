@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from functools import cached_property
 from collections import Counter
 
@@ -16,13 +17,18 @@ from app.schemas.session import SessionMemoryState
 
 def _qwen_display_name(model_id: str) -> str:
     table = {
-        "Qwen/Qwen2.5-14B-Instruct-AWQ": "Qwen 2.5 · 14B Instruct",
-        "Qwen/Qwen2.5-7B-Instruct-AWQ": "Qwen 2.5 · 7B Instruct",
-        "Qwen/Qwen2.5-3B-Instruct-AWQ": "Qwen 2.5 · 3B Instruct",
+        "/home/cdsw/models/Qwen3.5-9B": "Qwen3.5 · 9B",
         "Qwen/Qwen3-8B-AWQ": "Qwen 3 · 8B",
         "Qwen/Qwen3-14B-AWQ": "Qwen 3 · 14B",
     }
     return table.get(model_id, model_id.split("/")[-1])
+
+
+def _is_thinking_enabled() -> bool:
+    """Application-level toggle, read the same way qwen_client.py reads it.
+    Kept as a tiny local helper (not imported from llm/qwen_client.py) so
+    this module has no hard dependency on the Qwen client existing."""
+    return os.getenv("VLLM_ENABLE_THINKING", "false").strip().lower() == "true"
 
 
 class LLMProviderService:
@@ -44,6 +50,7 @@ class LLMProviderService:
             active_model_id=selection.model_id,
             active_model_name=selection.model_name,
             options=self._build_options(),
+            thinking_enabled=self._is_local_qwen() and _is_thinking_enabled(),
         )
 
     def resolve_selection(

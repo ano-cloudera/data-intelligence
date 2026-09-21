@@ -1,0 +1,275 @@
+table_name: customer_360
+business_name: Jasa Raharja Customer 360 Demo
+description: Synthetic, denormalized customer-level dataset designed for AI Agent
+  Studio demonstrations. It combines customer, vehicle, transaction, claim, location,
+  external context, segmentation, campaign, prediction, and data-quality attributes
+  in one table.
+grain: One row represents one customer and the customer's representative or latest
+  vehicle and transaction context.
+primary_key:
+- customer_id
+intended_agents:
+  customer_intelligence_agent: Analyzes customer segments, customer profiles, geography,
+    renewal likelihood, churn risk, and predicted value.
+  campaign_advisor_agent: Builds target audiences and recommends retention, cross-sell,
+    and upsell actions based on customer profile and model scores.
+ai_usage_rules:
+- Do not invent values that are not present in the table.
+- When explaining a segment, cite the fields used in the explanation.
+- Treat probabilities and scores as model estimates, not guaranteed outcomes.
+- For campaign targeting, prefer records with high cross_sell_score or retention_score
+  and acceptable data_quality_score.
+- Avoid exposing customer_name, exact birth_date, latitude, longitude, or other sensitive
+  fields unless the user explicitly requests them and is authorized.
+- For aggregated answers, use counts, averages, medians, distributions, and top categories
+  rather than exposing individual records.
+- Clearly distinguish observed facts from model-generated fields.
+recommended_thresholds:
+  high_renewal_probability: renewal_probability >= 0.70
+  high_cross_sell_potential: cross_sell_score >= 0.70
+  high_retention_potential: retention_score >= 0.70
+  high_churn_risk: churn_risk >= 0.60
+  trusted_record: data_quality_score >= 0.85
+fields:
+- name: customer_id
+  type: STRING
+  description: Unique synthetic identifier for a customer.
+  business_domain: Identifier
+  data_classification: 'No'
+  ai_guidance: 'Example: CUST000001. Use as the primary customer key.'
+- name: customer_type
+  type: STRING
+  description: Type of customer entity.
+  business_domain: Customer Profile
+  data_classification: 'No'
+  ai_guidance: 'Allowed values: Individual, Organization.'
+- name: customer_name
+  type: STRING
+  description: Synthetic display name of the customer or organization.
+  business_domain: Customer Profile
+  data_classification: 'Yes'
+  ai_guidance: Demo data only. Treat as personally identifiable information in real
+    deployments.
+- name: gender
+  type: STRING
+  description: Gender of an individual customer.
+  business_domain: Customer Profile
+  data_classification: 'Yes'
+  ai_guidance: 'Typical values: Male, Female. May be NULL for organizations.'
+- name: birth_date
+  type: DATE
+  description: Date of birth for an individual customer.
+  business_domain: Customer Profile
+  data_classification: 'Yes'
+  ai_guidance: May be NULL for organizations.
+- name: age
+  type: INT
+  description: Customer age in completed years as of the dataset reference date.
+  business_domain: Customer Profile
+  data_classification: 'Yes'
+  ai_guidance: Derived from birth_date. May be NULL for organizations.
+- name: city
+  type: STRING
+  description: City associated with the customer or registered vehicle.
+  business_domain: Location
+  data_classification: 'Yes'
+  ai_guidance: Use with province, latitude, and longitude.
+- name: province
+  type: STRING
+  description: Province associated with the customer or registered vehicle.
+  business_domain: Location
+  data_classification: 'Yes'
+  ai_guidance: Useful for regional analysis and campaign targeting.
+- name: latitude
+  type: DOUBLE
+  description: Latitude coordinate of the customer or vehicle location.
+  business_domain: Location
+  data_classification: 'Yes'
+  ai_guidance: Approximate demo coordinate. Use for mapping and spatial grouping.
+- name: longitude
+  type: DOUBLE
+  description: Longitude coordinate of the customer or vehicle location.
+  business_domain: Location
+  data_classification: 'Yes'
+  ai_guidance: Approximate demo coordinate. Use for mapping and spatial grouping.
+- name: vehicle_id
+  type: STRING
+  description: Unique synthetic identifier for a registered vehicle.
+  business_domain: Vehicle
+  data_classification: 'No'
+  ai_guidance: 'Example: VEH000001.'
+- name: vehicle_type
+  type: STRING
+  description: Category of the registered vehicle.
+  business_domain: Vehicle
+  data_classification: 'No'
+  ai_guidance: 'Examples: Passenger Car, Motorcycle, Bus, Truck.'
+- name: vehicle_brand
+  type: STRING
+  description: Brand or manufacturer of the vehicle.
+  business_domain: Vehicle
+  data_classification: 'No'
+  ai_guidance: 'Examples: Toyota, Honda, Suzuki.'
+- name: vehicle_year
+  type: INT
+  description: Manufacturing year of the vehicle.
+  business_domain: Vehicle
+  data_classification: 'No'
+  ai_guidance: Used to derive vehicle_age.
+- name: vehicle_age
+  type: INT
+  description: Age of the vehicle in years.
+  business_domain: Vehicle
+  data_classification: 'No'
+  ai_guidance: Derived from current year minus vehicle_year.
+- name: plate_region
+  type: STRING
+  description: Regional prefix of the vehicle registration plate.
+  business_domain: Vehicle
+  data_classification: 'No'
+  ai_guidance: 'Example: B, D, F.'
+- name: organization_name
+  type: STRING
+  description: Organization name when customer_type is Organization.
+  business_domain: Customer Profile
+  data_classification: 'Yes'
+  ai_guidance: NULL for individual customers.
+- name: transaction_id
+  type: STRING
+  description: Unique synthetic identifier for the latest Sumbangan Wajib transaction.
+  business_domain: Transaction
+  data_classification: 'No'
+  ai_guidance: 'Example: TRX000001.'
+- name: transaction_date
+  type: DATE
+  description: Date of the latest recorded Sumbangan Wajib transaction.
+  business_domain: Transaction
+  data_classification: 'No'
+  ai_guidance: Use for recency and trend analysis.
+- name: last_payment_date
+  type: DATE
+  description: Most recent payment date recorded for the customer.
+  business_domain: Transaction
+  data_classification: 'No'
+  ai_guidance: Use to identify overdue or inactive customers.
+- name: payment_status
+  type: STRING
+  description: Current payment status of the customer.
+  business_domain: Transaction
+  data_classification: 'No'
+  ai_guidance: 'Typical values: Paid, Overdue, Pending.'
+- name: sw_amount
+  type: DECIMAL(18,2)
+  description: Amount of Sumbangan Wajib associated with the latest transaction.
+  business_domain: Finance
+  data_classification: Confidential
+  ai_guidance: 'Currency: Indonesian Rupiah.'
+- name: penalty_amount
+  type: DECIMAL(18,2)
+  description: Penalty or late fee amount associated with the transaction.
+  business_domain: Finance
+  data_classification: Confidential
+  ai_guidance: Zero indicates no penalty.
+- name: claim_id
+  type: STRING
+  description: Synthetic identifier of a representative or latest claim record.
+  business_domain: Claim
+  data_classification: Confidential
+  ai_guidance: May be NULL when no claim exists.
+- name: claim_count
+  type: INT
+  description: Number of claims associated with the customer.
+  business_domain: Claim
+  data_classification: Confidential
+  ai_guidance: Use for risk and customer profile analysis.
+- name: claim_amount
+  type: DECIMAL(18,2)
+  description: Total or representative claim amount associated with the customer.
+  business_domain: Claim
+  data_classification: Confidential
+  ai_guidance: 'Currency: Indonesian Rupiah.'
+- name: journal_amount
+  type: DECIMAL(18,2)
+  description: Financial journal amount associated with the transaction.
+  business_domain: Finance
+  data_classification: Confidential
+  ai_guidance: Typically used for reconciliation.
+- name: inflation_rate
+  type: DOUBLE
+  description: Inflation rate relevant to the transaction period or region.
+  business_domain: External Context
+  data_classification: 'No'
+  ai_guidance: Stored as percentage points, for example 2.15 means 2.15 percent.
+- name: weather_condition
+  type: STRING
+  description: Weather condition associated with the transaction or regional context.
+  business_domain: External Context
+  data_classification: 'No'
+  ai_guidance: 'Examples: Sunny, Rainy, Cloudy.'
+- name: economic_index
+  type: DOUBLE
+  description: Synthetic economic index representing macroeconomic conditions.
+  business_domain: External Context
+  data_classification: 'No'
+  ai_guidance: Higher values indicate stronger economic conditions in this demo.
+- name: segment
+  type: STRING
+  description: Current customer segment assigned by segmentation logic.
+  business_domain: Analytics
+  data_classification: Confidential
+  ai_guidance: 'Examples: Premium, Growth, Standard, At Risk.'
+- name: renewal_probability
+  type: DOUBLE
+  description: Predicted probability that the customer will renew or pay in the next
+    period.
+  business_domain: Analytics
+  data_classification: Confidential
+  ai_guidance: Range 0 to 1. Higher values indicate higher renewal likelihood.
+- name: cross_sell_score
+  type: DOUBLE
+  description: Predicted suitability score for cross-sell or upsell campaigns.
+  business_domain: Analytics
+  data_classification: Confidential
+  ai_guidance: Range 0 to 1. Higher values indicate stronger campaign potential.
+- name: retention_score
+  type: DOUBLE
+  description: Estimated likelihood that the customer can be retained through engagement.
+  business_domain: Analytics
+  data_classification: Confidential
+  ai_guidance: Range 0 to 1. Higher values indicate stronger retention potential.
+- name: churn_risk
+  type: DOUBLE
+  description: Predicted risk that the customer will become inactive or fail to renew.
+  business_domain: Analytics
+  data_classification: Confidential
+  ai_guidance: Range 0 to 1. Higher values indicate higher churn risk.
+- name: preferred_channel
+  type: STRING
+  description: Preferred communication channel for engagement.
+  business_domain: Campaign
+  data_classification: 'Yes'
+  ai_guidance: 'Examples: WhatsApp, SMS, Email, Call.'
+- name: last_campaign
+  type: STRING
+  description: Most recent campaign associated with the customer.
+  business_domain: Campaign
+  data_classification: Confidential
+  ai_guidance: 'Example: Retention 2026, MTPL Cross-sell, No Campaign.'
+- name: campaign_response
+  type: STRING
+  description: Customer response to the most recent campaign.
+  business_domain: Campaign
+  data_classification: Confidential
+  ai_guidance: 'Examples: Responded, Converted, No Response, Not Contacted.'
+- name: predicted_revenue
+  type: DECIMAL(18,2)
+  description: Estimated future revenue contribution from the customer.
+  business_domain: Analytics
+  data_classification: Confidential
+  ai_guidance: 'Currency: Indonesian Rupiah. Model-generated estimate.'
+- name: data_quality_score
+  type: DOUBLE
+  description: Overall quality score for the customer record.
+  business_domain: Data Governance
+  data_classification: 'No'
+  ai_guidance: Range 0 to 1. Higher values indicate more complete and reliable data.

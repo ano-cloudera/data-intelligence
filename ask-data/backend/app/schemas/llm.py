@@ -27,6 +27,11 @@ class LLMProviderOptionsResponse(BaseModel):
     active_model_id: str | None = None
     active_model_name: str | None = None
     options: list[LLMProviderOption] = Field(default_factory=list)
+    # Read-only runtime state mirroring the CAI Application env var
+    # VLLM_ENABLE_THINKING. This is NOT settable from this API — it can
+    # only be changed by editing the Application's environment variable
+    # and restarting it, so the UI must render it as informational only.
+    thinking_enabled: bool = False
 
 
 class LLMProviderSelectionRequest(BaseModel):

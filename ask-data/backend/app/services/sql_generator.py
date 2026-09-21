@@ -40,10 +40,11 @@ class SQLGeneratorService:
             memory=active_memory,
             settings=self.settings,
         )
-        raw_generated_sql = self.llm_router.get_client(active_memory).chat(
+        chat_result = self.llm_router.get_client(active_memory).chat(
             messages=messages,
             temperature=0.0,
         )
+        raw_generated_sql = chat_result.content
         cleaned_generated_sql = sql_guardrails.normalize_sql(raw_generated_sql)
         descriptor = self.llm_router.get_descriptor(active_memory)
 

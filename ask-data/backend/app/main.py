@@ -1,9 +1,10 @@
+import json
 import logging
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from app.core.config import get_settings
 from app.db.connection import (
@@ -112,6 +113,26 @@ except Exception as _rag_init_exc:
     rag_client = None
 guardrails_service = GuardrailsService(settings=settings)
 visualization_service = VisualizationService()
+
+
+def _log_llm_startup_diagnostics() -> None:
+    """Log only non-sensitive LLM runtime config — never prompts, user
+    messages, credentials, HF tokens, DB passwords, or banking data."""
+    if settings.llm_provider.strip().lower() != "local_qwen":
+        return
+    import os as _os
+
+    thinking_enabled = _os.getenv("VLLM_ENABLE_THINKING", "false").strip().lower() == "true"
+    model_name = settings.qwen_model.split("/")[-1] or settings.qwen_model
+    logger.info("Active model             : %s", model_name)
+    logger.info("Thinking mode enabled    : %s", thinking_enabled)
+    logger.info(
+        "Streaming reasoning      : %s",
+        "Enabled" if thinking_enabled else "Disabled",
+    )
+
+
+_log_llm_startup_diagnostics()
 
 logger.info("ask-data backend startup complete")
 
@@ -652,10 +673,11 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
         or is_acknowledgement(payload.question)
         or not looks_like_data_request(payload.question)
     ):
-        answer = conversation_generator.generate_response(
+        conversation_result = conversation_generator.generate_response(
             question=payload.question,
             memory=session_memory,
         )
+        answer = conversation_result.content
         if payload.session_id:
             memory_store.append_user_message(payload.session_id, payload.question)
             memory_store.append_assistant_message(payload.session_id, answer)
@@ -666,6 +688,7 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
             "session_id": payload.session_id,
             "original_question": payload.question,
             "answer": answer,
+            "reasoning": conversation_result.reasoning,
             "generated_sql": "",
             "executed_sql": "",
             "columns": [],
@@ -690,10 +713,11 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
             session_locked_table=session_locked_table,
         )
     except SQLValidationError:
-        answer = conversation_generator.generate_response(
+        conversation_result = conversation_generator.generate_response(
             question=payload.question,
             memory=session_memory,
         )
+        answer = conversation_result.content
         if payload.session_id:
             memory_store.append_user_message(payload.session_id, payload.question)
             memory_store.append_assistant_message(payload.session_id, answer)
@@ -704,6 +728,7 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
             "session_id": payload.session_id,
             "original_question": payload.question,
             "answer": answer,
+            "reasoning": conversation_result.reasoning,
             "generated_sql": "",
             "executed_sql": "",
             "columns": [],
@@ -727,7 +752,7 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
         columns=execution_result["columns"],
         rows=execution_result["rows"],
     )
-    answer = answer_generator.generate_answer(
+    answer_result = answer_generator.generate_answer(
         original_question=payload.question,
         executed_sql=execution_result["executed_sql"],
         columns=execution_result["columns"],
@@ -737,7 +762,8 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
         limit_applied=execution_result["limit_applied"],
         memory=session_memory,
     )
-    answer, output_guardrails_metadata = _apply_output_guardrails(payload, answer)
+    answer, output_guardrails_metadata = _apply_output_guardrails(payload, answer_result.content)
+    reasoning = answer_result.reasoning
     _store_result_preview(payload.session_id, execution_result)
     if payload.session_id:
         memory_store.append_user_message(payload.session_id, payload.question)
@@ -753,6 +779,7 @@ def _run_chat_flow(payload: ChatQueryRequest) -> dict[str, object]:
         "session_id": payload.session_id,
         "original_question": payload.question,
         "answer": answer,
+        "reasoning": reasoning,
         "generated_sql": generated["cleaned_generated_sql"],
         "executed_sql": execution_result["executed_sql"],
         "columns": execution_result["columns"],
@@ -894,13 +921,13 @@ def _run_rag_chat_flow(
             f"Question: {payload.question}\n\n"
             "Provide a clear and concise answer in English."
         )
-    answer = llm_client.chat(
+    rag_result = llm_client.chat(
         [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
     )
-    answer, output_guardrails_metadata = _apply_output_guardrails(payload, answer)
+    answer, output_guardrails_metadata = _apply_output_guardrails(payload, rag_result.content)
 
     memory_store.append_user_message(payload.session_id, payload.question)
     memory_store.append_assistant_message(payload.session_id, answer)
@@ -911,6 +938,7 @@ def _run_rag_chat_flow(
         "session_id": payload.session_id,
         "original_question": payload.question,
         "answer": answer,
+        "reasoning": rag_result.reasoning,
         "mode": "rag",
         "sources": sources,
         "metadata": output_guardrails_metadata,
@@ -1079,8 +1107,12 @@ def set_table_lock_endpoint(payload: TableLockRequest) -> TableLockResponse:
     )
 
 
-@app.post("/chat/answer", response_model=ChatAnswerResponse)
-def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
+def _resolve_chat_answer_payload(payload: ChatQueryRequest) -> dict[str, object]:
+    """Runs the full chat-answer pipeline (RAG routing / SQL / MCP /
+    conversation) and returns the plain response dict. Shared by both the
+    synchronous JSON endpoint and the SSE streaming endpoint so the two
+    never drift — the SSE endpoint just splits the same result into
+    separate reasoning/content events instead of re-implementing routing."""
     rag_config = (
         memory_store.get_rag_config(payload.session_id)
         if payload.session_id
@@ -1160,10 +1192,17 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
         }
 
     _log_chat_response(endpoint="/chat/answer", payload=payload, response_payload=response_payload)
+    return response_payload
+
+
+@app.post("/chat/answer", response_model=ChatAnswerResponse)
+def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
+    response_payload = _resolve_chat_answer_payload(payload)
     return ChatAnswerResponse(
         session_id=response_payload["session_id"],
         original_question=response_payload["original_question"],
         answer=response_payload["answer"],
+        reasoning=response_payload.get("reasoning"),
         mode=response_payload.get("mode"),
         sources=response_payload.get("sources", []),
         metadata=response_payload.get("metadata", {}),
@@ -1173,6 +1212,66 @@ def chat_answer(payload: ChatQueryRequest) -> ChatAnswerResponse:
         row_count=response_payload.get("row_count", 0),
         truncated=response_payload.get("truncated", False),
         limit_applied=response_payload.get("limit_applied", False),
+    )
+
+
+def _sse_event(event: str, data: dict[str, object]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _stream_chat_answer_events(payload: ChatQueryRequest):
+    """Emit the chat-answer pipeline's result as separate SSE events, so
+    reasoning and final content are never concatenated into one string —
+    the split happens at the response-protocol level, not via regex over
+    combined text. This is not per-token model streaming: the backend
+    still runs the full routing pipeline (RAG/SQL/MCP/conversation) to
+    completion first, then emits its already-separated reasoning/content
+    fields as two events instead of one JSON blob."""
+    try:
+        response_payload = _resolve_chat_answer_payload(payload)
+    except Exception as exc:  # pragma: no cover - defensive; pipeline already catches its own errors
+        logger.exception("chat_answer_stream unhandled exception: %s", exc)
+        yield _sse_event("content", {"content": build_processing_fallback_answer(payload.question)})
+        yield _sse_event("done", {})
+        return
+
+    reasoning = response_payload.get("reasoning")
+    if reasoning:
+        yield _sse_event("reasoning", {"content": reasoning})
+
+    yield _sse_event(
+        "content",
+        {
+            "content": response_payload.get("answer", ""),
+            "session_id": response_payload.get("session_id"),
+            "mode": response_payload.get("mode"),
+            "sources": response_payload.get("sources", []),
+            "metadata": response_payload.get("metadata", {}),
+            "visualization": response_payload.get("visualization"),
+            "columns": response_payload.get("columns", []),
+            "rows": response_payload.get("rows", []),
+            "row_count": response_payload.get("row_count", 0),
+            "truncated": response_payload.get("truncated", False),
+            "limit_applied": response_payload.get("limit_applied", False),
+        },
+    )
+    yield _sse_event("done", {})
+
+
+@app.post("/chat/answer/stream")
+def chat_answer_stream(payload: ChatQueryRequest) -> StreamingResponse:
+    """SSE variant of /chat/answer. Same pipeline and same response data,
+    but delivered as `event: reasoning` (only when thinking produced one)
+    followed by `event: content` then `event: done`, so the frontend can
+    render a separate collapsible reasoning panel instead of mixing it
+    into the visible answer bubble."""
+    return StreamingResponse(
+        _stream_chat_answer_events(payload),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

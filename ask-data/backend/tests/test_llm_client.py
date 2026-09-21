@@ -36,7 +36,8 @@ class BedrockClientTestCase(unittest.TestCase):
             client = BedrockClient(settings=settings, model_id=settings.bedrock_model_id)
             result = client.chat([{"role": "user", "content": "hello"}])
 
-        self.assertEqual(result, "ok")
+        self.assertEqual(result.content, "ok")
+        self.assertIsNone(result.reasoning)
         self.assertEqual(mock_runtime.converse.call_count, 2)
         self.assertEqual(
             mock_runtime.converse.call_args_list[1].kwargs["modelId"],

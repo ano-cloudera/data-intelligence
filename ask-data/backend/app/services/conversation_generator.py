@@ -14,6 +14,7 @@ from app.services.chat_router import (
 from app.services.conversation_prompt_builder import build_conversation_messages
 from app.services.llm_client import LLMClientError
 from app.services.llm_router import LLMRouter
+from llm.qwen_client import LLMChatResult
 
 
 class ConversationGeneratorService:
@@ -29,7 +30,7 @@ class ConversationGeneratorService:
         self,
         question: str,
         memory: SessionMemoryState | None = None,
-    ) -> str:
+    ) -> LLMChatResult:
         recent_question = None
         recent_answer = None
         if memory and memory.messages:
@@ -50,7 +51,7 @@ class ConversationGeneratorService:
         try:
             return self.llm_router.get_client(memory).chat(messages=messages, temperature=0.6)
         except LLMClientError:
-            return self._fallback_response(question)
+            return LLMChatResult(content=self._fallback_response(question), reasoning=None)
 
     @staticmethod
     def _fallback_response(question: str) -> str:

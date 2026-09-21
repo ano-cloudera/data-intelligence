@@ -7,6 +7,7 @@ import boto3
 from openai import AzureOpenAI
 
 from app.core.config import Settings, get_settings
+from llm.qwen_client import LLMChatResult
 
 
 class LLMClientError(RuntimeError):
@@ -14,7 +15,7 @@ class LLMClientError(RuntimeError):
 
 
 class ChatLLMClient(Protocol):
-    def chat(self, messages: list[dict[str, str]], temperature: float = 0.0) -> str: ...
+    def chat(self, messages: list[dict[str, str]], temperature: float = 0.0) -> LLMChatResult: ...
 
 
 @dataclass
@@ -40,7 +41,7 @@ class AzureOpenAIClient:
             api_key=self.settings.azure_openai_api_key,
         )
 
-    def chat(self, messages: list[dict[str, str]], temperature: float = 0.0) -> str:
+    def chat(self, messages: list[dict[str, str]], temperature: float = 0.0) -> LLMChatResult:
         try:
             response = self._client.chat.completions.create(
                 model=self.settings.azure_openai_deployment,
@@ -57,7 +58,9 @@ class AzureOpenAIClient:
         content = self._extract_text(message.content)
         if not content:
             raise LLMClientError("Azure OpenAI returned an empty response.")
-        return content.strip()
+        # Azure OpenAI models used here don't emit a separate reasoning
+        # field — reasoning is always None for this provider.
+        return LLMChatResult(content=content.strip(), reasoning=None)
 
     @staticmethod
     def _extract_text(content: Any) -> str:
@@ -100,7 +103,7 @@ class BedrockClient:
 
         self._client = boto3.client(**client_kwargs)
 
-    def chat(self, messages: list[dict[str, str]], temperature: float = 0.0) -> str:
+    def chat(self, messages: list[dict[str, str]], temperature: float = 0.0) -> LLMChatResult:
         system_messages, conversation_messages = self._to_bedrock_messages(messages)
         try:
             response = self._converse(
@@ -129,7 +132,9 @@ class BedrockClient:
         content = self._extract_bedrock_text(message.get("content", []))
         if not content:
             raise LLMClientError("Bedrock returned an empty response.")
-        return content.strip()
+        # Bedrock models used here don't emit a separate reasoning field —
+        # reasoning is always None for this provider.
+        return LLMChatResult(content=content.strip(), reasoning=None)
 
     def _converse(
         self,

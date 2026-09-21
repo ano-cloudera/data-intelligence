@@ -26,6 +26,7 @@ interface ModelSettingsPanelProps {
   options: LLMProviderOption[];
   activeProvider: string;
   activeModelName: string;
+  thinkingEnabled: boolean;
   draftProvider: string;
   draftModelId: string;
   saving: boolean;
@@ -142,12 +143,21 @@ const t = {
   subheading: { en: "AI Model & Knowledge Base Configuration", id: "Konfigurasi Model AI & Knowledge Base" },
   modelSection: { en: "AI Model", id: "Model AI" },
   modelActive: { en: "Active Model", id: "Model Aktif" },
-  modelName: { en: "Qwen 2.5 (14B Instruct)", id: "Qwen 2.5 (14B Instruct)" },
+  modelName: { en: "Qwen 3.5 (9B Instruct)", id: "Qwen 3.5 (9B Instruct)" },
   modelNote: { en: "Hosted on Cloudera AI Workbench via vLLM", id: "Dijalankan di Cloudera AI Workbench via vLLM" },
+  thinkingModeLabel: { en: "Thinking Mode", id: "Mode Berpikir" },
+  thinkingModeDescription: {
+    en: "Enable Qwen reasoning for complex questions. Reasoning is shown separately from the final answer.",
+    id: "Aktifkan penalaran Qwen untuk pertanyaan kompleks. Penalaran ditampilkan terpisah dari jawaban akhir.",
+  },
+  thinkingModeHelper: {
+    en: "Configured through CAI Application environment variable VLLM_ENABLE_THINKING. Restart the application after changing the value.",
+    id: "Dikonfigurasi melalui environment variable VLLM_ENABLE_THINKING pada CAI Application. Restart aplikasi setelah mengubah nilainya.",
+  },
   disclaimerTitle: { en: "AI-Powered Analytics — Bank XYZ", id: "Analitik Berbasis AI — Bank XYZ" },
   disclaimerBody: {
-    en: "This platform uses a local vLLM (Qwen 2.5) for SQL generation and natural language answers — running fully on-premises for data governance and security. All analytics are grounded in real query results with no hallucinated numbers.",
-    id: "Platform ini menggunakan vLLM lokal (Qwen 2.5) untuk pembuatan SQL dan jawaban bahasa alami — berjalan sepenuhnya on-premises untuk tata kelola data dan keamanan. Semua analitik didasarkan pada hasil kueri nyata tanpa angka yang dikarang.",
+    en: "This platform uses a local vLLM (Qwen 3.5) for SQL generation and natural language answers — running fully on-premises for data governance and security. All analytics are grounded in real query results with no hallucinated numbers.",
+    id: "Platform ini menggunakan vLLM lokal (Qwen 3.5) untuk pembuatan SQL dan jawaban bahasa alami — berjalan sepenuhnya on-premises untuk tata kelola data dan keamanan. Semua analitik didasarkan pada hasil kueri nyata tanpa angka yang dikarang.",
   },
   saveBtn: { en: "Apply Settings", id: "Terapkan Pengaturan" },
   saving: { en: "Saving...", id: "Menyimpan..." },
@@ -216,6 +226,7 @@ export function ModelSettingsPanel({
   error,
   options,
   activeModelName,
+  thinkingEnabled,
   draftModelId,
   saving,
   lang,
@@ -359,6 +370,49 @@ export function ModelSettingsPanel({
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Thinking Mode — read-only runtime state. This is NOT a
+                  settable control: it mirrors the CAI Application env var
+                  VLLM_ENABLE_THINKING, which can only be changed by editing
+                  that Application's environment variable and restarting it.
+                  The toggle below never fires a request — it just reflects
+                  what the backend reported. */}
+              <div className="mt-4 rounded-[18px] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--color-ink-strong)]">
+                      {tr("thinkingModeLabel", lang)}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--color-ink-subtle)]">
+                      {tr("thinkingModeDescription", lang)}
+                    </p>
+                  </div>
+                  <span
+                    aria-hidden="true"
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                      thinkingEnabled ? "bg-[#5c63f2]" : "bg-[var(--color-border-strong)]"
+                    }`}
+                    title={
+                      thinkingEnabled
+                        ? lang === "id"
+                          ? "Aktif (read-only)"
+                          : "ON (read-only)"
+                        : lang === "id"
+                          ? "Nonaktif (read-only)"
+                          : "OFF (read-only)"
+                    }
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        thinkingEnabled ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </span>
+                </div>
+                <p className="mt-3 text-[11px] leading-5 text-[var(--color-ink-subtle)] opacity-80">
+                  {tr("thinkingModeHelper", lang)}
+                </p>
               </div>
 
               <div className="mt-5 flex items-center justify-end gap-3">
@@ -712,7 +766,7 @@ export function ModelSettingsPanel({
                 {[
                   {
                     label: "LLM",
-                    value: "Qwen 2.5 · 14B Instruct AWQ",
+                    value: activeModelName || "Qwen3.5 · 9B",
                     badge: "vLLM",
                     color: "#5c63f2",
                     bg: "rgba(92,99,242,0.07)",
