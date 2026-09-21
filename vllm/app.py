@@ -12,10 +12,41 @@ import requests
 # CONFIGURATION
 # =========================================================
 
+def _resolve_base_dir() -> Path:
+    """Locate the vllm/ directory this file lives in.
+
+    CAI can execute an Application's script as interpreter/notebook code
+    (shown as "Cell In[N]" in the logs), where __file__ is not defined at
+    all — so we can't just trust Path(__file__) like a normal script.
+    Fall back to CDSW_PROJECT_DIR / cwd and search for a "vllm" folder
+    that actually contains this app's files.
+    """
+    script_path = globals().get("__file__")
+    if script_path:
+        return Path(script_path).resolve().parent
+
+    cwd = Path.cwd().resolve()
+    project_dir_env = os.getenv("CDSW_PROJECT_DIR")
+    candidates = ([Path(project_dir_env).resolve()] if project_dir_env else []) + [cwd]
+
+    for base in candidates:
+        for candidate in (base / "vllm", base):
+            if (candidate / "app.py").is_file() and (candidate / "proxy.py").is_file():
+                return candidate
+        for candidate in base.glob("*/vllm"):
+            if (candidate / "app.py").is_file() and (candidate / "proxy.py").is_file():
+                return candidate
+
+    raise RuntimeError(
+        "Unable to locate the vllm/ application directory. "
+        "Set CDSW_PROJECT_DIR or start this Application from the project root."
+    )
+
+
 # Auto-detect: this file lives at <repo>/vllm/app.py, so the repo root
 # is always this file's grandparent — no need to hardcode the CAI project
 # folder name (it can change per clone/project).
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = _resolve_base_dir()
 
 PROJECT_DIR = BASE_DIR.parent
 
