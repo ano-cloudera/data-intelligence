@@ -310,6 +310,25 @@ ENABLE_THINKING = (
     == "true"
 )
 
+# Caps how many reasoning tokens vLLM spends per request before it is
+# forced to close the <think> block and start answering. Unset/blank/0
+# means "no explicit cap" (only the normal max_tokens limit applies).
+# There is no vLLM CLI flag for this — it only exists as a per-request
+# root-level field, so the proxy is the single place that applies it as
+# a server-wide default (same single-source-of-truth pattern as
+# VLLM_ENABLE_THINKING above).
+_raw_thinking_budget = os.getenv(
+    "VLLM_THINKING_BUDGET",
+    ""
+).strip()
+
+THINKING_TOKEN_BUDGET = (
+    int(_raw_thinking_budget)
+    if _raw_thinking_budget.isdigit()
+    and int(_raw_thinking_budget) > 0
+    else None
+)
+
 
 # =========================================================
 # FASTAPI APP
@@ -446,7 +465,8 @@ async def root():
         "status": "running",
         "backend": "vLLM",
         "backend_url": VLLM_BASE_URL,
-        "thinking_enabled": ENABLE_THINKING
+        "thinking_enabled": ENABLE_THINKING,
+        "thinking_token_budget": THINKING_TOKEN_BUDGET
     }
 
 
@@ -472,7 +492,8 @@ async def health():
             return {
                 "status": "ok",
                 "backend": "vLLM",
-                "thinking_enabled": ENABLE_THINKING
+                "thinking_enabled": ENABLE_THINKING,
+                "thinking_token_budget": THINKING_TOKEN_BUDGET
             }
 
         return JSONResponse(
@@ -626,9 +647,26 @@ async def chat_completions(
     ] = chat_template_kwargs
 
 
+    # thinking_token_budget is a root-level field (not inside
+    # chat_template_kwargs) understood directly by vLLM's sampler. Only
+    # apply it when thinking is actually enabled and a positive budget is
+    # configured — forcing it while thinking is off has no effect and
+    # would just be a confusing no-op field on every request.
+    if (
+        ENABLE_THINKING
+        and THINKING_TOKEN_BUDGET is not None
+    ):
+
+        payload[
+            "thinking_token_budget"
+        ] = THINKING_TOKEN_BUDGET
+
+
     print(
         "Thinking mode enabled:",
         ENABLE_THINKING,
+        "| thinking_token_budget:",
+        THINKING_TOKEN_BUDGET if ENABLE_THINKING else None,
         flush=True
     )
 
