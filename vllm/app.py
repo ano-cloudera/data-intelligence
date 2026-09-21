@@ -576,9 +576,15 @@ vllm_cmd = [
 
     "--trust-remote-code",
 
-    # Server-side default; a caller can still opt back in per-request by
-    # sending chat_template_kwargs.enable_thinking=true on its own request.
-    "--chat-template-kwargs",
+    # Qwen3 / Qwen3.5 use the "qwen3" reasoning parser to split reasoning
+    # out of message.content into a separate reasoning/reasoning_content
+    # field. --default-chat-template-kwargs sets the server-wide default;
+    # request-level chat_template_kwargs (sent by qwen_client.py / proxy.py)
+    # still take priority over this default per vLLM's merge behavior.
+    "--reasoning-parser",
+    "qwen3",
+
+    "--default-chat-template-kwargs",
     (
         '{"enable_thinking": true}'
         if VLLM_ENABLE_THINKING
